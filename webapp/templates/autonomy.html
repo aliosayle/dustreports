@@ -1,0 +1,1324 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Autonomy Report - IBA DustReports{% endblock %}
+
+{% block content %}
+<!-- Enhanced Hero Section with DustReports Branding -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="hero-section p-4 rounded-4 text-white position-relative overflow-hidden" 
+             style="background: var(--primary-gradient); min-height: 200px;">
+            <!-- Dust particle background - simplified -->
+            <div class="position-absolute top-0 start-0 w-100 h-100 dust-particles"></div>
+            
+            <div class="row align-items-center position-relative">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="dust-logo me-3" style="width: 64px; height: 64px;">
+                            <div class="position-absolute" style="width: 32px; height: 32px; background: white; border-radius: 50%; opacity: 0.9;"></div>
+                            <div class="position-absolute" style="width: 16px; height: 16px; background: var(--dust-primary); border-radius: 50%; top: 24px; left: 24px;"></div>
+                        </div>
+                        <div>
+                            <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
+                                Stock Autonomy Report
+                            </h1>
+                            <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
+                                Advanced inventory analytics powered by <strong>DustReports</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="hero-stats d-flex flex-column align-items-end">
+                        <div class="d-flex align-items-center mb-2" style="opacity: 0.9;">
+                            <i class="fas fa-chart-line me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Real-time Analytics</span>
+                        </div>
+                        <div class="d-flex align-items-center" style="opacity: 0.9;">
+                            <i class="fas fa-download me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Export Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Professional Filters Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: var(--light-gradient);">
+            <div class="card-header border-0 py-4" style="background: transparent;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="filter-icon me-3" 
+                             style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                            <i class="fas fa-filter text-white"></i>
+                        </div>                        <div>
+                            <h5 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                                Report Filters
+                            </h5>
+                            <p class="mb-0 small" style="color: #718096 !important;">Configure your analysis parameters</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" id="clearBtn">
+                        <i class="fas fa-times me-1"></i>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-body pt-0">
+                <form id="autonomyForm">
+                    <div class="row g-4">
+                        <div class="col-lg-3 col-md-6">
+                            <div class="filter-group">                                <label for="siteSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
+                                    Site Location
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <select class="form-select form-select-lg" id="siteSelect" name="site_code" 
+                                            style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                        <option value="">🌐 All Sites</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-3 col-md-6">
+                            <div class="filter-group">                                <label for="itemSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-box me-2" style="color: var(--dust-secondary);"></i>
+                                    Product Item
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <select class="form-select form-select-lg" id="itemSelect" name="item_code"
+                                            style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                        <option value="">📦 All Items</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-3 col-md-6">
+                            <div class="filter-group">                                <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
+                                    From Date
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="date" class="form-control form-control-lg" id="fromDate" name="from_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-3 col-md-6">
+                            <div class="filter-group">                                <label for="toDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar-check me-2" style="color: var(--dust-secondary);"></i>
+                                    To Date
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="date" class="form-control form-control-lg" id="toDate" name="to_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <button type="submit" class="btn btn-lg me-3 px-5 py-3 position-relative overflow-hidden"
+                                    style="background: var(--primary-gradient); border: none; border-radius: 16px; color: white; font-weight: 600; box-shadow: var(--shadow-lg); transition: all 0.3s ease;">
+                                <span class="position-relative z-1">
+                                    <i class="fas fa-magic me-2"></i>
+                                    Generate Report
+                                </span>
+                                <div class="position-absolute top-50 start-50 translate-middle w-100 h-100 rounded-circle" 
+                                     style="background: rgba(255, 255, 255, 0.1); transform: scale(0); transition: transform 0.3s ease;"></div>
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg px-4 py-3" id="exportBtn" style="display: none; border-radius: 16px; font-weight: 600; box-shadow: var(--shadow-md);">
+                                <i class="fas fa-download me-2"></i>
+                                Export Data
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Loading Indicator -->
+<div class="row mt-4" id="loadingIndicator" style="display: none;">
+    <div class="col-12">
+        <div class="loading-card">
+            <div class="loading-content">
+                <div class="loading-spinner">
+                    <div class="spinner-circle"></div>
+                    <div class="spinner-circle spinner-circle-2"></div>
+                    <div class="spinner-circle spinner-circle-3"></div>
+                </div>
+                <h4 class="loading-title">Generating Your Report</h4>
+                <p class="loading-subtitle">Analyzing inventory data and calculating autonomy metrics...</p>
+                <div class="loading-bar">
+                    <div class="loading-progress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Summary Cards -->
+<div class="row mt-4" id="summaryCards" style="display: none;">
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-primary">
+            <div class="metric-icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalItems" class="metric-value">0</h3>
+                <p class="metric-label">Total Items</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-success">
+            <div class="metric-icon">
+                <i class="fas fa-warehouse"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalStock" class="metric-value">0</h3>
+                <p class="metric-label">Total Stock</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-info">
+            <div class="metric-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="itemsWithStock" class="metric-value">0</h3>
+                <p class="metric-label">Items w/ Stock</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-check"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-warning">
+            <div class="metric-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="lowAutonomy" class="metric-value">0</h3>
+                <p class="metric-label">Low Autonomy</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-secondary">
+            <div class="metric-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="avgAutonomy" class="metric-value">0</h3>
+                <p class="metric-label">Avg Autonomy</p>
+            </div>
+            <div class="metric-trend">
+                <span class="metric-unit">days</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-purple">
+            <div class="metric-icon">
+                <i class="fas fa-calendar-day"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="reportDate" class="metric-value">Today</h3>
+                <p class="metric-label">Report Date</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-clock"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Professional Results Table Section -->
+<div class="row mt-4" id="resultsSection" style="display: none;">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: white;">
+            <div class="card-header border-0 py-4" style="background: var(--light-gradient); border-radius: 16px 16px 0 0;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                        <div class="table-icon me-3" 
+                             style="width: 48px; height: 48px; background: var(--primary-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                            <i class="fas fa-table text-white"></i>
+                        </div>                        <div>
+                            <h4 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                                Autonomy Report Results
+                            </h4>
+                            <p class="mb-0 small" style="color: #718096 !important;">Detailed inventory analysis with autonomy calculations</p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">                        <div class="me-3" style="font-size: 0.85rem; color: #4a5568 !important;">
+                            <i class="fas fa-shield-alt me-1" style="color: var(--dust-accent);"></i>
+                            <strong>Powered by DustReports</strong>
+                        </div>
+                        <div class="results-actions" id="tableButtons" style="display: none;">
+                            <!-- DataTables export buttons will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="table-responsive" style="border-radius: 0 0 16px 16px; overflow: hidden;">
+                    <table class="table modern-table mb-0" id="resultsTable">
+                        <thead style="background: var(--primary-gradient);">
+                            <tr>
+                                <th class="text-white fw-semibold" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-building me-2" style="color: var(--dust-accent);"></i>
+                                        Site
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tag me-2" style="color: var(--dust-accent);"></i>
+                                        Item Code
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-box me-2" style="color: var(--dust-accent);"></i>
+                                        Item Name
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-warehouse me-2" style="color: var(--dust-accent);"></i>
+                                        Current Stock
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-chart-bar me-2" style="color: var(--dust-accent);"></i>
+                                        Total Sales
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-chart-line me-2" style="color: var(--dust-accent);"></i>
+                                        Avg Daily Sales
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-arrow-up me-2" style="color: var(--dust-accent);"></i>
+                                        Max Daily
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-arrow-down me-2" style="color: var(--dust-accent);"></i>
+                                        Min Daily
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-center" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <i class="fas fa-clock me-2" style="color: var(--dust-accent);"></i>
+                                        <div>
+                                            Autonomy
+                                            <small class="d-block opacity-75" style="font-size: 0.7rem;">(Days)</small>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-receipt me-2" style="color: var(--dust-accent);"></i>
+                                        Transactions
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody" style="background: white;">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Error Alert -->
+<div class="error-alert" id="errorAlert" style="display: none;">
+    <div class="error-content">
+        <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="error-message">
+            <h5>Oops! Something went wrong</h5>
+            <p id="errorMessage">An unexpected error occurred</p>
+        </div>
+        <button type="button" class="error-close" onclick="$('#errorAlert').fadeOut()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    /* CSS Variables for consistent theming */
+    :root {
+        --dust-primary: #1a237e;
+        --dust-secondary: #3949ab;
+        --dust-accent: #ff6f00;
+        --dust-light: #e8eaf6;
+        --dust-dark: #0d1b69;
+        --dust-gray: #37474f;
+        --dust-muted: #78909c;
+        --primary-gradient: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
+        --accent-gradient: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+        --light-gradient: linear-gradient(135deg, #ffffff 0%, #e8eaf6 100%);
+        --shadow-sm: 0 2px 4px rgba(26, 35, 126, 0.1);
+        --shadow-md: 0 4px 12px rgba(26, 35, 126, 0.15);
+        --shadow-lg: 0 8px 32px rgba(26, 35, 126, 0.2);
+        --shadow-xl: 0 16px 64px rgba(26, 35, 126, 0.25);
+    }
+    
+    /* Dust particles background pattern */
+    .dust-particles {
+        background-image: 
+            radial-gradient(circle at 20% 20%, rgba(255, 111, 0, 0.1) 2px, transparent 2px),
+            radial-gradient(circle at 80% 40%, rgba(255, 111, 0, 0.15) 1.5px, transparent 1.5px),
+            radial-gradient(circle at 40% 70%, rgba(255, 111, 0, 0.1) 1px, transparent 1px),
+            radial-gradient(circle at 70% 80%, rgba(255, 111, 0, 0.08) 2.5px, transparent 2.5px),
+            radial-gradient(circle at 10% 60%, rgba(255, 111, 0, 0.12) 1.2px, transparent 1.2px);
+        background-size: 100px 100px;
+        opacity: 0.3;
+    }
+      /* Enhanced contrast for better visibility */
+    .card-header h4,
+    .card-header h5 {
+        color: #2d3748 !important;
+        font-weight: 700 !important;
+    }    
+    .text-muted {
+        color: #718096 !important;
+    }
+    
+    /* Dust Particles Background */
+    .dust-particles {
+        background-image: 
+            radial-gradient(circle at 20% 20%, rgba(255, 111, 0, 0.1) 2px, transparent 2px),
+            radial-gradient(circle at 80% 40%, rgba(255, 111, 0, 0.15) 1px, transparent 1px),
+            radial-gradient(circle at 40% 70%, rgba(255, 111, 0, 0.1) 1.5px, transparent 1.5px),
+            radial-gradient(circle at 70% 80%, rgba(255, 111, 0, 0.08) 2.5px, transparent 2.5px),
+            radial-gradient(circle at 10% 60%, rgba(255, 111, 0, 0.12) 1.8px, transparent 1.8px);
+        background-size: 100px 100px, 150px 150px, 120px 120px, 200px 200px, 80px 80px;
+        background-position: 0 0, 50px 50px, 100px 30px, 150px 80px, 200px 10px;
+        opacity: 0.4;
+        animation: dustMove 20s linear infinite;
+    }
+    
+    @keyframes dustMove {
+        0% { background-position: 0 0, 50px 50px, 100px 30px, 150px 80px, 200px 10px; }
+        100% { background-position: 100px 100px, 150px 150px, 200px 130px, 250px 180px, 300px 110px; }
+    }
+    
+    /* Enhanced Card Headers with Better Contrast */
+    .card-header h4,
+    .card-header h5,
+    .card-header h6 {
+        color: var(--dust-dark) !important;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    }
+    
+    /* Enhanced Form Controls */
+    .form-select:focus,
+    .form-control:focus {
+        border-color: var(--dust-secondary) !important;
+        box-shadow: 0 0 0 0.2rem rgba(57, 73, 171, 0.15) !important;
+        transform: translateY(-2px);
+    }
+    
+    .form-select:hover,
+    .form-control:hover {
+        border-color: var(--dust-secondary);
+        transform: translateY(-1px);
+    }
+    
+    /* Enhanced Button Hover Effects */
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl) !important;
+    }
+    
+    .btn:active {
+        transform: translateY(0);
+    }
+    
+    /* Professional Table Styling */
+    .modern-table tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid rgba(26, 35, 126, 0.05);
+    }
+    
+    .modern-table tbody tr:hover {
+        background: linear-gradient(135deg, rgba(26, 35, 126, 0.02) 0%, rgba(57, 73, 171, 0.02) 100%) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(26, 35, 126, 0.08);
+    }
+    
+    .modern-table tbody td {
+        padding: 16px 12px;
+        vertical-align: middle;
+        border: none;
+        font-weight: 500;
+    }
+    
+    /* Enhanced Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(26, 35, 126, 0.08);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--accent-gradient);
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-xl);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .metric-primary .metric-icon { background: var(--primary-gradient); color: white; }
+    .metric-success .metric-icon { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+    .metric-info .metric-icon { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; }
+    .metric-warning .metric-icon { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+    .metric-secondary .metric-icon { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; }
+    .metric-purple .metric-icon { background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white; }
+      .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748 !important;
+        margin-bottom: 0.25rem;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .metric-label {
+        color: #718096 !important;
+        font-weight: 500;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+    
+    /* Enhanced Loading Animation */
+    .loading-card {
+        background: white;
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid rgba(26, 35, 126, 0.08);
+    }
+    
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
+        gap: 1rem;
+    }
+    
+    .spinner-circle {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent-gradient);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .spinner-circle-2 { animation-delay: 0.5s; }
+    .spinner-circle-3 { animation-delay: 1s; }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.7; }
+    }
+      .loading-title {
+        color: #2d3748 !important;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .loading-subtitle {
+        color: #718096 !important;
+        margin-bottom: 2rem;
+    }
+    
+    .loading-bar {
+        height: 6px;
+        background: rgba(26, 35, 126, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .loading-progress {
+        height: 100%;
+        background: var(--accent-gradient);
+        border-radius: 3px;
+        animation: progress 2s linear infinite;
+    }
+    
+    @keyframes progress {
+        0% { width: 0%; transform: translateX(-100%); }
+        50% { width: 100%; transform: translateX(0%); }
+        100% { width: 0%; transform: translateX(100%); }
+    }
+    
+    /* Error Alert Enhancement */
+    .error-alert {
+        position: fixed;
+        top: 2rem;
+        right: 2rem;
+        z-index: 1050;
+        max-width: 400px;
+    }
+    
+    .error-content {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-xl);
+        border-left: 6px solid #dc3545;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .error-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+    
+    .error-message h5 {
+        color: var(--dust-primary);
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+    
+    .error-message p {
+        color: var(--dust-muted);
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+    
+    .error-close {
+        background: none;
+        border: none;
+        color: var(--dust-muted);
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .error-close:hover {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    /* DataTables Professional Styling */
+    .dataTables_wrapper {
+        margin: 0;
+        padding: 1.5rem;
+        background: white;
+    }
+    
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        margin-bottom: 1rem;
+        color: var(--dust-gray);
+    }
+    
+    .dataTables_wrapper .dataTables_filter {
+        text-align: right;
+    }
+    
+    .dataTables_wrapper .dataTables_filter input {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 8px 16px;
+        margin-left: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .dataTables_wrapper .dataTables_filter input:focus {
+        border-color: var(--dust-secondary);
+        box-shadow: 0 0 0 3px rgba(57, 73, 171, 0.1);
+    }
+    
+    .dataTables_wrapper .dataTables_length select {
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        padding: 4px 8px;
+        margin: 0 0.5rem;
+    }
+    
+    .dt-buttons {
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    .dt-button {
+        margin-right: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+        border: 2px solid var(--dust-secondary) !important;
+        background: white !important;
+        color: var(--dust-secondary) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .dt-button:hover {
+        background: var(--dust-secondary) !important;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md) !important;
+    }
+    
+    /* Pagination Enhancement */
+    .dataTables_paginate {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+    
+    .dataTables_paginate .paginate_button {
+        margin: 0 4px;
+        border-radius: 8px;
+        padding: 8px 12px;
+        border: 2px solid transparent;
+        color: var(--dust-gray) !important;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .dataTables_paginate .paginate_button:hover {
+        background: var(--dust-light) !important;
+        border-color: var(--dust-secondary);
+        transform: translateY(-1px);
+    }
+    
+    .dataTables_paginate .paginate_button.current {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .dataTables_info {
+        text-align: center;
+        color: var(--dust-muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    /* Autonomy status colors with enhanced styling */
+    .autonomy-na { 
+        background: linear-gradient(135deg, rgba(108, 117, 125, 0.1) 0%, rgba(108, 117, 125, 0.05) 100%) !important;
+        color: #6c757d !important;
+        font-style: italic;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    .autonomy-critical { 
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(220, 53, 69, 0.08) 100%) !important;
+        color: #721c24 !important; 
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border-left: 4px solid #dc3545;
+    }
+    .autonomy-low { 
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 193, 7, 0.08) 100%) !important;
+        color: #856404 !important;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border-left: 4px solid #ffc107;
+    }
+    .autonomy-medium { 
+        background: linear-gradient(135deg, rgba(13, 202, 240, 0.15) 0%, rgba(13, 202, 240, 0.08) 100%) !important;
+        color: #055160 !important;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border-left: 4px solid #0dcaf0;
+    }
+    .autonomy-high { 
+        background: linear-gradient(135deg, rgba(25, 135, 84, 0.15) 0%, rgba(25, 135, 84, 0.08) 100%) !important;
+        color: #0f5132 !important;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border-left: 4px solid #198754;
+    }
+    .autonomy-unlimited { 
+        background: linear-gradient(135deg, rgba(108, 117, 125, 0.1) 0%, rgba(108, 117, 125, 0.05) 100%) !important;
+        color: #495057 !important;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    /* Responsive Enhancements */
+    @media (max-width: 768px) {
+        .hero-section {
+            min-height: 160px !important;
+            padding: 2rem !important;
+        }
+        
+        .dust-logo {
+            width: 48px !important;
+            height: 48px !important;
+        }
+        
+        .hero-title {
+            font-size: 1.6rem !important;
+        }
+        
+        .metric-card {
+            margin-bottom: 1rem;
+        }
+        
+        .dt-buttons {
+            text-align: center;
+        }
+        
+        .dt-button {
+            margin-bottom: 0.25rem;
+            font-size: 0.75rem !important;
+            padding: 6px 12px !important;
+        }
+        
+        .modern-table th,
+        .modern-table td {
+            padding: 12px 8px;
+            font-size: 0.875rem;
+        }
+        
+        .error-alert {
+            top: 1rem;
+            right: 1rem;
+            left: 1rem;
+            max-width: none;
+        }
+    }
+</style>
+
+<script>
+$(document).ready(function() {
+    let currentFilters = {};    // Load sites and items on page load
+    loadSites();
+    loadItems();
+      // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    $('#toDate').val(today.toISOString().split('T')[0]);
+    $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+    
+    // Initialize Select2 with search functionality
+    initializeSelect2();      function loadSites() {
+        $.get('/api/sites')
+            .done(function(data) {
+                const siteSelect = $('#siteSelect');
+                siteSelect.find('option:not(:first)').remove(); // Clear existing options except "All Sites"
+                if (Array.isArray(data)) {
+                    data.forEach(function(site) {
+                        siteSelect.append(`<option value="${site.id}">${site.id} - ${site.name}</option>`);
+                    });
+                }
+                // Refresh Select2 after loading new options
+                updateSitesSelect2();
+            })
+            .fail(function() {
+                console.log('Failed to load sites - this is normal if data is not loaded yet');
+            });
+    }
+      function loadItems() {
+        $.get('/api/items')
+            .done(function(data) {
+                const itemSelect = $('#itemSelect');
+                itemSelect.find('option:not(:first)').remove(); // Clear existing options except "All Items"
+                if (Array.isArray(data)) {
+                    data.forEach(function(item) {
+                        itemSelect.append(`<option value="${item.code}">${item.code} - ${item.name}</option>`);
+                    });
+                }                // Refresh Select2 after loading new options
+                $('#itemSelect').select2('destroy').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: '📦 Search and select item...',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#itemSelect').closest('.filter-input-wrapper'),
+                    minimumInputLength: 0,
+                    escapeMarkup: function(markup) { 
+                        return markup; 
+                    },
+                    language: {
+                        noResults: function() {
+                            return '<i class="fas fa-info-circle me-2"></i>No items found';
+                        },
+                        searching: function() {
+                            return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+                        }
+                    }
+                });
+            })
+            .fail(function() {
+                console.log('Failed to load items - this is normal if data is not loaded yet');
+            });
+    }    // Initialize Select2 components
+    function initializeSelect2() {
+        // Initialize Site Select2
+        $('#siteSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: '🌐 Search and select site...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('.filter-input-wrapper').first(),
+            minimumInputLength: 0,
+            maximumSelectionLength: 1,
+            closeOnSelect: true,
+            escapeMarkup: function(markup) { 
+                return markup; 
+            },
+            language: {
+                noResults: function() {
+                    return '<i class="fas fa-info-circle me-2"></i>No sites found';
+                },
+                searching: function() {
+                    return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+                },
+                inputTooShort: function() {
+                    return '<i class="fas fa-keyboard me-2"></i>Start typing to search';
+                },
+                maximumSelected: function() {
+                    return '<i class="fas fa-exclamation-triangle me-2"></i>You can only select one site';
+                }
+            }
+        });
+        
+        // Initialize Item Select2
+        $('#itemSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: '📦 Search and select item...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#itemSelect').closest('.filter-input-wrapper'),
+            minimumInputLength: 0,
+            maximumSelectionLength: 1,
+            closeOnSelect: true,
+            escapeMarkup: function(markup) { 
+                return markup; 
+            },
+            language: {
+                noResults: function() {
+                    return '<i class="fas fa-info-circle me-2"></i>No items found';
+                },
+                searching: function() {
+                    return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+                },
+                inputTooShort: function() {
+                    return '<i class="fas fa-keyboard me-2"></i>Start typing to search';
+                },
+                maximumSelected: function() {
+                    return '<i class="fas fa-exclamation-triangle me-2"></i>You can only select one item';
+                }
+            }
+        });
+    }    // Update sites Select2 after loading data
+    function updateSitesSelect2() {
+        $('#siteSelect').select2('destroy').select2({
+            theme: 'bootstrap-5',
+            placeholder: '🌐 Search and select site...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#siteSelect').closest('.filter-input-wrapper'),
+            minimumInputLength: 0,
+            escapeMarkup: function(markup) { 
+                return markup; 
+            },
+            language: {
+                noResults: function() {
+                    return '<i class="fas fa-info-circle me-2"></i>No sites found';
+                },
+                searching: function() {
+                    return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+                }
+            }
+        });
+    }
+    
+    $('#autonomyForm').on('submit', function(e) {
+        e.preventDefault();
+        generateReport();
+    });
+      $('#clearBtn').on('click', function() {
+        $('#autonomyForm')[0].reset();
+        $('#resultsSection').hide();
+        $('#summaryCards').hide();
+        $('#exportBtn').hide();
+        $('#errorAlert').hide();
+        
+        // Reset Select2 components
+        $('#siteSelect').val('').trigger('change');
+        $('#itemSelect').val('').trigger('change');
+        
+        // Reset default date range
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+        $('#toDate').val(today.toISOString().split('T')[0]);
+        $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+    });
+    
+    $('#exportBtn').on('click', function() {
+        exportReport();
+    });
+    
+    function generateReport() {
+        const formData = {
+            site_code: $('#siteSelect').val(),
+            item_code: $('#itemSelect').val(),
+            from_date: $('#fromDate').val(),
+            to_date: $('#toDate').val()
+        };
+        
+        currentFilters = formData;
+        
+        $('#loadingIndicator').show();
+        $('#resultsSection').hide();
+        $('#summaryCards').hide();
+        $('#exportBtn').hide();
+        $('#errorAlert').hide();
+        
+        $.ajax({
+            url: '/api/autonomy-report',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData)
+        })
+        .done(function(response) {
+            displayResults(response);
+        })
+        .fail(function(xhr) {
+            const error = xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error occurred';
+            showError(error);
+        })
+        .always(function() {
+            $('#loadingIndicator').hide();
+        });
+    }    function displayResults(data) {        // Calculate summary from the data
+        const totalItems = data.length;
+        const totalStock = data.reduce((sum, row) => sum + (row.CURRENT_STOCK || 0), 0);
+        const itemsWithStock = data.filter(row => (row.CURRENT_STOCK || 0) > 0).length;
+        const itemsLowAutonomy = data.filter(row => (row.STOCK_AUTONOMY_DAYS > 0 && row.STOCK_AUTONOMY_DAYS < 30)).length;
+        const validAutonomyData = data.filter(row => row.STOCK_AUTONOMY_DAYS > 0 && row.STOCK_AUTONOMY_DAYS < 9999);
+        const avgAutonomy = validAutonomyData.length > 0 ? 
+            validAutonomyData.reduce((sum, row) => sum + row.STOCK_AUTONOMY_DAYS, 0) / validAutonomyData.length : 0;
+        
+        // Update summary cards
+        $('#totalItems').text(totalItems.toLocaleString());
+        $('#totalStock').text(Math.round(totalStock).toLocaleString());
+        $('#itemsWithStock').text(itemsWithStock.toLocaleString());
+        $('#lowAutonomy').text(itemsLowAutonomy.toLocaleString());
+        $('#avgAutonomy').text(Math.round(avgAutonomy));
+          // Destroy existing DataTable if it exists
+        if ($.fn.DataTable.isDataTable('#resultsTable')) {
+            $('#resultsTable').DataTable().clear().destroy();
+            $('#resultsTable').empty();
+        }
+        
+        // Ensure table structure is reset
+        $('#resultsTable').html(`
+            <thead class="table-dark">
+                <tr>
+                    <th>Site</th>
+                    <th>Item</th>
+                    <th>Item Name</th>
+                    <th data-type="num">Current Stock</th>
+                    <th data-type="num">Total Sales</th>
+                    <th data-type="num">Avg Daily Sales</th>
+                    <th data-type="num">Max Daily Sales</th>
+                    <th data-type="num">Min Daily Sales</th>
+                    <th data-type="num">Autonomy (Days)</th>
+                    <th data-type="num">Transactions</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody">
+            </tbody>
+        `);
+          // Prepare data for DataTables
+        const tableData = data.map(function(row) {
+            const autonomyClass = getAutonomyClass(row.STOCK_AUTONOMY_DAYS);
+            let autonomyDisplay, autonomySort;
+            
+            if (row.STOCK_AUTONOMY_DAYS === -1) {
+                autonomyDisplay = 'N/A';
+                autonomySort = -1;
+            } else if (row.STOCK_AUTONOMY_DAYS >= 9999) {
+                autonomyDisplay = '∞';
+                autonomySort = 999999;
+            } else {
+                autonomyDisplay = Math.round(row.STOCK_AUTONOMY_DAYS);
+                autonomySort = row.STOCK_AUTONOMY_DAYS;
+            }
+            
+            return [
+                row.SITE || '',
+                row.ITEM || '',
+                row.ITEM_NAME || '',
+                Math.round(row.CURRENT_STOCK || 0),
+                Math.round(row.TOTAL_SALES_QTY || 0),
+                parseFloat((row.AVG_DAILY_SALES || 0).toFixed(2)),
+                Math.round(row.MAX_DAILY_SALES || 0),
+                Math.round(row.MIN_DAILY_SALES || 0),
+                autonomyDisplay,
+                Math.round(row.SALES_TRANSACTIONS || 0),
+                autonomyClass, // Hidden column for row styling
+                autonomySort  // Hidden column for proper sorting
+            ];
+        });
+        
+        // Initialize DataTable with advanced features
+        const table = $('#resultsTable').DataTable({
+            data: tableData,
+            columns: [
+                { title: 'Site' },
+                { title: 'Item' },
+                { title: 'Item Name' },
+                { title: 'Current Stock', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
+                { title: 'Total Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
+                { title: 'Avg Daily Sales', type: 'num' },
+                { title: 'Max Daily Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
+                { title: 'Min Daily Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
+                { title: 'Autonomy (Days)', type: 'num', orderData: [11] }, // Use hidden sort column
+                { title: 'Transactions', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
+                { title: 'Class', visible: false }, // Hidden column for styling
+                { title: 'Sort', visible: false }   // Hidden column for sorting
+            ],
+            order: [[8, 'asc']], // Sort by autonomy days ascending
+            pageLength: 25,            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            responsive: true,
+            dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                 '<"row mb-3"<"col-sm-12 text-center"B>>' +
+                 '<"row"<"col-sm-12"tr>>' +
+                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
+            buttons: [
+                {
+                    extend: 'excel',
+                    title: 'Stock Autonomy Report',
+                    text: '<i class="fas fa-file-excel me-2"></i>Excel',
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] // Exclude hidden columns
+                    }
+                },
+                {
+                    extend: 'csv',
+                    title: 'Stock Autonomy Report',
+                    text: '<i class="fas fa-file-csv me-2"></i>CSV',
+                    className: 'btn btn-info btn-sm',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    }
+                },
+                {
+                    extend: 'pdf',
+                    title: 'Stock Autonomy Report',
+                    text: '<i class="fas fa-file-pdf me-2"></i>PDF',
+                    className: 'btn btn-danger btn-sm',
+                    orientation: 'landscape',
+                    pageSize: 'A4',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    }
+                },
+                {
+                    extend: 'print',
+                    title: 'Stock Autonomy Report',
+                    text: '<i class="fas fa-print me-2"></i>Print',
+                    className: 'btn btn-secondary btn-sm',
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    }
+                }
+            ],
+            createdRow: function(row, data, dataIndex) {
+                // Apply autonomy class styling to the row
+                $(row).addClass(data[10]); // data[10] is the autonomy class
+            },
+            initComplete: function() {
+                // Show the table buttons container
+                $('#tableButtons').show();
+                
+                // Add custom search for autonomy levels
+                this.api().columns().every(function() {
+                    var column = this;
+                    if (column.index() === 8) { // Autonomy column
+                        var select = $('<select class="form-select form-select-sm ms-2"><option value="">All Levels</option></select>')
+                            .appendTo($('.dataTables_filter'))
+                            .on('change', function() {
+                                var val = $.fn.dataTable.util.escapeRegex($(this).val());
+                                column.search(val ? '^' + val + '$' : '', true, false).draw();
+                            });
+                        
+                        // Add autonomy level options
+                        $('<option value="∞">Unlimited</option>').appendTo(select);
+                        for (let i = 0; i <= 365; i += 30) {
+                            let max = i + 30;
+                            if (i === 0) {
+                                $('<option value="">0-30 days</option>').appendTo(select);
+                            } else {
+                                $('<option value="">' + i + '-' + max + ' days</option>').appendTo(select);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        
+        $('#summaryCards').show();
+        $('#resultsSection').show();
+        $('#tableButtons').show();
+        
+        // Hide the old export button since we now have DataTables buttons
+        $('#exportBtn').hide();
+    }    function getAutonomyClass(autonomyDays) {
+        if (autonomyDays === -1) return 'autonomy-na';
+        if (autonomyDays >= 9999) return 'autonomy-unlimited';
+        if (autonomyDays < 7) return 'autonomy-critical';
+        if (autonomyDays < 30) return 'autonomy-low';
+        if (autonomyDays < 90) return 'autonomy-medium';
+        return 'autonomy-high';
+    }
+      function exportReport() {
+        // Get current table data
+        const tableData = [];
+        $('#resultsBody tr').each(function() {
+            const row = {};
+            $(this).find('td').each(function(index) {
+                const headers = ['SITE', 'ITEM', 'ITEM_NAME', 'CURRENT_STOCK', 'TOTAL_SALES_QTY', 'AVG_DAILY_SALES', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'STOCK_AUTONOMY_DAYS', 'SALES_TRANSACTIONS'];
+                row[headers[index]] = $(this).text();
+            });
+            tableData.push(row);
+        });
+        
+        $.ajax({
+            url: '/api/export-excel',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ data: tableData }),
+            xhrFields: {
+                responseType: 'blob'
+            }
+        })
+        .done(function(data, status, xhr) {
+            // Create download link
+            const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `autonomy_report_${new Date().getTime()}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        })
+        .fail(function() {
+            showError('Failed to export report');
+        });
+    }
+      function showError(message) {
+        $('#errorMessage').text(message);
+        $('#errorAlert').show();
+        $('#successAlert').hide();
+    }
+    
+    function showSuccess(message) {
+        if (!$('#successAlert').length) {
+            // Create success alert if it doesn't exist
+            const successAlert = `
+                <div class="alert alert-success mt-4" id="successAlert" style="display: none;">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span id="successMessage"></span>
+                </div>
+            `;
+            $('#errorAlert').after(successAlert);
+        }
+        $('#successMessage').text(message);
+        $('#successAlert').show();
+        $('#errorAlert').hide();
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+            $('#successAlert').fadeOut();
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

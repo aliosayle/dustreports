@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DustReports - Professional Inventory Analytics{% endblock %}</title>    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Corporate Brand Colors */
+            --dust-primary: #1a237e;
+            --dust-secondary: #3949ab;
+            --dust-accent: #ff6f00;
+            --dust-light: #e8eaf6;
+            --dust-dark: #0d1b69;
+            --dust-gray: #37474f;
+            --dust-muted: #78909c;
+            
+            /* Gradients */
+            --primary-gradient: linear-gradient(135deg, var(--dust-primary) 0%, var(--dust-secondary) 100%);
+            --accent-gradient: linear-gradient(135deg, var(--dust-accent) 0%, #ff8f00 100%);
+            --light-gradient: linear-gradient(135deg, #ffffff 0%, var(--dust-light) 100%);
+            --dark-gradient: linear-gradient(135deg, var(--dust-dark) 0%, var(--dust-primary) 100%);
+            
+            /* Shadows */
+            --shadow-sm: 0 2px 4px rgba(26, 35, 126, 0.1);
+            --shadow-md: 0 4px 12px rgba(26, 35, 126, 0.15);
+            --shadow-lg: 0 8px 32px rgba(26, 35, 126, 0.2);
+            --shadow-xl: 0 16px 64px rgba(26, 35, 126, 0.25);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, var(--dust-light) 100%);
+            min-height: 100vh;
+            color: var(--dust-gray);
+            line-height: 1.6;
+        }
+        
+        /* Corporate Header */
+        .navbar {
+            background: var(--primary-gradient) !important;
+            box-shadow: var(--shadow-lg);
+            border-bottom: 3px solid var(--dust-accent);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+        }
+        
+        .navbar-brand {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-brand:hover {
+            transform: translateY(-2px);
+            color: var(--dust-accent) !important;
+        }
+        
+        /* Dust Logo */
+        .dust-logo {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: var(--shadow-md);
+            animation: dustFloat 3s ease-in-out infinite;
+        }
+        
+        .dust-logo::before {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.9;
+        }
+        
+        .dust-logo::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--dust-primary);
+            border-radius: 50%;
+            top: 18px;
+            left: 18px;
+        }
+          @keyframes dustFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-4px); }
+        }
+        
+        /* Dust particles background pattern */
+        .dust-particles {
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(255, 111, 0, 0.1) 2px, transparent 2px),
+                radial-gradient(circle at 80% 40%, rgba(255, 111, 0, 0.15) 1.5px, transparent 1.5px),
+                radial-gradient(circle at 40% 70%, rgba(255, 111, 0, 0.1) 1px, transparent 1px),
+                radial-gradient(circle at 70% 80%, rgba(255, 111, 0, 0.08) 2.5px, transparent 2.5px),
+                radial-gradient(circle at 10% 60%, rgba(255, 111, 0, 0.12) 1.2px, transparent 1.2px);
+            background-size: 100px 100px;
+            opacity: 0.3;
+        }
+        /* Company Info */
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .company-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        
+        .company-tagline {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+        
+        /* Navigation */
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            padding: 0.5rem 1.5rem !important;
+            border-radius: 8px;
+            margin: 0 0.25rem;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white !important;
+            transform: translateY(-1px);
+        }
+        
+        .navbar-nav .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--dust-accent);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        
+        .navbar-nav .nav-link:hover::after,
+        .navbar-nav .nav-link.active::after {
+            width: 80%;
+        }
+        
+        /* Main Content */
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 200px);
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            background: var(--light-gradient);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-gradient);
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .card-header {
+            background: var(--primary-gradient) !important;
+            color: white;
+            border: none;
+            padding: 1.5rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+        }
+        
+        .card-header .card-title {
+            margin: 0;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .card-header i {
+            font-size: 1.5rem;
+            color: var(--dust-accent);
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+        
+        /* Buttons */
+        .btn {
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            border: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-primary:hover {
+            background: var(--dark-gradient);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00c851 0%, #007e33 100%);
+            color: white;
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #33b5e5 0%, #0099cc 100%);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--accent-gradient);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff3547 0%, #cc0000 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--dust-gray) 0%, #455a64 100%);
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-lg {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+        }
+        
+        /* Forms */
+        .form-control,
+        .form-select {
+            border: 2px solid rgba(26, 35, 126, 0.1);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--dust-secondary);
+            box-shadow: 0 0 0 0.2rem rgba(57, 73, 171, 0.25);
+            background: white;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: var(--dust-gray);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Footer */
+        .footer {
+            background: var(--dark-gradient);
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 4rem;
+            position: relative;
+        }
+        
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-gradient);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.4rem;
+            }
+            
+            .dust-logo {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .card-body {
+                padding: 1.5rem;
+            }
+            
+            .main-content {
+                padding: 1rem 0;
+            }
+            
+            .company-tagline {
+                display: none;
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--dust-secondary);
+            border-radius: 4px;
+        }          ::-webkit-scrollbar-thumb:hover {
+            background: var(--dust-primary);
+        }        /* Simple z-index fix for Select2 dropdown visibility */
+        .select2-dropdown {
+            z-index: 9999 !important;
+        }
+        
+        /* Limit Select2 dropdown height and make it scrollable */
+        .select2-results__options {
+            max-height: 200px !important;
+            overflow-y: auto !important;
+        }
+        
+        /* Custom scrollbar for Select2 dropdown only */
+        .select2-results__options::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .select2-results__options::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .select2-results__options::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .select2-results__options::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Ensure table takes full width of card */
+        .table-responsive {
+            width: 100% !important;
+        }
+        
+        .table {
+            width: 100% !important;
+            table-layout: auto !important;
+        }
+        
+        #resultsTable {
+            width: 100% !important;
+        }
+        
+        /* Ensure cards don't clip Select2 dropdowns */
+        .card {
+            overflow: visible !important;
+        }
+        
+        .card-body {
+            overflow: visible !important;
+        }
+        
+        /* Allow dropdowns to extend beyond container boundaries */
+        .container, .container-fluid {
+            overflow: visible !important;
+        }
+        
+        .row {
+            overflow: visible !important;
+        }
+        
+        .col, .col-*, [class*="col-"] {
+            overflow: visible !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Corporate Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <div class="dust-logo"></div>
+                <div class="brand-text">
+                    <div class="company-name">DustReports</div>
+                    <div class="company-tagline">Professional Inventory Analytics</div>
+                </div>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation" 
+                    style="border: none; color: white;">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('autonomy') }}">
+                            <i class="fas fa-chart-line me-2"></i>Stock Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="return false;" style="opacity: 0.6;">
+                            <i class="fas fa-cog me-2"></i>Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Corporate Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8 text-md-start text-center mb-3 mb-md-0">
+                    <div class="d-flex align-items-center justify-content-center justify-content-md-start mb-2">
+                        <div class="dust-logo me-3" style="width: 32px; height: 32px; animation: none;">
+                        </div>
+                        <h5 class="mb-0" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                            DustReports
+                        </h5>
+                    </div>
+                    <p class="mb-0 text-light" style="opacity: 0.8;">
+                        Professional inventory management and analytics platform for enterprise solutions.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end text-center">
+                    <div class="mb-2">
+                        <span style="color: var(--dust-accent); font-weight: 600;">Version 1.0</span>
+                    </div>
+                    <p class="mb-0 text-light" style="opacity: 0.8; font-size: 0.9rem;">
+                        &copy; 2025 DustReports Analytics. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <!-- DataTables Buttons -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

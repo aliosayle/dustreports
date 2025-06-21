@@ -61,8 +61,8 @@
                             </h5>
                             <p class="mb-0 small" style="color: #718096 !important;">Configure your analysis parameters</p>
                         </div>
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" id="clearBtn">
+                    </div>                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill shadow-sm" id="clearBtn" 
+                            style="font-weight: 600; border-width: 2px; transition: all 0.3s ease;">
                         <i class="fas fa-times me-1"></i>
                         Clear All
                     </button>
@@ -617,8 +617,36 @@
     .btn:active {
         transform: translateY(0);
     }
+      /* Professional Table Styling with Enhanced Headers */
+    .modern-table thead th {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        border: none !important;
+        padding: 16px 12px !important;
+    }
     
-    /* Professional Table Styling */
+    /* DataTables header styling */
+    #resultsTable thead th {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        border: none !important;
+    }
+    
+    /* DataTables sorting icons in header */
+    #resultsTable thead th.sorting:before,
+    #resultsTable thead th.sorting:after,
+    #resultsTable thead th.sorting_asc:before,
+    #resultsTable thead th.sorting_asc:after,
+    #resultsTable thead th.sorting_desc:before,
+    #resultsTable thead th.sorting_desc:after {
+        color: var(--dust-accent) !important;
+        opacity: 0.8 !important;
+    }
+    
     .modern-table tbody tr {
         transition: all 0.3s ease;
         border-bottom: 1px solid rgba(26, 35, 126, 0.05);
@@ -635,6 +663,41 @@
         vertical-align: middle;
         border: none;
         font-weight: 500;
+    }
+    
+    /* Enhanced Results Card Header */
+    #resultsSection .card-header {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+    }
+    
+    #resultsSection .card-header h4 {
+        color: white !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        font-weight: 700 !important;
+    }
+      #resultsSection .card-header .small,
+    #resultsSection .card-header p {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+    
+    /* Enhanced Clear Button */
+    #clearBtn {
+        transition: all 0.3s ease;
+    }
+    
+    #clearBtn:hover {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border-color: #dc3545 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3) !important;
+    }
+    
+    /* Ensure table header icons are visible */
+    #resultsTable thead th i {
+        color: var(--dust-accent) !important;
+        opacity: 1 !important;
     }
     
     /* Enhanced Metric Cards */
@@ -1234,13 +1297,20 @@ $(document).ready(function() {
         document.getElementById('totalItems').textContent = totalItems.toLocaleString();
         document.getElementById('totalStock').textContent = Math.round(totalStock).toLocaleString();
         document.getElementById('itemsWithStock').textContent = itemsWithStock.toLocaleString();
-        document.getElementById('lowAutonomy').textContent = itemsLowAutonomy.toLocaleString();
-          // Add period info to the page header or create a new info section
+        document.getElementById('lowAutonomy').textContent = itemsLowAutonomy.toLocaleString();        // Add period info to the page header or create a new info section
         const resultsHeader = document.querySelector('#resultsSection .card-header h4');
         if (resultsHeader && periodDays > 0) {
             resultsHeader.innerHTML = `
-                Autonomy Report Results${periodInfo}
+                <span style="color: white !important; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                    Autonomy Report Results${periodInfo}
+                </span>
             `;
+            // Also update the card header background to make title more visible
+            const cardHeader = resultsHeader.closest('.card-header');
+            if (cardHeader) {
+                cardHeader.style.background = 'var(--primary-gradient)';
+                cardHeader.style.color = 'white';
+            }
         }
           // Update average autonomy card
         document.getElementById('avgAutonomy').textContent = Math.round(avgAutonomy);
@@ -1249,21 +1319,73 @@ $(document).ready(function() {
             $('#resultsTable').DataTable().clear().destroy();
             $('#resultsTable').empty();
         }
-        
-        // Ensure table structure is reset
+          // Ensure table structure is reset with enhanced contrast headers
         $('#resultsTable').html(`
-            <thead class="table-dark">
+            <thead style="background: var(--primary-gradient); color: white !important;">
                 <tr>
-                    <th>Site</th>
-                    <th>Item</th>
-                    <th>Item Name</th>
-                    <th data-type="num">Current Stock</th>
-                    <th data-type="num">Total Sales</th>
-                    <th data-type="num">Avg Daily Sales</th>
-                    <th data-type="num">Max Daily Sales</th>
-                    <th data-type="num">Min Daily Sales</th>
-                    <th data-type="num">Autonomy (Days)</th>
-                    <th data-type="num">Transactions</th>
+                    <th class="text-white fw-bold" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-building me-2" style="color: var(--dust-accent);"></i>
+                            Site
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-tag me-2" style="color: var(--dust-accent);"></i>
+                            Item
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-box me-2" style="color: var(--dust-accent);"></i>
+                            Item Name
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-warehouse me-2" style="color: var(--dust-accent);"></i>
+                            Current Stock
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-chart-bar me-2" style="color: var(--dust-accent);"></i>
+                            Total Sales
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-chart-line me-2" style="color: var(--dust-accent);"></i>
+                            Avg Daily Sales
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-arrow-up me-2" style="color: var(--dust-accent);"></i>
+                            Max Daily Sales
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-arrow-down me-2" style="color: var(--dust-accent);"></i>
+                            Min Daily Sales
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-center" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-clock me-2" style="color: var(--dust-accent);"></i>
+                            <div>
+                                Autonomy
+                                <small class="d-block opacity-75" style="font-size: 0.7rem;">(Days)</small>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-receipt me-2" style="color: var(--dust-accent);"></i>
+                            Transactions
+                        </div>
+                    </th>
                 </tr>
             </thead>
             <tbody id="resultsBody">

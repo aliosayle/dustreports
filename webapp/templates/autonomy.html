@@ -349,8 +349,7 @@
                                             Autonomy
                                             <small class="d-block opacity-75" style="font-size: 0.7rem;">(Days)</small>
                                         </div>
-                                    </div>
-                                </th>
+                                    </div>                                </th>
                                 <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
                                     <div class="d-flex align-items-center justify-content-end">
                                         <i class="fas fa-receipt me-2" style="color: var(--dust-accent);"></i>
@@ -363,8 +362,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
+            </div>        </div>
     </div>
 </div>
 
@@ -421,8 +419,7 @@
     .card-header h5 {
         color: #2d3748 !important;
         font-weight: 700 !important;
-    }    
-    .text-muted {
+    }    .text-muted {
         color: #718096 !important;
     }
     
@@ -1126,9 +1123,7 @@ $(document).ready(function() {
             } else {
                 autonomyDisplay = Math.round(row.STOCK_AUTONOMY_DAYS);
                 autonomySort = row.STOCK_AUTONOMY_DAYS;
-            }
-            
-            return [
+            }            return [
                 row.SITE || '',
                 row.ITEM || '',
                 row.ITEM_NAME || '',
@@ -1146,8 +1141,7 @@ $(document).ready(function() {
         
         // Initialize DataTable with advanced features
         const table = $('#resultsTable').DataTable({
-            data: tableData,
-            columns: [
+            data: tableData,            columns: [
                 { title: 'Site' },
                 { title: 'Item' },
                 { title: 'Item Name' },
@@ -1240,9 +1234,7 @@ $(document).ready(function() {
                     }
                 });
             }
-        });
-        
-        $('#summaryCards').show();
+        });        $('#summaryCards').show();
         $('#resultsSection').show();
         $('#tableButtons').show();
         

@@ -186,6 +186,9 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
         result_df['STOCK_TRANSACTIONS'] = df_stock.groupby(['SITE', 'ITEM']).size().values
         result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
+      # Limit results for performance (remove this line in production)
+    result_df = result_df.head(1000)
+    print(f"📊 Processing {len(result_df)} rows for calculations...")
     
     # Calculate sales analytics from sales_details_df (ITEMS table)
     if 'sales_details' in dataframes and dataframes['sales_details'] is not None:

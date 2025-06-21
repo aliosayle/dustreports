@@ -7,7 +7,6 @@ import io
 import json
 import threading
 import warnings
-from werkzeug.exceptions import BadRequest
 
 # Suppress warnings to match notebook behavior
 warnings.filterwarnings('ignore')

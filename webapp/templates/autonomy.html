@@ -304,9 +304,12 @@
                     <div class="d-flex align-items-center">                        <div class="me-3" style="font-size: 0.85rem; color: #4a5568 !important;">
                             <i class="fas fa-shield-alt me-1" style="color: var(--dust-accent);"></i>
                             <strong>Powered by DustReports</strong>
-                        </div>
-                        <div class="results-actions" id="tableButtons" style="display: none;">
-                            <!-- DataTables export buttons will be inserted here -->
+                        </div>                        <div class="results-actions" id="tableButtons" style="display: none;">
+                            <!-- DataTables export buttons will be inserted here -->                            <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="clearFiltersBtn" 
+                                    title="Clear all search filters">
+                                <i class="fas fa-eraser me-1"></i>
+                                Clear All Filters
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1089,13 +1092,101 @@
             padding: 12px 8px;
             font-size: 0.875rem;
         }
-        
-        .error-alert {
+          .error-alert {
             top: 1rem;
             right: 1rem;
             left: 1rem;
             max-width: none;
-        }
+        }    }
+    
+    /* SearchBuilder Styles */
+    .dtsb-searchBuilder {
+        background: var(--light-gradient) !important;
+        border: 2px solid var(--dust-light) !important;
+        border-radius: 12px !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+    
+    .dtsb-titleRow {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        padding: 12px 16px !important;
+        border-radius: 10px 10px 0 0 !important;
+        font-weight: 600 !important;
+    }
+    
+    .dtsb-group {
+        background: white !important;
+        border: 1px solid var(--dust-light) !important;
+        border-radius: 8px !important;
+        margin: 8px !important;
+        box-shadow: var(--shadow-sm) !important;
+    }
+    
+    .dtsb-criteria {
+        padding: 8px !important;
+        border-bottom: 1px solid var(--dust-light) !important;
+    }
+    
+    .dtsb-criteria:last-child {
+        border-bottom: none !important;
+    }
+    
+    .dtsb-data select,
+    .dtsb-condition select,
+    .dtsb-value input,
+    .dtsb-logic select {
+        border: 1px solid #dee2e6 !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .dtsb-data select:focus,
+    .dtsb-condition select:focus,
+    .dtsb-value input:focus,
+    .dtsb-logic select:focus {
+        border-color: var(--dust-accent) !important;
+        box-shadow: 0 0 0 2px rgba(255, 111, 0, 0.2) !important;
+        outline: none !important;
+    }
+    
+    .dtsb-button {
+        background: var(--accent-gradient) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 6px 12px !important;
+        transition: all 0.3s ease !important;
+        font-weight: 500 !important;
+    }
+    
+    .dtsb-button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+    
+    /* Clear Filters Button Enhancement */
+    #clearFiltersBtn {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+    }
+    
+    #clearFiltersBtn:hover {
+        background-color: #6c757d !important;
+        color: white !important;
+        border-color: #6c757d !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3) !important;
+    }
+    #resultsTable thead th input[type="number"]:first-of-type {
+        right: 66px;
+        left: auto;
+    }
+    
+    #resultsTable thead th input[type="number"]:last-of-type {
+        right: 4px;
+        left: auto;
     }
 </style>
 
@@ -1460,10 +1551,10 @@ $(document).ready(function() {
                 autonomySort  // Hidden column for proper sorting
             ];
         });
-        
-        // Initialize DataTable with advanced features
+          // Initialize DataTable with advanced features and column filtering
         const table = $('#resultsTable').DataTable({
-            data: tableData,            columns: [
+            data: tableData,
+            columns: [
                 { title: 'Site' },
                 { title: 'Item' },
                 { title: 'Item Name' },
@@ -1479,14 +1570,34 @@ $(document).ready(function() {
                 { title: 'Class', visible: false }, // Hidden column for styling
                 { title: 'Sort', visible: false }   // Hidden column for sorting
             ],
-            order: [[8, 'asc']], // Sort by autonomy days ascending
-            pageLength: 25,            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            responsive: true,
-            dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+            order: [[9, 'asc']], // Sort by autonomy days ascending (adjusted for category column)
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],            responsive: true,
+            searchHighlight: true,
+            searchBuilder: {
+                columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // All visible columns except hidden ones
+                conditions: {
+                    string: {
+                        contains: null,
+                        equals: null,
+                        startsWith: null,
+                        endsWith: null
+                    },
+                    num: {
+                        '>': null,
+                        '<': null,
+                        '=': null,
+                        '>=': null,
+                        '<=': null,
+                        '!=': null,
+                        'between': null
+                    }
+                }
+            },dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
                  '<"row mb-3"<"col-sm-12 text-center"B>>' +
+                 '<"row mb-3"<"col-sm-12"Q>>' +
                  '<"row"<"col-sm-12"tr>>' +
-                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
-            buttons: [
+                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',            buttons: [
                 {
                     extend: 'excel',
                     title: 'Stock Autonomy Report',
@@ -1522,15 +1633,37 @@ $(document).ready(function() {
                 }],            createdRow: function(row, data, dataIndex) {
                 // Apply autonomy class styling to the row
                 $(row).addClass(data[12]); // data[12] is the autonomy class (shifted by one due to new category column)
-            },
-            initComplete: function() {
+            },            initComplete: function() {
                 // Show the table buttons container
                 $('#tableButtons').show();
+                
+                // Configure SearchBuilder styling
+                $('.dt-button.dtsb-button').addClass('btn btn-primary btn-sm me-2');
+                $('.dtsb-searchBuilder').addClass('card shadow-sm p-3 mt-3');
+                $('.dtsb-group').addClass('border rounded p-2 mb-2');
+                $('.dtsb-criteria').addClass('d-flex align-items-center gap-2 mb-2');
+                $('.dtsb-value input, .dtsb-condition select, .dtsb-data select').addClass('form-control form-control-sm');
+                $('.dtsb-logic select').addClass('form-select form-select-sm');
             }
         });
-        
-        // Store table reference globally for filtering
+          // Store table reference globally for filtering
         window.autonomyTable = table;
+        
+        // Add clear filters button functionality for SearchBuilder
+        $('#clearFiltersBtn').off('click').on('click', function() {
+            // Clear SearchBuilder
+            table.searchBuilder.getDetails(true);
+            table.searchBuilder.rebuild();
+            
+            // Clear regular search
+            table.search('').draw();
+            
+            // Clear the autonomy level filter as well
+            $('#autonomyLevelSelect').val('');
+            
+            // Show success message
+            showToast('All filters cleared successfully!', 'success');
+        });
         
         // Add autonomy level filter functionality
         $('#autonomyLevelSelect').off('change').on('change', function() {
@@ -1564,7 +1697,33 @@ $(document).ready(function() {
         if (autonomyDays < 7) return 'autonomy-critical';
         if (autonomyDays < 30) return 'autonomy-low';
         if (autonomyDays < 90) return 'autonomy-medium';
-        return 'autonomy-high';
+        return 'autonomy-high';    }
+    
+    // Helper function to show toast notifications
+    function showToast(message, type = 'info') {
+        // Create toast element
+        const toast = $(`
+            <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `);
+        
+        // Add to page
+        $('body').append(toast);
+        
+        // Show toast
+        toast.toast('show');
+        
+        // Remove after hiding
+        toast.on('hidden.bs.toast', function() {
+            $(this).remove();
+        });
     }
     
     function filterTableByAutonomyLevel(level) {

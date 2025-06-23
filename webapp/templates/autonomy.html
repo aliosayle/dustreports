@@ -328,11 +328,16 @@
                                         <i class="fas fa-tag me-2" style="color: var(--dust-accent);"></i>
                                         Item Code
                                     </div>
-                                </th>
-                                <th class="text-white fw-semibold" style="border: none; padding: 16px 12px;">
+                                </th>                                <th class="text-white fw-semibold" style="border: none; padding: 16px 12px;">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-box me-2" style="color: var(--dust-accent);"></i>
                                         Item Name
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tags me-2" style="color: var(--dust-accent);"></i>
+                                        Category
                                     </div>
                                 </th>
                                 <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
@@ -364,15 +369,24 @@
                                         <i class="fas fa-arrow-down me-2" style="color: var(--dust-accent);"></i>
                                         Min Daily
                                     </div>
-                                </th>
-                                <th class="text-white fw-semibold text-center" data-type="num" style="border: none; padding: 16px 12px;">
+                                </th>                                <th class="text-white fw-semibold text-center" data-type="num" style="border: none; padding: 16px 12px;">
                                     <div class="d-flex align-items-center justify-content-center">
                                         <i class="fas fa-clock me-2" style="color: var(--dust-accent);"></i>
                                         <div>
                                             Autonomy
                                             <small class="d-block opacity-75" style="font-size: 0.7rem;">(Days)</small>
                                         </div>
-                                    </div>                                </th>
+                                    </div>
+                                </th>
+                                <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
+                                    <div class="d-flex align-items-center justify-content-end">
+                                        <i class="fas fa-plus-circle me-2" style="color: var(--dust-accent);"></i>
+                                        <div>
+                                            Restock to 7 Days
+                                            <small class="d-block opacity-75" style="font-size: 0.7rem;">(Qty)</small>
+                                        </div>
+                                    </div>
+                                </th>
                                 <th class="text-white fw-semibold text-end" data-type="num" style="border: none; padding: 16px 12px;">
                                     <div class="d-flex align-items-center justify-content-end">
                                         <i class="fas fa-receipt me-2" style="color: var(--dust-accent);"></i>
@@ -408,15 +422,26 @@
                     <div class="calculation-item mb-3">
                         <strong>Average Daily Sales:</strong>
                         <div class="calculation-desc">Total sales quantity ÷ Number of days in period (rounded to integer)</div>
-                    </div>
-                    <div class="calculation-item mb-3">
+                    </div>                    <div class="calculation-item mb-3">
                         <strong>Stock Autonomy (Days):</strong>
                         <div class="calculation-desc">Current Stock ÷ Average Daily Sales</div>
                         <small class="text-muted">Shows "N/A" for zero stock, "∞" for stock with no sales</small>
                     </div>
                     <div class="calculation-item mb-3">
+                        <strong>Restock to 7 Days:</strong>
+                        <div class="calculation-desc">(7 × Average Daily Sales) - Current Stock</div>
+                        <small class="text-muted">Quantity needed to achieve 7 days of autonomy (0 if already sufficient)</small>
+                    </div><div class="calculation-item mb-3">
                         <strong>Max/Min Daily Sales:</strong>
                         <div class="calculation-desc">Highest/lowest sales quantity on any single day</div>
+                    </div>
+                    <div class="calculation-item">
+                        <strong>Data Filtering:</strong>
+                        <div class="calculation-desc">
+                            <i class="fas fa-info-circle text-info me-1"></i>
+                            Items with no sales in the last 6 months are excluded from this report
+                        </div>
+                        <small class="text-muted">This ensures the report focuses on active inventory items</small>
                     </div>
                 </div>
             </div>
@@ -1334,11 +1359,16 @@ $(document).ready(function() {
                             <i class="fas fa-tag me-2" style="color: var(--dust-accent);"></i>
                             Item
                         </div>
-                    </th>
-                    <th class="text-white fw-bold" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                    </th>                    <th class="text-white fw-bold" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
                         <div class="d-flex align-items-center">
                             <i class="fas fa-box me-2" style="color: var(--dust-accent);"></i>
                             Item Name
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-tags me-2" style="color: var(--dust-accent);"></i>
+                            Category
                         </div>
                     </th>
                     <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
@@ -1370,13 +1400,21 @@ $(document).ready(function() {
                             <i class="fas fa-arrow-down me-2" style="color: var(--dust-accent);"></i>
                             Min Daily Sales
                         </div>
-                    </th>
-                    <th class="text-white fw-bold text-center" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                    </th>                    <th class="text-white fw-bold text-center" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
                         <div class="d-flex align-items-center justify-content-center">
                             <i class="fas fa-clock me-2" style="color: var(--dust-accent);"></i>
                             <div>
                                 Autonomy
                                 <small class="d-block opacity-75" style="font-size: 0.7rem;">(Days)</small>
+                            </div>
+                        </div>
+                    </th>
+                    <th class="text-white fw-bold text-end" data-type="num" style="border: none; padding: 16px 12px; background: var(--primary-gradient) !important;">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <i class="fas fa-plus-circle me-2" style="color: var(--dust-accent);"></i>
+                            <div>
+                                Restock to 7 Days
+                                <small class="d-block opacity-75" style="font-size: 0.7rem;">(Qty)</small>
                             </div>
                         </div>
                     </th>
@@ -1409,12 +1447,14 @@ $(document).ready(function() {
                 row.SITE || '',
                 row.ITEM || '',
                 row.ITEM_NAME || '',
+                row.CATEGORY_NAME || '',
                 Math.round(row.CURRENT_STOCK || 0),
                 Math.round(row.TOTAL_SALES_QTY || 0),
                 Math.round(row.AVG_DAILY_SALES || 0),
                 Math.round(row.MAX_DAILY_SALES || 0),
                 Math.round(row.MIN_DAILY_SALES || 0),
                 autonomyDisplay,
+                Math.round(row.RESTOCK_TO_7_DAYS || 0),
                 Math.round(row.SALES_TRANSACTIONS || 0),
                 autonomyClass, // Hidden column for row styling
                 autonomySort  // Hidden column for proper sorting
@@ -1427,12 +1467,14 @@ $(document).ready(function() {
                 { title: 'Site' },
                 { title: 'Item' },
                 { title: 'Item Name' },
+                { title: 'Category' },
                 { title: 'Current Stock', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Total Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Avg Daily Sales', type: 'num' },
                 { title: 'Max Daily Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Min Daily Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
-                { title: 'Autonomy (Days)', type: 'num', orderData: [11] }, // Use hidden sort column
+                { title: 'Autonomy (Days)', type: 'num', orderData: [13] }, // Use hidden sort column
+                { title: 'Restock to 7 Days', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Transactions', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Class', visible: false }, // Hidden column for styling
                 { title: 'Sort', visible: false }   // Hidden column for sorting
@@ -1449,21 +1491,18 @@ $(document).ready(function() {
                     extend: 'excel',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-file-excel me-2"></i>Excel',
-                    className: 'btn btn-success btn-sm',
-                    exportOptions: {
-                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] // Exclude hidden columns
+                    className: 'btn btn-success btn-sm',                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] // Exclude hidden columns
                     }
-                },
-                {
+                },                {
                     extend: 'csv',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-file-csv me-2"></i>CSV',
                     className: 'btn btn-info btn-sm',
                     exportOptions: {
-                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                     }
-                },
-                {
+                },                {
                     extend: 'pdf',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-file-pdf me-2"></i>PDF',
@@ -1471,21 +1510,18 @@ $(document).ready(function() {
                     orientation: 'landscape',
                     pageSize: 'A4',
                     exportOptions: {
-                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                     }
-                },
-                {
+                },{
                     extend: 'print',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-print me-2"></i>Print',
-                    className: 'btn btn-secondary btn-sm',
-                    exportOptions: {
-                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    className: 'btn btn-secondary btn-sm',                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                     }
-                }            ],
-            createdRow: function(row, data, dataIndex) {
+                }],            createdRow: function(row, data, dataIndex) {
                 // Apply autonomy class styling to the row
-                $(row).addClass(data[10]); // data[10] is the autonomy class
+                $(row).addClass(data[12]); // data[12] is the autonomy class (shifted by one due to new category column)
             },
             initComplete: function() {
                 // Show the table buttons container

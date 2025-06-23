@@ -320,7 +320,8 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['SALES_TRANSACTIONS'] = 0
         result_df['TOTAL_SALES_QTY'] = 0
         result_df['SALES_PERIOD_DAYS'] = 0
-      # Calculate stock autonomy (days of stock remaining at current sales rate)
+    
+    # Calculate stock autonomy (days of stock remaining at current sales rate)
     def calculate_autonomy(row):
         if row['CURRENT_STOCK'] <= 0:
             return -1  # Use -1 to represent N/A for zero stock
@@ -331,19 +332,91 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
     
     result_df['STOCK_AUTONOMY_DAYS'] = result_df.apply(calculate_autonomy, axis=1)
     
+    # Calculate restock quantity needed to reach 7 days of autonomy
+    def calculate_7day_restock(row):
+        if row['AVG_DAILY_SALES'] <= 0:
+            return 0  # No restock needed if no sales
+        
+        seven_day_requirement = row['AVG_DAILY_SALES'] * 7
+        current_stock = row['CURRENT_STOCK']
+        
+        if current_stock >= seven_day_requirement:
+            return 0  # Already have enough stock for 7 days
+        else:
+            return round(seven_day_requirement - current_stock)  # Quantity needed to reach 7 days
+    
+    result_df['RESTOCK_TO_7_DAYS'] = result_df.apply(calculate_7day_restock, axis=1)
+    
+    # Exclude items with no sales in the last 6 months
+    six_months_ago = pd.to_datetime('today') - pd.DateOffset(months=6)
+    
+    # Check if we have sales data to filter
+    if 'sales_details' in dataframes and dataframes['sales_details'] is not None:
+        df_sales_recent = dataframes['sales_details'].copy()
+        
+        # Convert FDATE to datetime if it's not already
+        if 'FDATE' in df_sales_recent.columns:
+            df_sales_recent['FDATE'] = pd.to_datetime(df_sales_recent['FDATE'], errors='coerce')
+            
+            # Filter for sales in the last 6 months
+            df_sales_recent = df_sales_recent[df_sales_recent['FDATE'] >= six_months_ago]
+            
+            # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
+            if 'FTYPE' in df_sales_recent.columns:
+                df_sales_recent = df_sales_recent[df_sales_recent['FTYPE'].isin([1, 2])]
+            
+            # Get unique combinations of SITE and ITEM that had sales in the last 6 months
+            items_with_recent_sales = df_sales_recent[['SITE', 'ITEM']].drop_duplicates()
+            
+            # Filter result_df to only include items with sales in the last 6 months
+            result_df = result_df.merge(items_with_recent_sales, on=['SITE', 'ITEM'], how='inner')
+            
+            print(f"📊 Filtered to {len(result_df)} items with sales in the last 6 months (since {six_months_ago.strftime('%Y-%m-%d')})")
+    else:
+        print("⚠️ No sales data available for 6-month filtering")
+    
     # Add site names if available
     if 'sites' in dataframes and dataframes['sites'] is not None:
         site_names = dataframes['sites'][['ID', 'SITE']].drop_duplicates()
         site_names = site_names.rename(columns={'ID': 'SITE', 'SITE': 'SITE_NAME'})
         result_df = result_df.merge(site_names, on='SITE', how='left')
-    
-    # Add item names if available
+      # Add item names and categories if available
     if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
-        item_names = dataframes['inventory_items'][['ITEM', 'DESCR1']].drop_duplicates()
-        item_names['ITEM_NAME'] = item_names['DESCR1'].fillna('').astype(str)
-        item_names = item_names[['ITEM', 'ITEM_NAME']]
-        result_df = result_df.merge(item_names, on='ITEM', how='left')
+        item_info = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY']].drop_duplicates()
+        item_info['ITEM_NAME'] = item_info['DESCR1'].fillna('').astype(str)
+          # Add category descriptions if available
+        if 'categories' in dataframes and dataframes['categories'] is not None:
+            # Get category descriptions from DETDESCR table
+            category_descriptions = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
+            
+            # Convert ID to string to match CATEGORY column type
+            category_descriptions['ID'] = category_descriptions['ID'].astype(str)
+            category_descriptions = category_descriptions.rename(columns={'ID': 'CATEGORY', 'DESCR': 'CATEGORY_NAME'})
+            
+            # Ensure CATEGORY column is string type for merge
+            item_info['CATEGORY'] = item_info['CATEGORY'].astype(str)
+            
+            # Merge item info with category descriptions
+            item_info = item_info.merge(category_descriptions, on='CATEGORY', how='left')
+            item_info['CATEGORY_NAME'] = item_info['CATEGORY_NAME'].fillna('').astype(str)
+        else:
+            item_info['CATEGORY_NAME'] = ''
+        
+        # Merge with result_df
+        result_df = result_df.merge(
+            item_info[['ITEM', 'ITEM_NAME', 'CATEGORY', 'CATEGORY_NAME']], 
+            on='ITEM', how='left'
+        )
+        
+        # Fill missing values
         result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('')
+        result_df['CATEGORY'] = result_df['CATEGORY'].fillna('')
+        result_df['CATEGORY_NAME'] = result_df['CATEGORY_NAME'].fillna('')
+    else:
+        # If no item data available, create empty columns
+        result_df['ITEM_NAME'] = ''
+        result_df['CATEGORY'] = ''
+        result_df['CATEGORY_NAME'] = ''
     
     return result_df
 

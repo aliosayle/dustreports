@@ -7,6 +7,22 @@ import io
 import json
 import threading
 import warnings
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils.dataframe import dataframe_to_rows
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils.dataframe import dataframe_to_rows
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
 
 # Suppress warnings to match notebook behavior
 warnings.filterwarnings('ignore')
@@ -211,12 +227,17 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
             if to_date:
                 to_date_dt = pd.to_datetime(to_date)
                 df_sales = df_sales[df_sales['FDATE'] <= to_date_dt]
-        
-        # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
+          # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
         if 'FTYPE' in df_sales.columns:
             sales_only = df_sales[df_sales['FTYPE'].isin([1, 2])]
         else:
             sales_only = df_sales
+          # Filter for site sales only (SID starting with "530")
+        if 'SID' in sales_only.columns:
+            sales_only = sales_only[sales_only['SID'].astype(str).str.startswith('530')]
+            print(f"📊 Filtered to {len(sales_only)} sales transactions with SID starting with '530' (site sales only)")
+        else:
+            print("⚠️ SID column not found - unable to filter for site sales")
         
         # Fill NaN values
         sales_only['QTY'] = sales_only['QTY'].fillna(0)
@@ -276,42 +297,75 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
                 'TOTAL_SALES_QTY': total_sales_qty,
                 'SALES_PERIOD_DAYS': period_days
             })
-        
-        # Calculate analytics by same grouping as stock
+          # Calculate analytics by same grouping as stock
         if item_code and site_code:
             # Single item, single site
-            analytics = calculate_sales_analytics(sales_only, from_date, to_date)
-            sales_analytics = pd.DataFrame({
-                'SITE': [site_code],
-                'ITEM': [item_code],
-                'MAX_DAILY_SALES': [analytics['MAX_DAILY_SALES']],
-                'MIN_DAILY_SALES': [analytics['MIN_DAILY_SALES']], 
-                'AVG_DAILY_SALES': [analytics['AVG_DAILY_SALES']],
-                'SALES_TRANSACTIONS': [analytics['SALES_TRANSACTIONS']],
-                'TOTAL_SALES_QTY': [analytics['TOTAL_SALES_QTY']],
-                'SALES_PERIOD_DAYS': [analytics['SALES_PERIOD_DAYS']]
-            })
+            if not sales_only.empty:
+                analytics = calculate_sales_analytics(sales_only, from_date, to_date)
+                sales_analytics = pd.DataFrame({
+                    'SITE': [site_code],
+                    'ITEM': [item_code],
+                    'MAX_DAILY_SALES': [analytics['MAX_DAILY_SALES']],
+                    'MIN_DAILY_SALES': [analytics['MIN_DAILY_SALES']], 
+                    'AVG_DAILY_SALES': [analytics['AVG_DAILY_SALES']],
+                    'SALES_TRANSACTIONS': [analytics['SALES_TRANSACTIONS']],
+                    'TOTAL_SALES_QTY': [analytics['TOTAL_SALES_QTY']],
+                    'SALES_PERIOD_DAYS': [analytics['SALES_PERIOD_DAYS']]
+                })
+            else:
+                # No sales data - create empty DataFrame with correct structure
+                sales_analytics = pd.DataFrame({
+                    'SITE': [site_code],
+                    'ITEM': [item_code],
+                    'MAX_DAILY_SALES': [0],
+                    'MIN_DAILY_SALES': [0], 
+                    'AVG_DAILY_SALES': [0],
+                    'SALES_TRANSACTIONS': [0],
+                    'TOTAL_SALES_QTY': [0],
+                    'SALES_PERIOD_DAYS': [0]
+                })
         elif item_code:
             # Single item, all sites
-            sales_analytics = sales_only.groupby('SITE').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
-            sales_analytics['ITEM'] = item_code
+            if not sales_only.empty:
+                sales_analytics = sales_only.groupby('SITE').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
+                sales_analytics['ITEM'] = item_code
+            else:
+                # No sales data - create empty DataFrame
+                sales_analytics = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS'])
         elif site_code:
             # All items, single site
-            sales_analytics = sales_only.groupby('ITEM').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
-            sales_analytics['SITE'] = site_code
+            if not sales_only.empty:
+                sales_analytics = sales_only.groupby('ITEM').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
+                sales_analytics['SITE'] = site_code
+            else:
+                # No sales data - create empty DataFrame
+                sales_analytics = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS'])
         else:
             # All items, all sites
-            sales_analytics = sales_only.groupby(['SITE', 'ITEM']).apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
-        
-        # Merge stock and sales analytics
-        result_df = result_df.merge(sales_analytics[['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS']], 
-                                   on=['SITE', 'ITEM'], how='left')
-        result_df['MAX_DAILY_SALES'] = result_df['MAX_DAILY_SALES'].fillna(0)
-        result_df['MIN_DAILY_SALES'] = result_df['MIN_DAILY_SALES'].fillna(0)
-        result_df['AVG_DAILY_SALES'] = result_df['AVG_DAILY_SALES'].fillna(0)
-        result_df['SALES_TRANSACTIONS'] = result_df['SALES_TRANSACTIONS'].fillna(0)
-        result_df['TOTAL_SALES_QTY'] = result_df['TOTAL_SALES_QTY'].fillna(0)
-        result_df['SALES_PERIOD_DAYS'] = result_df['SALES_PERIOD_DAYS'].fillna(0)
+            if not sales_only.empty:
+                sales_analytics = sales_only.groupby(['SITE', 'ITEM']).apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
+            else:
+                # No sales data - create empty DataFrame
+                sales_analytics = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS'])
+          # Merge stock and sales analytics - only if we have sales data
+        if not sales_analytics.empty and all(col in sales_analytics.columns for col in ['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS']):
+            result_df = result_df.merge(sales_analytics[['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS']], 
+                                       on=['SITE', 'ITEM'], how='left')
+            result_df['MAX_DAILY_SALES'] = result_df['MAX_DAILY_SALES'].fillna(0)
+            result_df['MIN_DAILY_SALES'] = result_df['MIN_DAILY_SALES'].fillna(0)
+            result_df['AVG_DAILY_SALES'] = result_df['AVG_DAILY_SALES'].fillna(0)
+            result_df['SALES_TRANSACTIONS'] = result_df['SALES_TRANSACTIONS'].fillna(0)
+            result_df['TOTAL_SALES_QTY'] = result_df['TOTAL_SALES_QTY'].fillna(0)
+            result_df['SALES_PERIOD_DAYS'] = result_df['SALES_PERIOD_DAYS'].fillna(0)
+        else:
+            # No sales analytics available - add empty sales columns
+            print(f"⚠️ No sales analytics data to merge (sales_analytics empty: {sales_analytics.empty if 'sales_analytics' in locals() else 'undefined'})")
+            result_df['MAX_DAILY_SALES'] = 0
+            result_df['MIN_DAILY_SALES'] = 0
+            result_df['AVG_DAILY_SALES'] = 0
+            result_df['SALES_TRANSACTIONS'] = 0
+            result_df['TOTAL_SALES_QTY'] = 0
+            result_df['SALES_PERIOD_DAYS'] = 0
     else:
         # Add empty sales columns if sales data not available
         result_df['MAX_DAILY_SALES'] = 0
@@ -360,10 +414,15 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
             
             # Filter for sales in the last 6 months
             df_sales_recent = df_sales_recent[df_sales_recent['FDATE'] >= six_months_ago]
-            
-            # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
+              # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
             if 'FTYPE' in df_sales_recent.columns:
                 df_sales_recent = df_sales_recent[df_sales_recent['FTYPE'].isin([1, 2])]
+              # Filter for site sales only (SID starting with "530")
+            if 'SID' in df_sales_recent.columns:
+                df_sales_recent = df_sales_recent[df_sales_recent['SID'].astype(str).str.startswith('530')]
+                print(f"📊 6-month filtering: {len(df_sales_recent)} site sales transactions found (SID starting with '530')")
+            else:
+                print("⚠️ SID column not found in 6-month filtering")
             
             # Get unique combinations of SITE and ITEM that had sales in the last 6 months
             items_with_recent_sales = df_sales_recent[['SITE', 'ITEM']].drop_duplicates()
@@ -421,14 +480,6 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
     return result_df
 
 # Routes
-@app.route('/favicon.ico')
-def favicon():
-    # Return a simple dust-themed favicon
-    from flask import Response
-    # Simple 16x16 ICO file data (dust particle icon)
-    favicon_data = b'\x00\x00\x01\x00\x01\x00\x10\x10\x00\x00\x01\x00\x08\x00h\x00\x00\x00\x16\x00\x00\x00(\x00\x00\x00\x10\x00\x00\x00 \x00\x00\x00\x01\x00\x08\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x80\x00\x00\x00\x80\x80\x00\x80\x00\x00\x00\x80\x00\x80\x00\x80\x80\x00\x00\xc0\xc0\xc0\x00\x80\x80\x80\x00\x00\x00\xff\x00\x00\xff\x00\x00\x00\xff\xff\x00\xff\x00\x00\x00\xff\x00\xff\x00\xff\xff\x00\x00\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-    return Response(favicon_data, mimetype='image/x-icon')
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -436,6 +487,16 @@ def index():
 @app.route('/autonomy')
 def autonomy():
     return render_template('autonomy.html')
+
+@app.route('/favicon.ico')
+def favicon():
+    # Return a simple 404 for favicon requests
+    from flask import abort
+    abort(404)
+
+@app.route('/custom-reports')
+def custom_reports():
+    return render_template('custom_reports.html')
 
 @app.route('/api/load-dataframes', methods=['POST'])
 def api_load_dataframes():
@@ -574,6 +635,403 @@ def api_export_excel():
         )
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/get-available-columns')
+def api_get_available_columns():
+    """Get all available columns from all loaded dataframes"""
+    try:
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        available_tables = {}
+        
+        # Table descriptions for better user experience
+        table_descriptions = {
+            'sites': 'Site/Location Master Data',
+            'categories': 'Category Definitions', 
+            'invoice_headers': 'Invoice Headers',
+            'sales_details': 'Sales Transaction Details',
+            'vouchers': 'Payment Vouchers',
+            'accounts': 'Statement of Accounts',
+            'inventory_items': 'Items/Products Master',
+            'inventory_transactions': 'All Inventory Transactions'
+        }
+        
+        for table_name, df in dataframes.items():
+            if df is not None and not df.empty:
+                columns_list = []
+                for col in df.columns:
+                    # Get sample data type
+                    dtype = str(df[col].dtype)
+                    
+                    # Get sample non-null value for context
+                    sample_value = None
+                    non_null_values = df[col].dropna()
+                    if not non_null_values.empty:
+                        sample_value = str(non_null_values.iloc[0])[:50]  # Limit length
+                    
+                    columns_list.append(col)
+                
+                available_tables[table_name] = {
+                    'description': table_descriptions.get(table_name, table_name.replace('_', ' ').title()),
+                    'columns': columns_list,
+                    'row_count': len(df)
+                }
+        
+        return jsonify(available_tables)
+        
+    except Exception as e:
+        print(f"Error in get_available_columns: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/custom-report', methods=['POST'])
+def api_custom_report():
+    try:
+        data = request.get_json()
+        selected_tables = data.get('tables', [])  # Which tables to include
+        selected_columns = data.get('columns', [])
+        calculated_fields = data.get('calculated_fields', [])
+        filters = data.get('filters', [])
+        sort_config = data.get('sort', {})
+        join_config = data.get('joins', [])  # How to join tables
+        
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Check if we need calculated columns (stock and sales analysis)
+        needs_calculation = False
+        calc_columns = {
+            'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 
+            'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS',
+            'CURRENT_STOCK', 'STOCK_AUTONOMY_DAYS', 'RESTOCK_TO_7_DAYS',
+            'TOTAL_IN', 'TOTAL_OUT', 'STOCK_TRANSACTIONS'
+        }
+        
+        for col in selected_columns:
+            column_name = col.split('.')[-1] if '.' in col else col
+            if column_name in calc_columns:
+                needs_calculation = True
+                break
+        
+        # If no tables specified or calculated columns needed, use the stock and sales calculation
+        if not selected_tables or needs_calculation:
+            result_df = calculate_stock_and_sales()
+            if result_df is None or result_df.empty:
+                return jsonify({'error': 'No data found'}), 404
+        else:
+            # Build custom dataset from selected tables
+            result_df = None
+            
+            # Parse selected columns to determine which tables we need
+            tables_needed = set()
+            column_mapping = {}
+            
+            for col in selected_columns:
+                if '.' in col:
+                    table_name, column_name = col.split('.', 1)
+                    tables_needed.add(table_name)
+                    column_mapping[col] = (table_name, column_name)
+            
+            # Load and join required tables
+            for table_name in tables_needed:
+                if table_name not in dataframes or dataframes[table_name] is None:
+                    continue
+                
+                # Get the table data
+                table_df = dataframes[table_name].copy()
+                
+                # Limit rows for performance
+                table_df = table_df.head(10000)
+                
+                if result_df is None:
+                    result_df = table_df
+                    # Rename columns to include table prefix
+                    result_df.columns = [f"{table_name}.{col}" for col in result_df.columns]
+                else:
+                    # Try to find a common key for joining
+                    common_keys = []
+                    for col in result_df.columns:
+                        base_col = col.split('.')[-1]  # Get column name without prefix
+                        if base_col in table_df.columns:
+                            common_keys.append((col, base_col))
+                    
+                    if common_keys:
+                        # Use the first common key found
+                        left_key, right_key = common_keys[0]
+                        
+                        # Rename columns in new table to include prefix
+                        table_df_renamed = table_df.copy()
+                        table_df_renamed.columns = [f"{table_name}.{col}" for col in table_df_renamed.columns]
+                        right_key_renamed = f"{table_name}.{right_key}"
+                        
+                        result_df = result_df.merge(
+                            table_df_renamed,
+                            left_on=left_key,
+                            right_on=right_key_renamed,
+                            how='left'
+                        )
+                    else:
+                        print(f"Warning: No common key found for joining {table_name}")
+            
+            if result_df is None or result_df.empty:
+                return jsonify({'error': 'No data found for selected tables'}), 404
+          # Apply filters
+        for filter_config in filters:
+            column = filter_config.get('column')
+            operator = filter_config.get('operator')
+            value = filter_config.get('value')
+            
+            if column in result_df.columns:
+                try:
+                    if operator == 'equals':
+                        result_df = result_df[result_df[column] == value]
+                    elif operator == 'contains':
+                        result_df = result_df[result_df[column].astype(str).str.contains(str(value), case=False, na=False)]
+                    elif operator == 'greater_than':
+                        result_df = result_df[pd.to_numeric(result_df[column], errors='coerce') > float(value)]
+                    elif operator == 'less_than':
+                        result_df = result_df[pd.to_numeric(result_df[column], errors='coerce') < float(value)]
+                    elif operator == 'between':
+                        min_val, max_val = value.split(',')
+                        result_df = result_df[
+                            (pd.to_numeric(result_df[column], errors='coerce') >= float(min_val)) &
+                            (pd.to_numeric(result_df[column], errors='coerce') <= float(max_val))
+                        ]
+                except Exception as e:
+                    print(f"Warning: Error applying filter on column {column}: {e}")
+        
+        # Add calculated fields
+        for calc_field in calculated_fields:
+            field_name = calc_field.get('name')
+            formula = calc_field.get('formula')
+            
+            try:
+                # Simple formula evaluation (extend this for more complex formulas)
+                # For now, support basic arithmetic operations with column references
+                eval_formula = formula
+                for col in result_df.columns:
+                    # Replace both formats: [column] and [table.column]
+                    eval_formula = eval_formula.replace(f'[{col}]', f'result_df["{col}"]')
+                    if '.' in col:
+                        short_col = col.split('.')[-1]
+                        eval_formula = eval_formula.replace(f'[{short_col}]', f'result_df["{col}"]')
+                
+                # Use eval with restricted globals for security
+                result_df[field_name] = eval(eval_formula, {'__builtins__': {}, 'pd': pd, 'np': np}, {'result_df': result_df})
+            except Exception as e:
+                print(f"Warning: Error in calculated field '{field_name}': {e}")
+          # Select only requested columns
+        if selected_columns:
+            final_columns = []
+            
+            for col in selected_columns:
+                if needs_calculation:
+                    # For calculated data, columns don't have table prefixes
+                    column_name = col.split('.')[-1] if '.' in col else col
+                    if column_name in result_df.columns:
+                        final_columns.append(column_name)
+                else:
+                    # For raw table data, columns have table prefixes
+                    if col in result_df.columns:
+                        final_columns.append(col)
+                    else:
+                        # Try to find column with prefix
+                        column_name = col.split('.')[-1] if '.' in col else col
+                        matching_cols = [c for c in result_df.columns if c.endswith(f".{column_name}")]
+                        if matching_cols:
+                            final_columns.append(matching_cols[0])
+                        else:
+                            # Last resort: try without any prefix
+                            if column_name in result_df.columns:
+                                final_columns.append(column_name)
+            
+            if final_columns:
+                result_df = result_df[final_columns]
+                
+                # Rename columns to remove table prefixes for display
+                display_columns = {}
+                for col in final_columns:
+                    if '.' in col:
+                        table_name, column_name = col.split('.', 1)
+                        display_columns[col] = f"{column_name} ({table_name})"
+                    else:
+                        display_columns[col] = col
+                
+                result_df = result_df.rename(columns=display_columns)
+            else:
+                return jsonify({'error': 'No matching columns found in the data'}), 400
+          # Apply sorting
+        if sort_config.get('column'):
+            sort_column = sort_config['column']
+            # The sort column should match the display column names now
+            actual_sort_column = None
+            
+            # Look for exact match first
+            if sort_column in result_df.columns:
+                actual_sort_column = sort_column
+            else:
+                # Try to find by original column name pattern
+                for col in result_df.columns:
+                    # Check if it's a renamed column that matches our sort target
+                    if col.startswith(sort_column.split('.')[-1]):
+                        actual_sort_column = col
+                        break
+                    # Or check if the sort column matches the display name pattern
+                    if sort_column in col:
+                        actual_sort_column = col
+                        break
+            
+            if actual_sort_column:
+                ascending = sort_config.get('direction', 'asc') == 'asc'
+                result_df = result_df.sort_values(actual_sort_column, ascending=ascending)
+        
+        # Convert to JSON
+        result_json = result_df.to_dict('records')
+        
+        return jsonify({
+            'data': result_json,
+            'columns': list(result_df.columns),
+            'metadata': {
+                'total_rows': len(result_df),
+                'selected_columns': len(selected_columns) if selected_columns else len(result_df.columns),
+                'calculated_fields': len(calculated_fields),
+                'filters_applied': len(filters)
+            }        })
+        
+    except Exception as e:
+        print(f"Error in custom report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/custom-report-export', methods=['POST'])
+def api_custom_report_export():
+    try:
+        data = request.get_json()
+        export_format = data.get('format', 'csv').lower()
+        report_data = data.get('report_data', [])
+        columns = data.get('columns', [])
+        report_title = data.get('title', 'Custom Report')
+        
+        if not report_data:
+            return jsonify({'error': 'No report data to export'}), 400
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(report_data)
+        
+        if export_format == 'csv':
+            # CSV Export
+            output = io.StringIO()
+            df.to_csv(output, index=False)
+            output.seek(0)
+            
+            return send_file(
+                io.BytesIO(output.getvalue().encode()),
+                mimetype='text/csv',
+                as_attachment=True,
+                download_name=f'{report_title.replace(" ", "_")}.csv'
+            )
+            
+        elif export_format == 'excel':
+            # Excel Export
+            output = io.BytesIO()
+            
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name='Report', index=False)
+                
+                # Get workbook and worksheet for styling
+                workbook = writer.book
+                worksheet = writer.sheets['Report']
+                
+                # Style the header row
+                header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
+                header_font = Font(color='FFFFFF', bold=True)
+                
+                for col_num, column_title in enumerate(df.columns, 1):
+                    cell = worksheet.cell(row=1, column=col_num)
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal='center')
+                
+                # Auto-adjust column widths
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    
+                    adjusted_width = min(max_length + 2, 50)
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+            
+            output.seek(0)
+            
+            return send_file(
+                output,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f'{report_title.replace(" ", "_")}.xlsx'
+            )
+            
+        elif export_format == 'pdf':
+            # PDF Export
+            output = io.BytesIO()
+            
+            doc = SimpleDocTemplate(output, pagesize=A4)
+            elements = []
+            styles = getSampleStyleSheet()
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=16,
+                spaceAfter=30,
+                textColor=colors.HexColor('#1f4e79')
+            )
+            elements.append(Paragraph(report_title, title_style))
+            elements.append(Spacer(1, 12))
+            
+            # Create table data
+            table_data = [list(df.columns)]  # Header
+            for _, row in df.iterrows():
+                table_data.append([str(val) for val in row.values])
+            
+            # Create table
+            table = Table(table_data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4e79')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            elements.append(table)
+            doc.build(elements)
+            
+            output.seek(0)
+            
+            return send_file(
+                output,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f'{report_title.replace(" ", "_")}.pdf'
+            )
+            
+        else:
+            return jsonify({'error': 'Unsupported export format'}), 400
+            
+    except Exception as e:
+        print(f"Error in export: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+
+{% block title %}Custom Reports - IBA DustReports{% endblock %}
+
+{% block content %}
+<!-- Enhanced Hero Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="hero-section p-4 rounded-4 text-white position-relative overflow-hidden" 
+             style="background: var(--primary-gradient); min-height: 200px;">
+            <!-- Dust particle background -->
+            <div class="position-absolute top-0 start-0 w-100 h-100 dust-particles"></div>
+            
+            <div class="row align-items-center position-relative">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="dust-logo me-3" style="width: 64px; height: 64px;">
+                            <div class="position-absolute" style="width: 32px; height: 32px; background: white; border-radius: 50%; opacity: 0.9;"></div>
+                            <div class="position-absolute" style="width: 16px; height: 16px; background: var(--dust-primary); border-radius: 50%; top: 24px; left: 24px;"></div>
+                        </div>
+                        <div>
+                            <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
+                                Custom Report Builder
+                            </h1>
+                            <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
+                                Create dynamic reports with custom calculations and filters
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="hero-stats d-flex flex-column align-items-end">
+                        <div class="d-flex align-items-center mb-2" style="opacity: 0.9;">
+                            <i class="fas fa-calculator me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Custom Formulas</span>
+                        </div>
+                        <div class="d-flex align-items-center" style="opacity: 0.9;">
+                            <i class="fas fa-filter me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Advanced Filtering</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Builder Interface -->
+<div class="row">
+    <!-- Left Panel - Configuration -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-lg h-100" style="border-radius: 16px;">
+            <div class="card-header border-0 py-3" style="background: var(--light-gradient); border-radius: 16px 16px 0 0;">
+                <h5 class="mb-0 fw-bold" style="color: #2d3748;">
+                    <i class="fas fa-cogs me-2" style="color: var(--dust-primary);"></i>
+                    Report Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Column Selection -->
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3" style="color: #4a5568;">
+                        <i class="fas fa-columns me-2" style="color: var(--dust-secondary);"></i>
+                        Select Columns
+                    </h6>
+                    <div id="columnSelector" class="mb-3">
+                        <!-- Column checkboxes will be dynamically populated -->
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllColumns">
+                        <i class="fas fa-check-double me-1"></i>Select All
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="clearAllColumns">
+                        <i class="fas fa-times me-1"></i>Clear All
+                    </button>
+                </div>
+
+                <!-- Calculated Fields -->
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3" style="color: #4a5568;">
+                        <i class="fas fa-calculator me-2" style="color: var(--dust-secondary);"></i>
+                        Calculated Fields
+                    </h6>
+                    <div id="calculatedFields" class="mb-3">
+                        <!-- Calculated fields will be added here -->
+                    </div>
+                    <button type="button" class="btn btn-outline-success btn-sm" id="addCalculatedField">
+                        <i class="fas fa-plus me-1"></i>Add Formula
+                    </button>
+                </div>
+
+                <!-- Filters -->
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3" style="color: #4a5568;">
+                        <i class="fas fa-filter me-2" style="color: var(--dust-secondary);"></i>
+                        Filters
+                    </h6>
+                    <div id="filtersList" class="mb-3">
+                        <!-- Filters will be added here -->
+                    </div>
+                    <button type="button" class="btn btn-outline-warning btn-sm" id="addFilter">
+                        <i class="fas fa-plus me-1"></i>Add Filter
+                    </button>
+                </div>
+
+                <!-- Sorting -->
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3" style="color: #4a5568;">
+                        <i class="fas fa-sort me-2" style="color: var(--dust-secondary);"></i>
+                        Sorting
+                    </h6>
+                    <div class="row">
+                        <div class="col-8">
+                            <select class="form-select" id="sortColumn">
+                                <option value="">No sorting</option>
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <select class="form-select" id="sortDirection">
+                                <option value="asc">Ascending</option>
+                                <option value="desc">Descending</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Report Button -->
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary btn-lg" id="generateReport">
+                        <i class="fas fa-play me-2"></i>Generate Report
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="resetReport">
+                        <i class="fas fa-redo me-2"></i>Reset All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel - Results -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-lg h-100" style="border-radius: 16px;">
+            <div class="card-header border-0 py-3" style="background: var(--light-gradient); border-radius: 16px 16px 0 0;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold" style="color: #2d3748;">
+                        <i class="fas fa-table me-2" style="color: var(--dust-primary);"></i>
+                        Report Results
+                    </h5>
+                    <div class="report-stats text-muted small" id="reportStats" style="display: none;">
+                        <!-- Report statistics will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- Loading State -->
+                <div id="loadingState" class="text-center p-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Generating your custom report...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="text-center p-5">
+                    <i class="fas fa-chart-bar" style="font-size: 4rem; color: var(--dust-light);"></i>
+                    <h4 class="mt-3 text-muted">No Report Generated</h4>
+                    <p class="text-muted">Configure your report settings and click "Generate Report" to see results.</p>
+                </div>
+
+                <!-- Results Table -->
+                <div id="resultsContainer" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="customReportTable">
+                            <thead style="background: var(--primary-gradient); color: white;">
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Export Options -->
+                    <div class="card-footer border-0 bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="report-info text-muted small">
+                                <span id="rowCount">0 rows</span>
+                            </div>
+                            <div class="export-buttons">
+                                <button type="button" class="btn btn-success btn-sm me-2" id="exportExcel">
+                                    <i class="fas fa-file-excel me-1"></i>Excel
+                                </button>
+                                <button type="button" class="btn btn-info btn-sm me-2" id="exportCSV">
+                                    <i class="fas fa-file-csv me-1"></i>CSV
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" id="exportPDF">
+                                    <i class="fas fa-file-pdf me-1"></i>PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Calculated Field Editor -->
+<div class="modal fade" id="calculatedFieldModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calculator me-2"></i>Add Calculated Field
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="calculatedFieldForm">
+                    <div class="mb-3">
+                        <label for="fieldName" class="form-label">Field Name</label>
+                        <input type="text" class="form-control" id="fieldName" placeholder="Enter field name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="fieldFormula" class="form-label">Formula</label>
+                        <textarea class="form-control" id="fieldFormula" rows="3" 
+                                  placeholder="Enter formula (e.g., [CURRENT_STOCK] * [AVG_DAILY_SALES])"></textarea>
+                        <div class="form-text">
+                            Use column names in square brackets [COLUMN_NAME]. 
+                            Supported operators: +, -, *, /, (), round(), abs(), max(), min()
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Available Columns</label>
+                        <div id="availableColumns" class="border rounded p-2 small" style="max-height: 200px; overflow-y: auto;">
+                            <!-- Available columns will be listed here -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCalculatedField">Save Field</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .column-checkbox {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+    }
+    
+    .column-checkbox:hover {
+        background-color: var(--dust-light);
+    }
+    
+    .calculated-field-item, .filter-item {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        position: relative;
+    }
+    
+    .calculated-field-item .remove-btn, .filter-item .remove-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    
+    #customReportTable {
+        font-size: 0.9rem;
+    }
+    
+    #customReportTable th {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        font-weight: 600;
+        padding: 12px 8px;
+        border: none;
+    }
+    
+    #customReportTable td {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    #customReportTable tbody tr:hover {
+        background-color: rgba(26, 35, 126, 0.05);
+    }
+    
+    .report-stats {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .report-stats span {
+        white-space: nowrap;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let availableColumns = [];
+    let availableTablesData = {};
+    let calculatedFieldsCount = 0;
+    let filtersCount = 0;
+    let currentReportData = null;
+      // Initialize the interface
+    loadAvailableColumns();
+    initializeEventListeners();
+    
+    async function loadAvailableColumns() {
+        try {
+            const response = await fetch('/api/get-available-columns');
+            if (response.ok) {
+                availableTablesData = await response.json();
+                
+                // Build a combined list of all columns with table prefixes
+                availableColumns = [];
+                
+                Object.entries(availableTablesData).forEach(([tableName, tableInfo]) => {
+                    tableInfo.columns.forEach(column => {
+                        // Add columns with table prefix to avoid conflicts
+                        availableColumns.push(`${tableName}.${column}`);
+                    });
+                });
+                
+                // Also add some common calculated columns from stock analysis
+                availableColumns.push(
+                    'calc.CURRENT_STOCK',
+                    'calc.AVG_DAILY_SALES', 
+                    'calc.STOCK_AUTONOMY_DAYS',
+                    'calc.RESTOCK_TO_7_DAYS'
+                );
+                
+                initializeColumnSelector();
+            } else {
+                console.error('Failed to load available columns');
+                // Fallback to default columns
+                availableColumns = [
+                    'sites.ID', 'sites.SITE',
+                    'inventory_items.ITEM', 'inventory_items.DESCR1',
+                    'categories.DESCR',
+                    'calc.CURRENT_STOCK', 'calc.AVG_DAILY_SALES'
+                ];
+                initializeColumnSelector();
+            }
+        } catch (error) {
+            console.error('Error loading available columns:', error);
+            // Fallback to default columns
+            availableColumns = [
+                'sites.ID', 'sites.SITE',
+                'inventory_items.ITEM', 'inventory_items.DESCR1',
+                'calc.CURRENT_STOCK', 'calc.AVG_DAILY_SALES'
+            ];
+            initializeColumnSelector();
+        }
+    }
+    
+    function initializeColumnSelector() {
+        const container = document.getElementById('columnSelector');
+        container.innerHTML = '';
+        
+        // Group columns by table
+        const columnsByTable = {};
+        availableColumns.forEach(column => {
+            const [tableName, columnName] = column.split('.');
+            if (!columnsByTable[tableName]) {
+                columnsByTable[tableName] = [];
+            }
+            columnsByTable[tableName].push({full: column, name: columnName});
+        });
+        
+        // Create collapsible sections for each table
+        Object.entries(columnsByTable).forEach(([tableName, columns]) => {
+            const tableSection = document.createElement('div');
+            tableSection.className = 'mb-3';
+            
+            const tableDescription = availableTablesData[tableName]?.description || tableName;
+            const rowCount = availableTablesData[tableName]?.row_count || 0;
+            
+            tableSection.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">
+                        <button class="btn btn-link p-0 text-start fw-bold" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#table_${tableName}">
+                            <i class="fas fa-chevron-down me-2"></i>
+                            ${tableName.toUpperCase()} (${rowCount.toLocaleString()} rows)
+                        </button>
+                    </h6>
+                    <small class="text-muted">${tableDescription}</small>
+                </div>
+                <div class="collapse show" id="table_${tableName}">
+                    <div class="table-columns ps-3">
+                        ${columns.map(col => `
+                            <div class="column-checkbox">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="${col.full}" id="col_${col.full.replace('.', '_')}">
+                                    <label class="form-check-label" for="col_${col.full.replace('.', '_')}">
+                                        ${col.name}
+                                    </label>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            container.appendChild(tableSection);
+        });
+        
+        // Populate sort dropdown
+        const sortSelect = document.getElementById('sortColumn');
+        sortSelect.innerHTML = '<option value="">No sorting</option>';
+        availableColumns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column;
+            option.textContent = column.replace(/_/g, ' ');
+            sortSelect.appendChild(option);
+        });
+        
+        // Populate filter column dropdown
+        const filterSelect = document.getElementById('filterColumn');
+        if (filterSelect) {
+            filterSelect.innerHTML = '<option value="">Select column...</option>';
+            availableColumns.forEach(column => {
+                const option = document.createElement('option');
+                option.value = column;
+                option.textContent = column.replace(/_/g, ' ');
+                filterSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function initializeEventListeners() {
+        // Column selection buttons
+        document.getElementById('selectAllColumns').addEventListener('click', function() {
+            document.querySelectorAll('#columnSelector input[type="checkbox"]').forEach(cb => cb.checked = true);
+        });
+        
+        document.getElementById('clearAllColumns').addEventListener('click', function() {
+            document.querySelectorAll('#columnSelector input[type="checkbox"]').forEach(cb => cb.checked = false);
+        });
+        
+        // Add calculated field
+        document.getElementById('addCalculatedField').addEventListener('click', function() {
+            showCalculatedFieldModal();
+        });
+        
+        // Add filter
+        document.getElementById('addFilter').addEventListener('click', function() {
+            addFilter();
+        });
+        
+        // Generate report
+        document.getElementById('generateReport').addEventListener('click', function() {
+            generateReport();
+        });
+        
+        // Reset report
+        document.getElementById('resetReport').addEventListener('click', function() {
+            resetReport();
+        });
+        
+        // Save calculated field
+        document.getElementById('saveCalculatedField').addEventListener('click', function() {
+            saveCalculatedField();
+        });
+        
+        // Export buttons
+        document.getElementById('exportExcel').addEventListener('click', function() {
+            exportReport('excel');
+        });
+        
+        document.getElementById('exportCSV').addEventListener('click', function() {
+            exportReport('csv');
+        });
+        
+        document.getElementById('exportPDF').addEventListener('click', function() {
+            exportReport('pdf');
+        });
+    }
+    
+    function showCalculatedFieldModal() {
+        // Populate available columns
+        const container = document.getElementById('availableColumns');
+        container.innerHTML = '';
+        
+        availableColumns.forEach(column => {
+            const span = document.createElement('span');
+            span.className = 'badge bg-secondary me-1 mb-1 cursor-pointer';
+            span.textContent = `[${column}]`;
+            span.style.cursor = 'pointer';
+            span.onclick = function() {
+                const textarea = document.getElementById('fieldFormula');
+                textarea.value += `[${column}]`;
+                textarea.focus();
+            };
+            container.appendChild(span);
+        });
+        
+        // Clear form
+        document.getElementById('fieldName').value = '';
+        document.getElementById('fieldFormula').value = '';
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('calculatedFieldModal')).show();
+    }
+    
+    function saveCalculatedField() {
+        const name = document.getElementById('fieldName').value.trim();
+        const formula = document.getElementById('fieldFormula').value.trim();
+        
+        if (!name || !formula) {
+            alert('Please enter both field name and formula.');
+            return;
+        }
+        
+        // Validate field name
+        if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) {
+            alert('Field name must start with a letter and contain only letters, numbers, and underscores.');
+            return;
+        }
+        
+        addCalculatedField(name, formula);
+        bootstrap.Modal.getInstance(document.getElementById('calculatedFieldModal')).hide();
+    }
+    
+    function addCalculatedField(name, formula) {
+        calculatedFieldsCount++;
+        const container = document.getElementById('calculatedFields');
+        
+        const div = document.createElement('div');
+        div.className = 'calculated-field-item';
+        div.setAttribute('data-id', calculatedFieldsCount);
+        div.innerHTML = `
+            <button type="button" class="remove-btn" onclick="removeCalculatedField(${calculatedFieldsCount})">×</button>
+            <div class="fw-semibold text-primary">${name}</div>
+            <div class="small text-muted mt-1">${formula}</div>
+        `;
+        
+        container.appendChild(div);
+        
+        // Add to sort options
+        const sortSelect = document.getElementById('sortColumn');
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        sortSelect.appendChild(option);
+    }
+    
+    function addFilter() {
+        filtersCount++;
+        const container = document.getElementById('filtersList');
+        
+        const div = document.createElement('div');
+        div.className = 'filter-item';
+        div.setAttribute('data-id', filtersCount);
+        div.innerHTML = `
+            <button type="button" class="remove-btn" onclick="removeFilter(${filtersCount})">×</button>
+            <div class="row">
+                <div class="col-4">
+                    <select class="form-select form-select-sm" name="column">
+                        <option value="">Select Column</option>
+                        ${availableColumns.map(col => `<option value="${col}">${col.replace(/_/g, ' ')}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="col-3">
+                    <select class="form-select form-select-sm" name="operator">
+                        <option value="equals">Equals</option>
+                        <option value="contains">Contains</option>
+                        <option value="greater_than">Greater than</option>
+                        <option value="less_than">Less than</option>
+                        <option value="between">Between</option>
+                    </select>
+                </div>
+                <div class="col-5">
+                    <input type="text" class="form-control form-control-sm" name="value" placeholder="Value">
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(div);
+    }
+    
+    function removeCalculatedField(id) {
+        document.querySelector(`[data-id="${id}"].calculated-field-item`).remove();
+    }
+    
+    function removeFilter(id) {
+        document.querySelector(`[data-id="${id}"].filter-item`).remove();
+    }
+    
+    function generateReport() {
+        // Show loading state
+        showLoadingState();
+        
+        // Gather configuration
+        const selectedColumns = Array.from(document.querySelectorAll('#columnSelector input:checked')).map(cb => cb.value);
+        
+        const calculatedFields = Array.from(document.querySelectorAll('.calculated-field-item')).map(item => {
+            return {
+                name: item.querySelector('.fw-semibold').textContent,
+                formula: item.querySelector('.small').textContent
+            };
+        });
+        
+        const filters = Array.from(document.querySelectorAll('.filter-item')).map(item => {
+            return {
+                column: item.querySelector('select[name="column"]').value,
+                operator: item.querySelector('select[name="operator"]').value,
+                value: item.querySelector('input[name="value"]').value
+            };
+        }).filter(f => f.column && f.value);
+        
+        const sortConfig = {
+            column: document.getElementById('sortColumn').value,
+            direction: document.getElementById('sortDirection').value
+        };
+        
+        // Make API call
+        fetch('/api/custom-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                columns: selectedColumns,
+                calculated_fields: calculatedFields,
+                filters: filters,
+                sort: sortConfig
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoadingState();
+            if (data.error) {
+                showError(data.error);
+            } else {
+                showResults(data);
+            }
+        })
+        .catch(error => {
+            hideLoadingState();
+            showError('Error generating report: ' + error.message);
+        });
+    }
+    
+    function showLoadingState() {
+        document.getElementById('loadingState').style.display = 'block';
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('resultsContainer').style.display = 'none';
+    }
+    
+    function hideLoadingState() {
+        document.getElementById('loadingState').style.display = 'none';
+    }
+    
+    function showResults(data) {
+        currentReportData = data;
+        
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('resultsContainer').style.display = 'block';
+        
+        // Update statistics
+        const stats = document.getElementById('reportStats');
+        stats.innerHTML = `
+            <span><i class="fas fa-table me-1"></i>${data.metadata.total_rows} rows</span>
+            <span><i class="fas fa-columns me-1"></i>${data.metadata.selected_columns} columns</span>
+            <span><i class="fas fa-calculator me-1"></i>${data.metadata.calculated_fields} formulas</span>
+            <span><i class="fas fa-filter me-1"></i>${data.metadata.filters_applied} filters</span>
+        `;
+        stats.style.display = 'flex';
+        
+        // Update row count
+        document.getElementById('rowCount').textContent = `${data.metadata.total_rows} rows`;
+        
+        // Build table
+        buildTable(data.data, data.columns);
+    }
+    
+    function buildTable(data, columns) {
+        const table = document.getElementById('customReportTable');
+        
+        // Build header
+        const thead = table.querySelector('thead');
+        thead.innerHTML = `
+            <tr>
+                ${columns.map(col => `<th>${col.replace(/_/g, ' ')}</th>`).join('')}
+            </tr>
+        `;
+        
+        // Build body
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+        
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = columns.map(col => {
+                let value = row[col];
+                if (typeof value === 'number') {
+                    value = Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+                }
+                return `<td>${value || ''}</td>`;
+            }).join('');
+            tbody.appendChild(tr);
+        });
+    }
+    
+    function showError(message) {
+        alert('Error: ' + message);
+    }
+    
+    function resetReport() {
+        // Clear all selections
+        document.querySelectorAll('#columnSelector input[type="checkbox"]').forEach(cb => cb.checked = true);
+        document.getElementById('calculatedFields').innerHTML = '';
+        document.getElementById('filtersList').innerHTML = '';
+        document.getElementById('sortColumn').value = '';
+        document.getElementById('sortDirection').value = 'asc';
+        
+        // Reset counters
+        calculatedFieldsCount = 0;
+        filtersCount = 0;
+        
+        // Hide results
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('resultsContainer').style.display = 'none';
+        document.getElementById('reportStats').style.display = 'none';
+        
+        currentReportData = null;
+    }    function exportReport(format) {
+        if (!currentReportData) {
+            alert('No report data to export. Please generate a report first.');
+            return;
+        }
+        
+        // Show loading state
+        const exportButton = document.getElementById(`export${format.charAt(0).toUpperCase() + format.slice(1)}`);
+        const originalText = exportButton.innerHTML;
+        exportButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+        exportButton.disabled = true;
+        
+        // Prepare export data
+        const exportData = {
+            format: format,
+            report_data: currentReportData,
+            columns: Object.keys(currentReportData[0] || {}),
+            title: 'Custom Report'
+        };
+        
+        // Send request to export endpoint
+        fetch('/api/custom-report-export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(exportData)
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            throw new Error('Export failed');
+        })
+        .then(blob => {
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            
+            // Set filename based on format
+            const extensions = { csv: 'csv', excel: 'xlsx', pdf: 'pdf' };
+            a.download = `Custom_Report.${extensions[format]}`;
+            
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        })
+        .catch(error => {
+            console.error('Export error:', error);
+            alert('Export failed. Please try again.');
+        })
+        .finally(() => {
+            // Reset button state
+            exportButton.innerHTML = originalText;
+            exportButton.disabled = false;
+        });
+    }
+    
+    // Make functions global for onclick handlers
+    window.removeCalculatedField = removeCalculatedField;
+    window.removeFilter = removeFilter;
+});
+</script>
+{% endblock %}

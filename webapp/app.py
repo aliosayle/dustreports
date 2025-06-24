@@ -490,9 +490,9 @@ def autonomy():
 
 @app.route('/favicon.ico')
 def favicon():
-    # Return a simple 404 for favicon requests
-    from flask import abort
-    abort(404)
+    # Redirect to static favicon file
+    from flask import redirect, url_for
+    return redirect(url_for('static', filename='favicon.ico'))
 
 @app.route('/custom-reports')
 def custom_reports():

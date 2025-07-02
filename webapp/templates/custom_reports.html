@@ -751,12 +751,31 @@ document.addEventListener('DOMContentLoaded', function() {
         exportButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
         exportButton.disabled = true;
         
+        // Collect current filters for export
+        const currentFilters = Array.from(document.querySelectorAll('.filter-item')).map(item => {
+            return {
+                column: item.querySelector('select[name="column"]').value,
+                operator: item.querySelector('select[name="operator"]').value,
+                value: item.querySelector('input[name="value"]').value
+            };
+        }).filter(f => f.column && f.value);
+        
+        // Collect current calculated fields for export
+        const currentCalculatedFields = Array.from(document.querySelectorAll('.calculated-field-item')).map(item => {
+            return {
+                name: item.querySelector('.fw-semibold').textContent,
+                formula: item.querySelector('.small').textContent
+            };
+        });
+        
         // Prepare export data
         const exportData = {
             format: format,
             report_data: currentReportData,
             columns: Object.keys(currentReportData[0] || {}),
-            title: 'Custom Report'
+            title: 'Custom Report',
+            filters: currentFilters,
+            calculated_fields: currentCalculatedFields
         };
         
         // Send request to export endpoint

@@ -1779,11 +1779,23 @@ $(document).ready(function() {
             tableData.push(row);
         });
         
+        // Collect current filters
+        const filters = {
+            site_code: $('#siteSelect').val(),
+            item_code: $('#itemSelect').val(),
+            from_date: $('#fromDate').val(),
+            to_date: $('#toDate').val(),
+            autonomy_level: $('#autonomyLevelSelect').val()
+        };
+        
         $.ajax({
             url: '/api/export-excel',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ data: tableData }),
+            data: JSON.stringify({ 
+                data: tableData,
+                filters: filters
+            }),
             xhrFields: {
                 responseType: 'blob'
             }

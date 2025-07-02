@@ -2,24 +2,14 @@ from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
 import pyodbc
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 import io
-import json
 import threading
 import warnings
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
-from openpyxl.utils.dataframe import dataframe_to_rows
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
-from openpyxl.utils.dataframe import dataframe_to_rows
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -159,8 +149,7 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
     # Fill NaN values with 0 for calculations
     df_stock['DEBITQTY'] = df_stock['DEBITQTY'].fillna(0)
     df_stock['CREDITQTY'] = df_stock['CREDITQTY'].fillna(0)
-    
-    # Calculate stock by grouping
+      # Calculate stock by grouping
     if item_code and site_code:
         # Single item, single site
         result_df = pd.DataFrame({
@@ -202,7 +191,8 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
         result_df['STOCK_TRANSACTIONS'] = df_stock.groupby(['SITE', 'ITEM']).size().values
         result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
-      # Limit results for performance (remove this line in production)
+    
+    # Limit results for performance in large datasets
     result_df = result_df.head(1000)
     print(f"📊 Processing {len(result_df)} rows for calculations...")
     
@@ -614,24 +604,79 @@ def api_export_excel():
     try:
         data = request.get_json()
         report_data = data.get('data', [])
+        filters = data.get('filters', {})
         
         if not report_data:
             return jsonify({'error': 'No data to export'}), 400
         
         df = pd.DataFrame(report_data)
         
+        # Build title with filters
+        title = "Autonomy Report"
+        filter_info = []
+        
+        if filters.get('item_code'):
+            filter_info.append(f"Item: {filters['item_code']}")
+        if filters.get('site_code'):
+            filter_info.append(f"Site: {filters['site_code']}")
+        if filters.get('from_date'):
+            filter_info.append(f"From: {filters['from_date']}")
+        if filters.get('to_date'):
+            filter_info.append(f"To: {filters['to_date']}")
+        
+        if filter_info:
+            title += f" - {' | '.join(filter_info)}"
+        
         # Create Excel file in memory
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Autonomy Report', index=False)
+            df.to_excel(writer, sheet_name='Autonomy Report', index=False, startrow=2)
+            
+            # Get workbook and worksheet for styling
+            workbook = writer.book
+            worksheet = writer.sheets['Autonomy Report']
+            
+            # Add title with filters
+            worksheet['A1'] = title
+            worksheet['A1'].font = Font(size=14, bold=True)
+            worksheet.merge_cells('A1:D1')
+            
+            # Style the header row (now at row 3)
+            header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
+            header_font = Font(color='FFFFFF', bold=True)
+            
+            for col_num, column_title in enumerate(df.columns, 1):
+                cell = worksheet.cell(row=3, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center')
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
         
         output.seek(0)
+        
+        # Create filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'autonomy_report_{timestamp}.xlsx'
         
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name=f'autonomy_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+            download_name=filename
         )
         
     except Exception as e:
@@ -911,16 +956,49 @@ def api_custom_report_export():
         report_data = data.get('report_data', [])
         columns = data.get('columns', [])
         report_title = data.get('title', 'Custom Report')
+        filters = data.get('filters', [])
+        calculated_fields = data.get('calculated_fields', [])
         
         if not report_data:
             return jsonify({'error': 'No report data to export'}), 400
+        
+        # Build title with filters and calculated fields
+        title_parts = [report_title]
+        
+        # Add filter information
+        if filters:
+            filter_info = []
+            for f in filters:
+                operator_text = {
+                    'equals': '=',
+                    'contains': 'contains',
+                    'greater_than': '>',
+                    'less_than': '<',
+                    'between': 'between'
+                }.get(f['operator'], f['operator'])
+                filter_info.append(f"{f['column']} {operator_text} {f['value']}")
+            title_parts.append(f"Filters: {' | '.join(filter_info)}")
+        
+        # Add calculated fields information
+        if calculated_fields:
+            calc_info = [f"{cf['name']}: {cf['formula']}" for cf in calculated_fields]
+            title_parts.append(f"Formulas: {' | '.join(calc_info)}")
+        
+        full_title = ' - '.join(title_parts)
         
         # Convert to DataFrame
         df = pd.DataFrame(report_data)
         
         if export_format == 'csv':
-            # CSV Export
+            # CSV Export with title
             output = io.StringIO()
+            
+            # Add title as first line
+            output.write(f"# {full_title}\n")
+            output.write(f"# Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            output.write("\n")
+            
+            # Add the actual data
             df.to_csv(output, index=False)
             output.seek(0)
             
@@ -932,22 +1010,32 @@ def api_custom_report_export():
             )
             
         elif export_format == 'excel':
-            # Excel Export
+            # Excel Export with title and filters
             output = io.BytesIO()
             
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name='Report', index=False)
+                df.to_excel(writer, sheet_name='Report', index=False, startrow=3)
                 
                 # Get workbook and worksheet for styling
                 workbook = writer.book
                 worksheet = writer.sheets['Report']
                 
-                # Style the header row
+                # Add title with filters
+                worksheet['A1'] = full_title
+                worksheet['A1'].font = Font(size=14, bold=True)
+                worksheet.merge_cells('A1:D1')
+                
+                # Add generation timestamp
+                worksheet['A2'] = f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                worksheet['A2'].font = Font(size=10, italic=True)
+                worksheet.merge_cells('A2:D2')
+                
+                # Style the header row (now at row 4)
                 header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
                 header_font = Font(color='FFFFFF', bold=True)
                 
                 for col_num, column_title in enumerate(df.columns, 1):
-                    cell = worksheet.cell(row=1, column=col_num)
+                    cell = worksheet.cell(row=4, column=col_num)
                     cell.fill = header_fill
                     cell.font = header_font
                     cell.alignment = Alignment(horizontal='center')
@@ -977,7 +1065,7 @@ def api_custom_report_export():
             )
             
         elif export_format == 'pdf':
-            # PDF Export
+            # PDF Export with title and filters
             output = io.BytesIO()
             
             doc = SimpleDocTemplate(output, pagesize=A4)
@@ -992,7 +1080,17 @@ def api_custom_report_export():
                 spaceAfter=30,
                 textColor=colors.HexColor('#1f4e79')
             )
-            elements.append(Paragraph(report_title, title_style))
+            elements.append(Paragraph(full_title, title_style))
+            
+            # Generation timestamp
+            timestamp_style = ParagraphStyle(
+                'Timestamp',
+                parent=styles['Normal'],
+                fontSize=10,
+                spaceAfter=20,
+                textColor=colors.grey
+            )
+            elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", timestamp_style))
             elements.append(Spacer(1, 12))
             
             # Create table data

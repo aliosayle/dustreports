@@ -385,7 +385,7 @@
                                     <div class="d-flex align-items-center justify-content-end">
                                         <i class="fas fa-plus-circle me-2" style="color: var(--dust-accent);"></i>
                                         <div>
-                                            Restock to 7 Days
+                                            Depot Quantity
                                             <small class="d-block opacity-75" style="font-size: 0.7rem;">(Qty)</small>
                                         </div>
                                     </div>
@@ -431,7 +431,7 @@
                         <small class="text-muted">Shows "N/A" for zero stock, "∞" for stock with no sales</small>
                     </div>
                     <div class="calculation-item mb-3">
-                        <strong>Restock to 7 Days:</strong>
+                        <strong>Depot Quantity:</strong>
                         <div class="calculation-desc">(7 × Average Daily Sales) - Current Stock</div>
                         <small class="text-muted">Quantity needed to achieve 7 days of autonomy (0 if already sufficient)</small>
                     </div><div class="calculation-item mb-3">
@@ -1195,7 +1195,54 @@
 
 <script>
 $(document).ready(function() {
-    let currentFilters = {};    // Load sites and items on page load
+    let currentFilters = {};
+    
+    // Function to generate export filename with filters and site info
+    function generateExportFilename(baseFilename, extension) {
+        const timestamp = new Date().toISOString().slice(0,19).replace(/[-:]/g, '').replace('T', '_');
+        const filenameParts = [baseFilename];
+        
+        // Add site (magasin) to filename if specified
+        const siteCode = $('#siteSelect').val();
+        if (siteCode) {
+            const sanitizedSiteCode = siteCode.replace(/[^a-zA-Z0-9]/g, '_');
+            filenameParts.push(`magasin_${sanitizedSiteCode}`);
+        }
+        
+        // Add item to filename if specified
+        const itemCode = $('#itemSelect').val();
+        if (itemCode) {
+            const sanitizedItemCode = itemCode.replace(/[^a-zA-Z0-9]/g, '_');
+            filenameParts.push(`item_${sanitizedItemCode}`);
+        }
+        
+        // Add date range to filename if specified
+        const fromDate = $('#fromDate').val();
+        const toDate = $('#toDate').val();
+        if (fromDate && toDate) {
+            const fromDateStr = fromDate.replace(/-/g, '');
+            const toDateStr = toDate.replace(/-/g, '');
+            filenameParts.push(`${fromDateStr}_to_${toDateStr}`);
+        } else if (fromDate) {
+            const fromDateStr = fromDate.replace(/-/g, '');
+            filenameParts.push(`from_${fromDateStr}`);
+        } else if (toDate) {
+            const toDateStr = toDate.replace(/-/g, '');
+            filenameParts.push(`to_${toDateStr}`);
+        }
+        
+        // Add autonomy level filter if specified
+        const autonomyLevel = $('#autonomyLevelSelect').val();
+        if (autonomyLevel) {
+            filenameParts.push(`level_${autonomyLevel}`);
+        }
+        
+        // Add timestamp
+        filenameParts.push(timestamp);
+        
+        // Return filename without extension (DataTables adds it automatically)
+        return filenameParts.join('_');
+    }    // Load sites and items on page load
     loadSites();
     loadItems();
       // Set default date range (last 30 days)
@@ -1507,7 +1554,7 @@ $(document).ready(function() {
                         <div class="d-flex align-items-center justify-content-end">
                             <i class="fas fa-plus-circle me-2" style="color: var(--dust-accent);"></i>
                             <div>
-                                Restock to 7 Days
+                                Depot Quantity
                                 <small class="d-block opacity-75" style="font-size: 0.7rem;">(Qty)</small>
                             </div>
                         </div>
@@ -1548,7 +1595,7 @@ $(document).ready(function() {
                 Math.round(row.MAX_DAILY_SALES || 0),
                 Math.round(row.MIN_DAILY_SALES || 0),
                 autonomyDisplay,
-                Math.round(row.RESTOCK_TO_7_DAYS || 0),
+                Math.round(row.DEPOT_QUANTITY || 0),
                 Math.round(row.SALES_TRANSACTIONS || 0),
                 autonomyClass, // Hidden column for row styling
                 autonomySort  // Hidden column for proper sorting
@@ -1568,7 +1615,7 @@ $(document).ready(function() {
                 { title: 'Max Daily Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Min Daily Sales', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Autonomy (Days)', type: 'num', orderData: [13] }, // Use hidden sort column
-                { title: 'Restock to 7 Days', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
+                { title: 'Depot Quantity', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Transactions', type: 'num', render: function(data) { return parseInt(data).toLocaleString(); } },
                 { title: 'Class', visible: false }, // Hidden column for styling
                 { title: 'Sort', visible: false }   // Hidden column for sorting
@@ -1605,32 +1652,46 @@ $(document).ready(function() {
                     extend: 'excel',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-file-excel me-2"></i>Excel',
-                    className: 'btn btn-success btn-sm',                    exportOptions: {
+                    className: 'btn btn-success btn-sm',
+                    filename: function() {
+                        return generateExportFilename('autonomy_report', 'xlsx');
+                    },
+                    exportOptions: {
                         columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] // Exclude hidden columns
                     }
-                },                {
+                },
+                {
                     extend: 'csv',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-file-csv me-2"></i>CSV',
                     className: 'btn btn-info btn-sm',
+                    filename: function() {
+                        return generateExportFilename('autonomy_report', 'csv');
+                    },
                     exportOptions: {
                         columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                     }
-                },                {
+                },
+                {
                     extend: 'pdf',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-file-pdf me-2"></i>PDF',
                     className: 'btn btn-danger btn-sm',
                     orientation: 'landscape',
                     pageSize: 'A4',
+                    filename: function() {
+                        return generateExportFilename('autonomy_report', 'pdf');
+                    },
                     exportOptions: {
                         columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                     }
-                },{
+                },
+                {
                     extend: 'print',
                     title: 'Stock Autonomy Report',
                     text: '<i class="fas fa-print me-2"></i>Print',
-                    className: 'btn btn-secondary btn-sm',                    exportOptions: {
+                    className: 'btn btn-secondary btn-sm',
+                    exportOptions: {
                         columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                     }
                 }],            createdRow: function(row, data, dataIndex) {
@@ -1806,7 +1867,18 @@ $(document).ready(function() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `autonomy_report_${new Date().getTime()}.xlsx`;
+            
+            // Get filename from server response headers or use default
+            let filename = 'autonomy_report.xlsx';
+            const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+            if (contentDisposition && contentDisposition.includes('filename=')) {
+                const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (matches && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+            a.download = filename;
+            
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

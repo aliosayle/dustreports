@@ -376,20 +376,56 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
     
     result_df['STOCK_AUTONOMY_DAYS'] = result_df.apply(calculate_autonomy, axis=1)
     
-    # Calculate restock quantity needed to reach 7 days of autonomy
-    def calculate_7day_restock(row):
-        if row['AVG_DAILY_SALES'] <= 0:
-            return 0  # No restock needed if no sales
-        
-        seven_day_requirement = row['AVG_DAILY_SALES'] * 7
-        current_stock = row['CURRENT_STOCK']
-        
-        if current_stock >= seven_day_requirement:
-            return 0  # Already have enough stock for 7 days
+    # Calculate depot quantity (total stock available at depot sites where SIDNO = 3700004)
+    try:
+        if 'sites' not in dataframes or dataframes['sites'] is None:
+            print("⚠️ Sites data not available for depot quantity calculation")
+            result_df['DEPOT_QUANTITY'] = 0
         else:
-            return round(seven_day_requirement - current_stock)  # Quantity needed to reach 7 days
-    
-    result_df['RESTOCK_TO_7_DAYS'] = result_df.apply(calculate_7day_restock, axis=1)
+            # Get depot sites where SIDNO = '3700004' (note: SIDNO is stored as string)
+            depot_sites_info = dataframes['sites'][dataframes['sites']['SIDNO'] == '3700004'].copy()
+            
+            if depot_sites_info.empty:
+                print("⚠️ No depot sites found with SIDNO = '3700004'")
+                result_df['DEPOT_QUANTITY'] = 0
+            else:
+                depot_site_ids = depot_sites_info['ID'].tolist()
+                print(f"📦 Found {len(depot_site_ids)} depot sites for quantity calculation")
+                
+                # Get inventory transactions for depot sites only
+                df_depot = dataframes['inventory_transactions'][
+                    dataframes['inventory_transactions']['SITE'].isin(depot_site_ids)
+                ].copy()
+                
+                if df_depot.empty:
+                    print("⚠️ No inventory transactions found for depot sites")
+                    result_df['DEPOT_QUANTITY'] = 0
+                else:
+                    # Fill NaN values and calculate depot quantities by item
+                    df_depot['DEBITQTY'] = df_depot['DEBITQTY'].fillna(0)
+                    df_depot['CREDITQTY'] = df_depot['CREDITQTY'].fillna(0)
+                    
+                    # Calculate depot quantities by item (sum across all depot sites)
+                    depot_qty = df_depot.groupby('ITEM').agg({
+                        'DEBITQTY': 'sum',
+                        'CREDITQTY': 'sum'
+                    }).reset_index()
+                    
+                    depot_qty['DEPOT_QUANTITY'] = depot_qty['DEBITQTY'] - depot_qty['CREDITQTY']
+                    
+                    # Create dictionary for easy lookup
+                    depot_dict = dict(zip(depot_qty['ITEM'], depot_qty['DEPOT_QUANTITY']))
+                    
+                    # Add depot quantity column to result_df
+                    result_df['DEPOT_QUANTITY'] = result_df['ITEM'].map(depot_dict).fillna(0)
+                    
+                    total_depot_qty = depot_qty['DEPOT_QUANTITY'].sum()
+                    items_with_depot_stock = (depot_qty['DEPOT_QUANTITY'] > 0).sum()
+                    print(f"📊 Depot calculation: {total_depot_qty:,.0f} total units across {items_with_depot_stock:,} items")
+                    
+    except Exception as e:
+        print(f"❌ Error calculating depot quantities: {e}")
+        result_df['DEPOT_QUANTITY'] = 0
     
     # Exclude items with no sales in the last 6 months
     six_months_ago = pd.to_datetime('today') - pd.DateOffset(months=6)
@@ -606,6 +642,9 @@ def api_export_excel():
         report_data = data.get('data', [])
         filters = data.get('filters', {})
         
+        # Debug logging
+        print(f"📊 Export Excel - Received filters: {filters}")
+        
         if not report_data:
             return jsonify({'error': 'No data to export'}), 400
         
@@ -639,7 +678,12 @@ def api_export_excel():
             # Add title with filters
             worksheet['A1'] = title
             worksheet['A1'].font = Font(size=14, bold=True)
-            worksheet.merge_cells('A1:D1')
+            # Merge cells across all columns in the dataset
+            last_column = worksheet.max_column
+            if last_column > 1:
+                worksheet.merge_cells(f'A1:{chr(64 + last_column)}1')
+            else:
+                worksheet.merge_cells('A1:A1')
             
             # Style the header row (now at row 3)
             header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
@@ -668,9 +712,39 @@ def api_export_excel():
         
         output.seek(0)
         
-        # Create filename with timestamp
+        # Create descriptive filename with date and site information
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f'autonomy_report_{timestamp}.xlsx'
+        filename_parts = ['autonomy_report']
+        
+        # Debug logging
+        print(f"📊 Building filename - filters: {filters}")
+        
+        # Add site (magasin) to filename if specified
+        if filters.get('site_code'):
+            site_code = filters['site_code'].replace(' ', '_').replace('/', '_')
+            filename_parts.append(f'magasin_{site_code}')
+            print(f"📊 Added site to filename: magasin_{site_code}")
+        
+        # Add date range to filename if specified
+        if filters.get('from_date') and filters.get('to_date'):
+            from_date_str = filters['from_date'].replace('-', '')
+            to_date_str = filters['to_date'].replace('-', '')
+            filename_parts.append(f'{from_date_str}_to_{to_date_str}')
+            print(f"📊 Added date range to filename: {from_date_str}_to_{to_date_str}")
+        elif filters.get('from_date'):
+            from_date_str = filters['from_date'].replace('-', '')
+            filename_parts.append(f'from_{from_date_str}')
+            print(f"📊 Added from date to filename: from_{from_date_str}")
+        elif filters.get('to_date'):
+            to_date_str = filters['to_date'].replace('-', '')
+            filename_parts.append(f'to_{to_date_str}')
+            print(f"📊 Added to date to filename: to_{to_date_str}")
+        
+        # Add timestamp
+        filename_parts.append(timestamp)
+        
+        filename = '_'.join(filename_parts) + '.xlsx'
+        print(f"📊 Final filename: {filename}")
         
         return send_file(
             output,
@@ -749,7 +823,7 @@ def api_custom_report():
         calc_columns = {
             'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 
             'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS',
-            'CURRENT_STOCK', 'STOCK_AUTONOMY_DAYS', 'RESTOCK_TO_7_DAYS',
+            'CURRENT_STOCK', 'STOCK_AUTONOMY_DAYS', 'DEPOT_QUANTITY',
             'TOTAL_IN', 'TOTAL_OUT', 'STOCK_TRANSACTIONS'
         }
         

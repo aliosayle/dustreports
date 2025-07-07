@@ -93,6 +93,32 @@
     
     <div class="col-md-6 col-lg-4 mb-4">
         <div class="card h-100 feature-card">
+            <div class="card-header text-center" style="background: var(--info-gradient); color: white;">
+                <i class="fas fa-building fa-2x mb-2"></i>
+                <h5 class="card-title mb-0">Stock by Site Report</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Comprehensive site-wise inventory analysis showing stock levels, transactions, and depot quantities across all locations.
+                </p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Multi-site inventory view</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Stock level filtering</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Site-wise breakdown</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Export capabilities</li>
+                </ul>
+            </div>
+            <div class="card-footer bg-transparent border-0 text-center">
+                <a href="{{ url_for('stock_by_site') }}" class="btn btn-info btn-lg w-100" style="color: white;">
+                    <i class="fas fa-arrow-right me-2"></i>
+                    View Sites
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 feature-card">
             <div class="card-header text-center" style="background: var(--success-gradient);">
                 <i class="fas fa-chart-bar fa-2x mb-2"></i>
                 <h5 class="card-title mb-0">Sales Analytics</h5>

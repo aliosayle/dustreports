@@ -467,7 +467,7 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df = result_df.merge(site_names, on='SITE', how='left')
       # Add item names and categories if available
     if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
-        item_info = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY']].drop_duplicates()
+        item_info = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY', 'SUNIT']].drop_duplicates()
         item_info['ITEM_NAME'] = item_info['DESCR1'].fillna('').astype(str)
           # Add category descriptions if available
         if 'categories' in dataframes and dataframes['categories'] is not None:
@@ -489,7 +489,7 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         
         # Merge with result_df
         result_df = result_df.merge(
-            item_info[['ITEM', 'ITEM_NAME', 'CATEGORY', 'CATEGORY_NAME']], 
+            item_info[['ITEM', 'ITEM_NAME', 'CATEGORY', 'CATEGORY_NAME', 'SUNIT']], 
             on='ITEM', how='left'
         )
         
@@ -497,11 +497,13 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('')
         result_df['CATEGORY'] = result_df['CATEGORY'].fillna('')
         result_df['CATEGORY_NAME'] = result_df['CATEGORY_NAME'].fillna('')
+        result_df['SUNIT'] = result_df['SUNIT'].fillna('')
     else:
         # If no item data available, create empty columns
         result_df['ITEM_NAME'] = ''
         result_df['CATEGORY'] = ''
         result_df['CATEGORY_NAME'] = ''
+        result_df['SUNIT'] = ''
     
     return result_df
 
@@ -523,6 +525,10 @@ def favicon():
 @app.route('/custom-reports')
 def custom_reports():
     return render_template('custom_reports.html')
+
+@app.route('/stock-by-site')
+def stock_by_site():
+    return render_template('stock_by_site.html')
 
 @app.route('/api/load-dataframes', methods=['POST'])
 def api_load_dataframes():
@@ -633,6 +639,163 @@ def api_autonomy_report():
         
     except Exception as e:
         print(f"Error in autonomy report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stock-by-site-report', methods=['POST'])
+def api_stock_by_site_report():
+    try:
+        data = request.get_json()
+        item_code = data.get('item_code')
+        site_code = data.get('site_code') 
+        stock_level = data.get('stock_level')
+        
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Use the existing calculate_stock_and_sales function but modify for site focus
+        result_df = calculate_stock_and_sales(item_code, site_code)
+        
+        if result_df is None or result_df.empty:
+            return jsonify({'error': 'No data found for the specified criteria'}), 404
+        
+        # Apply stock level filter if specified
+        if stock_level:
+            if stock_level == 'zero':
+                result_df = result_df[result_df['CURRENT_STOCK'] == 0]
+            elif stock_level == 'low':
+                result_df = result_df[(result_df['CURRENT_STOCK'] > 0) & (result_df['CURRENT_STOCK'] < 100)]
+            elif stock_level == 'medium':
+                result_df = result_df[(result_df['CURRENT_STOCK'] >= 100) & (result_df['CURRENT_STOCK'] < 1000)]
+            elif stock_level == 'high':
+                result_df = result_df[result_df['CURRENT_STOCK'] >= 1000]
+        
+        # Sort by site name, then by current stock descending
+        result_df = result_df.sort_values(['SITE_NAME', 'CURRENT_STOCK'], ascending=[True, False])
+        
+        # Convert to JSON
+        result_json = result_df.to_dict('records')
+        
+        # Return data with metadata
+        return jsonify({
+            'data': result_json,
+            'metadata': {
+                'total_rows': len(result_df),
+                'filters': {
+                    'site_code': site_code,
+                    'item_code': item_code,
+                    'stock_level': stock_level
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in stock by site report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/export-stock-by-site', methods=['POST'])
+def api_export_stock_by_site():
+    try:
+        data = request.get_json()
+        report_data = data.get('data', [])
+        filters = data.get('filters', {})
+        
+        if not report_data:
+            return jsonify({'error': 'No data to export'}), 400
+        
+        df = pd.DataFrame(report_data)
+        
+        # Build title with filters
+        title = "Stock by Site Report"
+        filter_info = []
+        
+        if filters.get('item_code'):
+            filter_info.append(f"Item: {filters['item_code']}")
+        if filters.get('site_code'):
+            filter_info.append(f"Site: {filters['site_code']}")
+        if filters.get('stock_level'):
+            stock_level_names = {
+                'zero': 'Zero Stock',
+                'low': 'Low Stock (1-99)',
+                'medium': 'Medium Stock (100-999)',
+                'high': 'High Stock (1000+)'
+            }
+            filter_info.append(f"Stock Level: {stock_level_names.get(filters['stock_level'], filters['stock_level'])}")
+        
+        if filter_info:
+            title += f" - {' | '.join(filter_info)}"
+        
+        # Create Excel file in memory
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Stock by Site', index=False, startrow=2)
+            
+            # Get workbook and worksheet for styling
+            workbook = writer.book
+            worksheet = writer.sheets['Stock by Site']
+            
+            # Add title with filters
+            worksheet['A1'] = title
+            worksheet['A1'].font = Font(size=14, bold=True)
+            # Merge cells across all columns in the dataset
+            last_column = worksheet.max_column
+            if last_column > 1:
+                worksheet.merge_cells(f'A1:{chr(64 + last_column)}1')
+            else:
+                worksheet.merge_cells('A1:A1')
+            
+            # Style the header row (now at row 3)
+            header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
+            header_font = Font(color='FFFFFF', bold=True)
+            
+            for col_num, column_title in enumerate(df.columns, 1):
+                cell = worksheet.cell(row=3, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center')
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        output.seek(0)
+        
+        # Create descriptive filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_parts = ['stock_by_site_report']
+        
+        # Add site to filename if specified
+        if filters.get('site_code'):
+            site_code = filters['site_code'].replace(' ', '_').replace('/', '_')
+            filename_parts.append(f'site_{site_code}')
+        
+        # Add stock level to filename if specified
+        if filters.get('stock_level'):
+            filename_parts.append(f'{filters["stock_level"]}_stock')
+        
+        # Add timestamp
+        filename_parts.append(timestamp)
+        
+        filename = '_'.join(filename_parts) + '.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/export-excel', methods=['POST'])

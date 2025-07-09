@@ -122,7 +122,7 @@ def load_dataframes():
         cache_loading = False
         raise e
 
-def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to_date=None):
+def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to_date=None, as_of_date=None):
     """
     Calculate current stock and sales (matching notebook exactly)
     """
@@ -131,6 +131,16 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         
     # Start with inventory transactions for stock calculation
     df_stock = dataframes['inventory_transactions'].copy()
+    
+    # Filter by date if specified (show stock as of a specific date)
+    if as_of_date:
+        as_of_dt = pd.to_datetime(as_of_date)
+        if 'FDATE' in df_stock.columns:
+            df_stock['FDATE'] = pd.to_datetime(df_stock['FDATE'], errors='coerce')
+            df_stock = df_stock[df_stock['FDATE'] <= as_of_dt]
+            print(f"📅 Filtering stock transactions up to {as_of_date} - {len(df_stock)} transactions found")
+        else:
+            print("⚠️ FDATE column not found in inventory transactions - cannot filter by date")
     
     # Filter by item if specified
     if item_code:
@@ -467,7 +477,7 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df = result_df.merge(site_names, on='SITE', how='left')
       # Add item names and categories if available
     if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
-        item_info = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY', 'SUNIT']].drop_duplicates()
+        item_info = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY', 'SUNIT', 'POSPRICE1']].drop_duplicates()
         item_info['ITEM_NAME'] = item_info['DESCR1'].fillna('').astype(str)
           # Add category descriptions if available
         if 'categories' in dataframes and dataframes['categories'] is not None:
@@ -489,7 +499,7 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         
         # Merge with result_df
         result_df = result_df.merge(
-            item_info[['ITEM', 'ITEM_NAME', 'CATEGORY', 'CATEGORY_NAME', 'SUNIT']], 
+            item_info[['ITEM', 'ITEM_NAME', 'CATEGORY', 'CATEGORY_NAME', 'SUNIT', 'POSPRICE1']], 
             on='ITEM', how='left'
         )
         
@@ -498,12 +508,18 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['CATEGORY'] = result_df['CATEGORY'].fillna('')
         result_df['CATEGORY_NAME'] = result_df['CATEGORY_NAME'].fillna('')
         result_df['SUNIT'] = result_df['SUNIT'].fillna('')
+        result_df['POSPRICE1'] = result_df['POSPRICE1'].fillna(0)
+        
+        # Calculate stock value (Price × Current Stock)
+        result_df['STOCK_VALUE'] = result_df['POSPRICE1'] * result_df['CURRENT_STOCK']
     else:
         # If no item data available, create empty columns
         result_df['ITEM_NAME'] = ''
         result_df['CATEGORY'] = ''
         result_df['CATEGORY_NAME'] = ''
         result_df['SUNIT'] = ''
+        result_df['POSPRICE1'] = 0
+        result_df['STOCK_VALUE'] = 0
     
     return result_df
 
@@ -646,28 +662,17 @@ def api_stock_by_site_report():
     try:
         data = request.get_json()
         item_code = data.get('item_code')
-        site_code = data.get('site_code') 
-        stock_level = data.get('stock_level')
+        site_code = data.get('site_code')
+        as_of_date = data.get('as_of_date')  # Date filter parameter
         
         if not dataframes:
             return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
         
-        # Use the existing calculate_stock_and_sales function but modify for site focus
-        result_df = calculate_stock_and_sales(item_code, site_code)
+        # Use the existing calculate_stock_and_sales function with date filter
+        result_df = calculate_stock_and_sales(item_code, site_code, as_of_date=as_of_date)
         
         if result_df is None or result_df.empty:
             return jsonify({'error': 'No data found for the specified criteria'}), 404
-        
-        # Apply stock level filter if specified
-        if stock_level:
-            if stock_level == 'zero':
-                result_df = result_df[result_df['CURRENT_STOCK'] == 0]
-            elif stock_level == 'low':
-                result_df = result_df[(result_df['CURRENT_STOCK'] > 0) & (result_df['CURRENT_STOCK'] < 100)]
-            elif stock_level == 'medium':
-                result_df = result_df[(result_df['CURRENT_STOCK'] >= 100) & (result_df['CURRENT_STOCK'] < 1000)]
-            elif stock_level == 'high':
-                result_df = result_df[result_df['CURRENT_STOCK'] >= 1000]
         
         # Sort by site name, then by current stock descending
         result_df = result_df.sort_values(['SITE_NAME', 'CURRENT_STOCK'], ascending=[True, False])
@@ -683,7 +688,7 @@ def api_stock_by_site_report():
                 'filters': {
                     'site_code': site_code,
                     'item_code': item_code,
-                    'stock_level': stock_level
+                    'as_of_date': as_of_date
                 }
             }
         })
@@ -712,14 +717,8 @@ def api_export_stock_by_site():
             filter_info.append(f"Item: {filters['item_code']}")
         if filters.get('site_code'):
             filter_info.append(f"Site: {filters['site_code']}")
-        if filters.get('stock_level'):
-            stock_level_names = {
-                'zero': 'Zero Stock',
-                'low': 'Low Stock (1-99)',
-                'medium': 'Medium Stock (100-999)',
-                'high': 'High Stock (1000+)'
-            }
-            filter_info.append(f"Stock Level: {stock_level_names.get(filters['stock_level'], filters['stock_level'])}")
+        if filters.get('as_of_date'):
+            filter_info.append(f"As of Date: {filters['as_of_date']}")
         
         if filter_info:
             title += f" - {' | '.join(filter_info)}"
@@ -779,9 +778,10 @@ def api_export_stock_by_site():
             site_code = filters['site_code'].replace(' ', '_').replace('/', '_')
             filename_parts.append(f'site_{site_code}')
         
-        # Add stock level to filename if specified
-        if filters.get('stock_level'):
-            filename_parts.append(f'{filters["stock_level"]}_stock')
+        # Add date to filename if specified
+        if filters.get('as_of_date'):
+            as_of_date_str = filters['as_of_date'].replace('-', '')
+            filename_parts.append(f'as_of_{as_of_date_str}')
         
         # Add timestamp
         filename_parts.append(timestamp)

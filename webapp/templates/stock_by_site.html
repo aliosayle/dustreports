@@ -106,20 +106,18 @@
                         
                         <div class="col-lg-4 col-md-6">
                             <div class="filter-group">
-                                <label for="stockLevelSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-layer-group me-2" style="color: var(--dust-secondary);"></i>
-                                    Stock Level Filter
+                                <label for="asOfDateSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar me-2" style="color: var(--dust-secondary);"></i>
+                                    Stock As Of Date
                                 </label>
                                 <div class="filter-input-wrapper position-relative">
-                                    <select class="form-select form-select-lg" id="stockLevelSelect" name="stock_level"
-                                            style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                        <option value="">🔍 All Stock Levels</option>
-                                        <option value="zero">🔴 Zero Stock</option>
-                                        <option value="low">🟠 Low Stock (1-99)</option>
-                                        <option value="medium">🟡 Medium Stock (100-999)</option>
-                                        <option value="high">🟢 High Stock (1000+)</option>
-                                    </select>
+                                    <input type="date" class="form-control form-control-lg" id="asOfDateSelect" name="as_of_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
                                 </div>
+                                <small class="text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Leave empty for current stock
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -188,6 +186,21 @@
             <div class="metric-content">
                 <h3 id="totalStock" class="metric-value">0</h3>
                 <p class="metric-label">Total Stock</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-success">
+            <div class="metric-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalStockValue" class="metric-value">$0</h3>
+                <p class="metric-label">Total Value</p>
             </div>
             <div class="metric-trend">
                 <i class="fas fa-arrow-up"></i>
@@ -304,8 +317,10 @@
                                 <th><i class="fas fa-box me-2"></i>Item Code</th>
                                 <th><i class="fas fa-cube me-2"></i>Item Name</th>
                                 <th><i class="fas fa-th-large me-2"></i>Category</th>
-                                <th><i class="fas fa-balance-scale me-2"></i>Unit</th>
                                 <th><i class="fas fa-warehouse me-2"></i>Current Stock</th>
+                                <th><i class="fas fa-balance-scale me-2"></i>Unit</th>
+                                <th><i class="fas fa-dollar-sign me-2"></i>Price</th>
+                                <th><i class="fas fa-coins me-2"></i>Stock Value</th>
                                 <th><i class="fas fa-plus me-2"></i>Total In</th>
                                 <th><i class="fas fa-minus me-2"></i>Total Out</th>
                                 <th><i class="fas fa-exchange-alt me-2"></i>Transactions</th>
@@ -579,7 +594,7 @@ $(document).ready(function() {
             responsive: true,
             pageLength: 25,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            order: [[7, 'desc']], // Sort by Current Stock by default (column index updated)
+            order: [[6, 'desc']], // Sort by Current Stock by default (updated column index)
             buttons: [
                 {
                     extend: 'excel',
@@ -696,9 +711,9 @@ $(document).ready(function() {
             ],
             columnDefs: [
                 { targets: [0], orderable: false },
-                { targets: [7, 8, 9, 10, 11], className: 'text-end' }, // Updated column indices
+                { targets: [6, 7, 8, 9, 10, 11, 12, 13], className: 'text-end' }, // Current Stock, Unit, Price, Stock Value, Total In, Total Out, Transactions, Depot Qty
                 { 
-                    targets: [7], // Updated column index for Current Stock
+                    targets: [6], // Current Stock column
                     render: function(data, type, row) {
                         if (type === 'display') {
                             const stock = parseFloat(data) || 0;
@@ -725,11 +740,55 @@ $(document).ready(function() {
                     }
                 },
                 { 
-                    targets: [8, 9, 10, 11], // Updated column indices
+                    targets: [8], // Price column
+                    render: function(data, type, row) {
+                        if (type === 'display') {
+                            const price = parseFloat(data) || 0;
+                            return new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: 'USD',
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }).format(price);
+                        }
+                        return data;
+                    }
+                },
+                { 
+                    targets: [9], // Stock Value column
                     render: function(data, type, row) {
                         if (type === 'display') {
                             const value = parseFloat(data) || 0;
-                            return value.toLocaleString();
+                            let colorClass = '';
+                            
+                            if (value >= 10000) {
+                                colorClass = 'text-success fw-bold';
+                            } else if (value >= 1000) {
+                                colorClass = 'text-info fw-bold';
+                            } else if (value > 0) {
+                                colorClass = 'text-warning';
+                            } else {
+                                colorClass = 'text-muted';
+                            }
+                            
+                            const formattedValue = new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: 'USD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0
+                            }).format(value);
+                            
+                            return `<span class="${colorClass}">${formattedValue}</span>`;
+                        }
+                        return data;
+                    }
+                },
+                { 
+                    targets: [10, 11, 12, 13], // Total In, Total Out, Transactions, Depot Qty
+                    render: function(data, type, row) {
+                        if (type === 'display') {
+                            const num = parseFloat(data) || 0;
+                            return num.toLocaleString();
                         }
                         return data;
                     }
@@ -818,12 +877,14 @@ $(document).ready(function() {
     function updateSummaryCards(data) {
         const totalSites = new Set(data.map(row => row.SITE)).size;
         const totalStock = data.reduce((sum, row) => sum + (parseFloat(row.CURRENT_STOCK) || 0), 0);
+        const totalStockValue = data.reduce((sum, row) => sum + (parseFloat(row.STOCK_VALUE) || 0), 0);
         const totalItems = data.length;
         const zeroStock = data.filter(row => (parseFloat(row.CURRENT_STOCK) || 0) === 0).length;
         const avgStock = totalItems > 0 ? Math.round(totalStock / totalItems) : 0;
         
         $('#totalSites').text(totalSites.toLocaleString());
         $('#totalStock').text(totalStock.toLocaleString());
+        $('#totalStockValue').text('$' + totalStockValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}));
         $('#totalItems').text(totalItems.toLocaleString());
         $('#zeroStock').text(zeroStock.toLocaleString());
         $('#avgStock').text(avgStock.toLocaleString());
@@ -865,8 +926,10 @@ $(document).ready(function() {
                             row.ITEM || '',
                             row.ITEM_NAME || '',
                             row.CATEGORY_NAME || '',
-                            row.SUNIT || '',
                             row.CURRENT_STOCK || 0,
+                            row.SUNIT || '',
+                            row.POSPRICE1 || 0,
+                            row.STOCK_VALUE || 0,
                             row.TOTAL_IN || 0,
                             row.TOTAL_OUT || 0,
                             row.STOCK_TRANSACTIONS || 0,
@@ -878,39 +941,12 @@ $(document).ready(function() {
                 }
                 
                 $('#summaryCards, #resultsSection').show();
-                
-                // Apply stock level filter if specified
-                if (filters.stock_level) {
-                    applyStockLevelFilter(filters.stock_level);
-                }
             },
             error: function(xhr, status, error) {
                 hideLoading();
                 showError('Error loading data: ' + error);
             }
         });
-    }
-    
-    // Apply stock level filter to DataTable
-    function applyStockLevelFilter(level) {
-        if (!stockBySiteTable) return;
-        
-        stockBySiteTable.column(7).search('').draw(); // Clear existing search (updated column index)
-        
-        switch(level) {
-            case 'zero':
-                stockBySiteTable.column(7).search('^🔴', true, false).draw();
-                break;
-            case 'low':
-                stockBySiteTable.column(7).search('^🟠', true, false).draw();
-                break;
-            case 'medium':
-                stockBySiteTable.column(7).search('^🟡', true, false).draw();
-                break;
-            case 'high':
-                stockBySiteTable.column(7).search('^🟢', true, false).draw();
-                break;
-        }
     }
     
     // Form submission
@@ -920,7 +956,7 @@ $(document).ready(function() {
         const filters = {
             site_code: $('#siteSelect').val(),
             item_code: $('#itemSelect').val(),
-            stock_level: $('#stockLevelSelect').val()
+            as_of_date: $('#asOfDateSelect').val()
         };
         
         loadStockBySiteData(filters);
@@ -929,7 +965,8 @@ $(document).ready(function() {
     // Clear filters
     $('#clearBtn').on('click', function() {
         $('#stockBySiteForm')[0].reset();
-        $('#siteSelect, #itemSelect, #stockLevelSelect').val('').trigger('change');
+        $('#siteSelect, #itemSelect').val('').trigger('change');
+        $('#asOfDateSelect').val('');
         $('#summaryCards, #resultsSection, #errorSection').hide();
         
         if (stockBySiteTable) {

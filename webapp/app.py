@@ -122,7 +122,7 @@ def load_dataframes():
         cache_loading = False
         raise e
 
-def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to_date=None, as_of_date=None):
+def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to_date=None, as_of_date=None, site_codes=None, category_id=None):
     """
     Calculate current stock and sales (matching notebook exactly)
     """
@@ -149,17 +149,48 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
             print(f"❌ No stock transactions found for item: {item_code}")
             return None
     
-    # Filter by site if specified  
+    # Filter by site if specified (single site - legacy support)
     if site_code:
         df_stock = df_stock[df_stock['SITE'] == site_code]
         if df_stock.empty:
             print(f"❌ No stock transactions found for site: {site_code}")
             return None
     
+    # Filter by multiple sites if specified
+    if site_codes and isinstance(site_codes, list) and len(site_codes) > 0:
+        df_stock = df_stock[df_stock['SITE'].isin(site_codes)]
+        if df_stock.empty:
+            print(f"❌ No stock transactions found for sites: {site_codes}")
+            return None
+        print(f"📍 Filtering for {len(site_codes)} sites: {site_codes}")
+    
+    # Filter by category if specified
+    if category_id:
+        # First, get items in the specified category
+        if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
+            items_in_category = dataframes['inventory_items'][
+                dataframes['inventory_items']['CATEGORY'].astype(str) == str(category_id)
+            ]['ITEM'].unique()
+            
+            if len(items_in_category) == 0:
+                print(f"❌ No items found in category: {category_id}")
+                return None
+            
+            # Filter stock transactions to only include items in the category
+            df_stock = df_stock[df_stock['ITEM'].isin(items_in_category)]
+            if df_stock.empty:
+                print(f"❌ No stock transactions found for items in category: {category_id}")
+                return None
+            print(f"📋 Filtering for category {category_id}: {len(items_in_category)} items")
+        else:
+            print("⚠️ Inventory items data not available for category filtering")
+            return None
+    
     # Fill NaN values with 0 for calculations
     df_stock['DEBITQTY'] = df_stock['DEBITQTY'].fillna(0)
     df_stock['CREDITQTY'] = df_stock['CREDITQTY'].fillna(0)
-      # Calculate stock by grouping
+    
+    # Calculate stock by grouping
     if item_code and site_code:
         # Single item, single site
         result_df = pd.DataFrame({
@@ -168,19 +199,41 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
             'TOTAL_IN': [df_stock['DEBITQTY'].sum()],
             'TOTAL_OUT': [df_stock['CREDITQTY'].sum()],
             'CURRENT_STOCK': [df_stock['DEBITQTY'].sum() - df_stock['CREDITQTY'].sum()],
-            'STOCK_TRANSACTIONS': [len(df_stock)]
+            'STOCK_TRANSACTIONS': [len(df_stock)],
+            'SELECTED_SITES': ['']
         })
     elif item_code:
-        # Single item, all sites
-        result_df = df_stock.groupby('SITE').agg({
-            'DEBITQTY': 'sum',
-            'CREDITQTY': 'sum',
-            'ITEM': 'first'
-        }).reset_index()
-        result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
-        result_df['STOCK_TRANSACTIONS'] = df_stock.groupby('SITE').size().values
-        result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
-        result_df = result_df[['SITE', 'ITEM', 'TOTAL_IN', 'TOTAL_OUT', 'CURRENT_STOCK', 'STOCK_TRANSACTIONS']]
+        # Single item, all sites (or selected sites)
+        if site_codes and isinstance(site_codes, list) and len(site_codes) > 0:
+            # Multiple sites selected - aggregate across all selected sites for this item
+            # Get site names for display
+            site_names_display = "Multiple Sites"
+            if 'sites' in dataframes and dataframes['sites'] is not None:
+                site_name_map = dict(zip(dataframes['sites']['ID'], dataframes['sites']['SITE']))
+                selected_site_names = [site_name_map.get(site_id, site_id) for site_id in site_codes]
+                site_names_display = f"{', '.join(selected_site_names[:3])}" + (f" (+{len(selected_site_names)-3} more)" if len(selected_site_names) > 3 else "")
+            
+            result_df = pd.DataFrame({
+                'SITE': [f"Multiple Sites ({len(site_codes)})"],
+                'ITEM': [item_code],
+                'TOTAL_IN': [df_stock['DEBITQTY'].sum()],
+                'TOTAL_OUT': [df_stock['CREDITQTY'].sum()],
+                'CURRENT_STOCK': [df_stock['DEBITQTY'].sum() - df_stock['CREDITQTY'].sum()],
+                'STOCK_TRANSACTIONS': [len(df_stock)],
+                'SELECTED_SITES': [site_names_display]
+            })
+        else:
+            # All sites - show by site
+            result_df = df_stock.groupby('SITE').agg({
+                'DEBITQTY': 'sum',
+                'CREDITQTY': 'sum',
+                'ITEM': 'first'
+            }).reset_index()
+            result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
+            result_df['STOCK_TRANSACTIONS'] = df_stock.groupby('SITE').size().values
+            result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
+            result_df['SELECTED_SITES'] = ''
+            result_df = result_df[['SITE', 'ITEM', 'TOTAL_IN', 'TOTAL_OUT', 'CURRENT_STOCK', 'STOCK_TRANSACTIONS', 'SELECTED_SITES']]
     elif site_code:
         # All items, single site
         result_df = df_stock.groupby('ITEM').agg({
@@ -191,7 +244,29 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
         result_df['STOCK_TRANSACTIONS'] = df_stock.groupby('ITEM').size().values
         result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
-        result_df = result_df[['SITE', 'ITEM', 'TOTAL_IN', 'TOTAL_OUT', 'CURRENT_STOCK', 'STOCK_TRANSACTIONS']]
+        result_df['SELECTED_SITES'] = ''
+        result_df = result_df[['SITE', 'ITEM', 'TOTAL_IN', 'TOTAL_OUT', 'CURRENT_STOCK', 'STOCK_TRANSACTIONS', 'SELECTED_SITES']]
+    elif site_codes and isinstance(site_codes, list) and len(site_codes) > 0:
+        # Multiple sites selected - aggregate by item across selected sites
+        result_df = df_stock.groupby('ITEM').agg({
+            'DEBITQTY': 'sum',
+            'CREDITQTY': 'sum'
+        }).reset_index()
+        result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
+        result_df['STOCK_TRANSACTIONS'] = df_stock.groupby('ITEM').size().values
+        result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
+        
+        # Get site names for display
+        site_names_display = "Multiple Sites"
+        if 'sites' in dataframes and dataframes['sites'] is not None:
+            site_name_map = dict(zip(dataframes['sites']['ID'], dataframes['sites']['SITE']))
+            selected_site_names = [site_name_map.get(site_id, site_id) for site_id in site_codes]
+            site_names_display = f"{', '.join(selected_site_names[:3])}" + (f" (+{len(selected_site_names)-3} more)" if len(selected_site_names) > 3 else "")
+        
+        # Add site columns
+        result_df['SITE'] = f"Multiple Sites ({len(site_codes)})"
+        result_df['SELECTED_SITES'] = site_names_display
+        result_df = result_df[['SITE', 'ITEM', 'TOTAL_IN', 'TOTAL_OUT', 'CURRENT_STOCK', 'STOCK_TRANSACTIONS', 'SELECTED_SITES']]
     else:
         # All items, all sites
         result_df = df_stock.groupby(['SITE', 'ITEM']).agg({
@@ -201,23 +276,47 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         result_df['CURRENT_STOCK'] = result_df['DEBITQTY'] - result_df['CREDITQTY']
         result_df['STOCK_TRANSACTIONS'] = df_stock.groupby(['SITE', 'ITEM']).size().values
         result_df = result_df.rename(columns={'DEBITQTY': 'TOTAL_IN', 'CREDITQTY': 'TOTAL_OUT'})
+        result_df['SELECTED_SITES'] = ''
     
     # Limit results for performance in large datasets
-    result_df = result_df.head(1000)
+    # Apply limit earlier and add sorting for better performance
+    if len(result_df) > 1000:
+        print(f"📊 Large dataset detected ({len(result_df)} rows), applying performance optimizations...")
+        # Sort by current stock descending to get the most relevant items first
+        result_df = result_df.sort_values('CURRENT_STOCK', ascending=False)
+        result_df = result_df.head(1000)
+        print(f"📊 Limited to top 1000 items by current stock for performance")
+    
     print(f"📊 Processing {len(result_df)} rows for calculations...")
     
     # Calculate sales analytics from sales_details_df (ITEMS table)
+    # Optimized version for better performance
     if 'sales_details' in dataframes and dataframes['sales_details'] is not None:
-        df_sales = dataframes['sales_details'].copy()
+        df_sales = dataframes['sales_details']
         
-        # Filter sales by item and site
+        # Early filtering to reduce dataset size
+        print("📊 Starting sales analytics calculation...")
+        
+        # Apply site filtering first to reduce data size
+        sales_filters = []
         if item_code:
-            df_sales = df_sales[df_sales['ITEM'] == item_code]
+            sales_filters.append(df_sales['ITEM'] == item_code)
         if site_code:
-            df_sales = df_sales[df_sales['SITE'] == site_code]
+            sales_filters.append(df_sales['SITE'] == site_code)
+        if site_codes and isinstance(site_codes, list) and len(site_codes) > 0:
+            sales_filters.append(df_sales['SITE'].isin(site_codes))
         
-        # Convert FDATE to datetime if it's not already
-        if 'FDATE' in df_sales.columns:
+        # Apply all filters at once if any exist
+        if sales_filters:
+            combined_filter = sales_filters[0]
+            for filt in sales_filters[1:]:
+                combined_filter = combined_filter & filt
+            df_sales = df_sales[combined_filter]
+            print(f"📊 Filtered sales data to {len(df_sales)} records for analysis")
+        
+        # Continue with date and transaction type filtering
+        if 'FDATE' in df_sales.columns and not df_sales.empty:
+            df_sales = df_sales.copy()  # Only copy when needed
             df_sales['FDATE'] = pd.to_datetime(df_sales['FDATE'], errors='coerce')
             
             # Filter by date range if specified
@@ -298,7 +397,12 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
                 'SALES_PERIOD_DAYS': period_days
             })
           # Calculate analytics by same grouping as stock
-        if item_code and site_code:
+        # Optimized approach: skip sales analytics for multi-site aggregation to improve performance
+        if site_codes and isinstance(site_codes, list) and len(site_codes) > 1:
+            # Multi-site aggregation - skip detailed sales analytics for performance
+            print("📊 Skipping detailed sales analytics for multi-site aggregation (performance optimization)")
+            sales_analytics = pd.DataFrame()
+        elif item_code and site_code:
             # Single item, single site
             if not sales_only.empty:
                 analytics = calculate_sales_analytics(sales_only, from_date, to_date)
@@ -325,28 +429,33 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
                     'SALES_PERIOD_DAYS': [0]
                 })
         elif item_code:
-            # Single item, all sites
+            # Single item, all sites (but limit sites for performance)
             if not sales_only.empty:
-                sales_analytics = sales_only.groupby('SITE').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
+                # Limit to top 20 sites by sales volume for performance
+                top_sites = sales_only.groupby('SITE')['QTY'].sum().nlargest(20).index
+                sales_only_limited = sales_only[sales_only['SITE'].isin(top_sites)]
+                sales_analytics = sales_only_limited.groupby('SITE').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
                 sales_analytics['ITEM'] = item_code
+                print(f"📊 Limited sales analytics to top {len(top_sites)} sites for performance")
             else:
                 # No sales data - create empty DataFrame
                 sales_analytics = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS'])
         elif site_code:
-            # All items, single site
+            # All items, single site (but limit items for performance)
             if not sales_only.empty:
-                sales_analytics = sales_only.groupby('ITEM').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
+                # Limit to top 100 items by sales volume for performance
+                top_items = sales_only.groupby('ITEM')['QTY'].sum().nlargest(100).index
+                sales_only_limited = sales_only[sales_only['ITEM'].isin(top_items)]
+                sales_analytics = sales_only_limited.groupby('ITEM').apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
                 sales_analytics['SITE'] = site_code
+                print(f"📊 Limited sales analytics to top {len(top_items)} items for performance")
             else:
                 # No sales data - create empty DataFrame
                 sales_analytics = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS'])
         else:
-            # All items, all sites
-            if not sales_only.empty:
-                sales_analytics = sales_only.groupby(['SITE', 'ITEM']).apply(lambda x: calculate_sales_analytics(x, from_date, to_date), include_groups=False).reset_index()
-            else:
-                # No sales data - create empty DataFrame
-                sales_analytics = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS'])
+            # All items, all sites - too expensive, skip for performance
+            print("📊 Skipping detailed sales analytics for all items/all sites (performance optimization)")
+            sales_analytics = pd.DataFrame()
           # Merge stock and sales analytics - only if we have sales data
         if not sales_analytics.empty and all(col in sales_analytics.columns for col in ['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS']):
             result_df = result_df.merge(sales_analytics[['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES', 'AVG_DAILY_SALES', 'SALES_TRANSACTIONS', 'TOTAL_SALES_QTY', 'SALES_PERIOD_DAYS']], 
@@ -437,36 +546,88 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         print(f"❌ Error calculating depot quantities: {e}")
         result_df['DEPOT_QUANTITY'] = 0
     
-    # Exclude items with no sales in the last 6 months
+    # Exclude items with no sales in the last 6 months (except for depot sites)
+    # Optimized version to improve performance
     six_months_ago = pd.to_datetime('today') - pd.DateOffset(months=6)
     
     # Check if we have sales data to filter
     if 'sales_details' in dataframes and dataframes['sales_details'] is not None:
-        df_sales_recent = dataframes['sales_details'].copy()
+        print("📊 Starting optimized 6-month filtering...")
         
-        # Convert FDATE to datetime if it's not already
-        if 'FDATE' in df_sales_recent.columns:
-            df_sales_recent['FDATE'] = pd.to_datetime(df_sales_recent['FDATE'], errors='coerce')
+        # Get the relevant sites first to reduce data size
+        sites_to_check = []
+        if site_codes and isinstance(site_codes, list) and len(site_codes) > 0:
+            sites_to_check = site_codes
+        elif site_code:
+            sites_to_check = [site_code]
+        
+        # Identify depot sites early
+        depot_items = set()
+        is_depot_site_selected = False
+        if 'sites' in dataframes and dataframes['sites'] is not None:
+            depot_sites_info = dataframes['sites'][dataframes['sites']['SIDNO'] == '3700004'].copy()
+            if not depot_sites_info.empty:
+                depot_site_ids = depot_sites_info['ID'].tolist()
+                
+                # Check if any of our selected sites are depot sites
+                if sites_to_check:
+                    selected_depot_sites = [site for site in sites_to_check if site in depot_site_ids]
+                    if selected_depot_sites:
+                        is_depot_site_selected = True
+                        depot_items = set(result_df['ITEM'].unique())
+                        print(f"� Selected sites include depot sites - keeping all {len(depot_items)} items regardless of sales")
+                else:
+                    print("📦 No specific sites selected - applying 6-month sales filter")
+        
+        # Only do expensive sales filtering if depot sites are not selected
+        if not is_depot_site_selected:
+            # Build optimized query to minimize data processing
+            df_sales = dataframes['sales_details']
             
-            # Filter for sales in the last 6 months
-            df_sales_recent = df_sales_recent[df_sales_recent['FDATE'] >= six_months_ago]
-              # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
-            if 'FTYPE' in df_sales_recent.columns:
-                df_sales_recent = df_sales_recent[df_sales_recent['FTYPE'].isin([1, 2])]
-              # Filter for site sales only (SID starting with "530")
-            if 'SID' in df_sales_recent.columns:
-                df_sales_recent = df_sales_recent[df_sales_recent['SID'].astype(str).str.startswith('530')]
-                print(f"📊 6-month filtering: {len(df_sales_recent)} site sales transactions found (SID starting with '530')")
+            # Convert FDATE to datetime if it's not already (do this once)
+            if 'FDATE' in df_sales.columns:
+                print("📊 Converting dates and applying filters...")
+                
+                # Create boolean masks for efficient filtering
+                date_mask = pd.to_datetime(df_sales['FDATE'], errors='coerce') >= six_months_ago
+                
+                # Filter for sales transactions (FTYPE = 1 for sales, FTYPE = 2 for returns)
+                ftype_mask = df_sales['FTYPE'].isin([1, 2]) if 'FTYPE' in df_sales.columns else pd.Series([True] * len(df_sales))
+                
+                # Filter for site sales only (SID starting with "530")
+                sid_mask = df_sales['SID'].astype(str).str.startswith('530') if 'SID' in df_sales.columns else pd.Series([True] * len(df_sales))
+                
+                # Filter by selected sites if specified
+                if sites_to_check:
+                    site_mask = df_sales['SITE'].isin(sites_to_check)
+                else:
+                    site_mask = pd.Series([True] * len(df_sales))
+                
+                # Combine all masks and apply at once
+                combined_mask = date_mask & ftype_mask & sid_mask & site_mask
+                
+                print(f"📊 Applying combined filters to {len(df_sales)} total sales records...")
+                df_sales_filtered = df_sales[combined_mask]
+                
+                print(f"📊 Filtered to {len(df_sales_filtered)} relevant sales transactions")
+                
+                # Get unique items that had sales in the last 6 months
+                items_with_recent_sales = df_sales_filtered['ITEM'].unique()
+                print(f"� Found {len(items_with_recent_sales)} items with recent sales")
+                
+                # Combine with depot items
+                items_to_keep = set(items_with_recent_sales) | depot_items
             else:
-                print("⚠️ SID column not found in 6-month filtering")
-            
-            # Get unique combinations of SITE and ITEM that had sales in the last 6 months
-            items_with_recent_sales = df_sales_recent[['SITE', 'ITEM']].drop_duplicates()
-            
-            # Filter result_df to only include items with sales in the last 6 months
-            result_df = result_df.merge(items_with_recent_sales, on=['SITE', 'ITEM'], how='inner')
-            
-            print(f"📊 Filtered to {len(result_df)} items with sales in the last 6 months (since {six_months_ago.strftime('%Y-%m-%d')})")
+                print("⚠️ FDATE column not found in sales data")
+                items_to_keep = set(result_df['ITEM'].unique())
+        else:
+            # Depot site selected - keep all items
+            items_to_keep = depot_items
+        
+        # Filter result_df to only include items with sales in the last 6 months OR depot sites
+        result_df = result_df[result_df['ITEM'].isin(items_to_keep)]
+        
+        print(f"📊 Final result: {len(result_df)} items after 6-month filtering (since {six_months_ago.strftime('%Y-%m-%d')})")
     else:
         print("⚠️ No sales data available for 6-month filtering")
     
@@ -475,6 +636,13 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
         site_names = dataframes['sites'][['ID', 'SITE']].drop_duplicates()
         site_names = site_names.rename(columns={'ID': 'SITE', 'SITE': 'SITE_NAME'})
         result_df = result_df.merge(site_names, on='SITE', how='left')
+        
+        # For multi-site aggregation, set SITE_NAME to match SELECTED_SITES if available
+        multi_site_mask = result_df['SITE'].str.contains('Multiple Sites', na=False)
+        result_df.loc[multi_site_mask, 'SITE_NAME'] = result_df.loc[multi_site_mask, 'SELECTED_SITES']
+    else:
+        # If no site data available, set SITE_NAME to SITE
+        result_df['SITE_NAME'] = result_df['SITE']
       # Add item names and categories if available
     if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
         item_info = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY', 'SUNIT', 'POSPRICE1']].drop_duplicates()
@@ -600,6 +768,38 @@ def api_sites():
         print(f"Error in api_sites: {e}")
         return jsonify([])
 
+@app.route('/api/categories')
+def api_categories():
+    try:
+        if 'categories' not in dataframes or dataframes['categories'] is None:
+            return jsonify([])
+        
+        # Filter out categories with 0 items
+        if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
+            # Get categories that have items
+            categories_with_items = dataframes['inventory_items']['CATEGORY'].dropna().unique()
+            
+            # Filter categories to only include those with items
+            categories = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
+            categories = categories[categories['ID'].isin(categories_with_items)]
+            
+            categories_list = [{'id': row['ID'], 'name': row['DESCR'] or ''} for _, row in categories.iterrows()]
+            
+            # Sort by name for better UX
+            categories_list.sort(key=lambda x: x['name'])
+            
+            print(f"📋 Returning {len(categories_list)} categories with items")
+            return jsonify(categories_list)
+        else:
+            # Fallback if inventory_items is not available
+            categories = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
+            categories_list = [{'id': row['ID'], 'name': row['DESCR'] or ''} for _, row in categories.iterrows()]
+            categories_list.sort(key=lambda x: x['name'])
+            return jsonify(categories_list)
+    except Exception as e:
+        print(f"Error in api_categories: {e}")
+        return jsonify([])
+
 @app.route('/api/items')
 def api_items():
     try:
@@ -625,7 +825,12 @@ def api_autonomy_report():
         if not dataframes:
             return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
         
-        result_df = calculate_stock_and_sales(item_code, site_code, from_date, to_date)
+        result_df = calculate_stock_and_sales(
+            item_code=item_code, 
+            site_code=site_code, 
+            from_date=from_date, 
+            to_date=to_date
+        )
         
         if result_df is None or result_df.empty:
             return jsonify({'error': 'No data found for the specified criteria'}), 404
@@ -662,20 +867,34 @@ def api_stock_by_site_report():
     try:
         data = request.get_json()
         item_code = data.get('item_code')
-        site_code = data.get('site_code')
+        site_code = data.get('site_code')  # Single site (legacy support)
+        site_codes = data.get('site_codes')  # Multiple sites (new)
+        category_id = data.get('category_id')  # Category filter
         as_of_date = data.get('as_of_date')  # Date filter parameter
         
         if not dataframes:
             return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
         
-        # Use the existing calculate_stock_and_sales function with date filter
-        result_df = calculate_stock_and_sales(item_code, site_code, as_of_date=as_of_date)
+        # Use the existing calculate_stock_and_sales function with new parameters
+        result_df = calculate_stock_and_sales(
+            item_code=item_code, 
+            site_code=site_code,
+            site_codes=site_codes,
+            category_id=category_id,
+            as_of_date=as_of_date
+        )
         
         if result_df is None or result_df.empty:
             return jsonify({'error': 'No data found for the specified criteria'}), 404
         
         # Sort by site name, then by current stock descending
-        result_df = result_df.sort_values(['SITE_NAME', 'CURRENT_STOCK'], ascending=[True, False])
+        # For multi-site aggregation, sort by item name instead of site name
+        if site_codes and isinstance(site_codes, list) and len(site_codes) > 1:
+            # Multiple sites selected - sort by item name, then by current stock descending
+            result_df = result_df.sort_values(['ITEM_NAME', 'CURRENT_STOCK'], ascending=[True, False])
+        else:
+            # Single site or all sites - sort by site name, then by current stock descending
+            result_df = result_df.sort_values(['SITE_NAME', 'CURRENT_STOCK'], ascending=[True, False])
         
         # Convert to JSON
         result_json = result_df.to_dict('records')
@@ -687,7 +906,9 @@ def api_stock_by_site_report():
                 'total_rows': len(result_df),
                 'filters': {
                     'site_code': site_code,
+                    'site_codes': site_codes,
                     'item_code': item_code,
+                    'category_id': category_id,
                     'as_of_date': as_of_date
                 }
             }
@@ -715,8 +936,10 @@ def api_export_stock_by_site():
         
         if filters.get('item_code'):
             filter_info.append(f"Item: {filters['item_code']}")
-        if filters.get('site_code'):
-            filter_info.append(f"Site: {filters['site_code']}")
+        if filters.get('site_codes') and len(filters['site_codes']) > 0:
+            filter_info.append(f"Sites: {len(filters['site_codes'])} selected")
+        if filters.get('category_id'):
+            filter_info.append(f"Category: {filters['category_id']}")
         if filters.get('as_of_date'):
             filter_info.append(f"As of Date: {filters['as_of_date']}")
         
@@ -773,10 +996,14 @@ def api_export_stock_by_site():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename_parts = ['stock_by_site_report']
         
-        # Add site to filename if specified
-        if filters.get('site_code'):
-            site_code = filters['site_code'].replace(' ', '_').replace('/', '_')
-            filename_parts.append(f'site_{site_code}')
+        # Add sites to filename if specified
+        if filters.get('site_codes') and len(filters['site_codes']) > 0:
+            filename_parts.append(f'sites_{len(filters["site_codes"])}')
+        
+        # Add category to filename if specified
+        if filters.get('category_id'):
+            category_id = str(filters['category_id']).replace(' ', '_').replace('/', '_')
+            filename_parts.append(f'category_{category_id}')
         
         # Add date to filename if specified
         if filters.get('as_of_date'):

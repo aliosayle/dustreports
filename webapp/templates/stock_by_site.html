@@ -74,22 +74,41 @@
             <div class="card-body pt-0">
                 <form id="stockBySiteForm">
                     <div class="row g-4">
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <div class="filter-group">
                                 <label for="siteSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
-                                    Site Location
+                                    Site Location(s)
                                 </label>
                                 <div class="filter-input-wrapper position-relative">
-                                    <select class="form-select form-select-lg" id="siteSelect" name="site_code" 
+                                    <select class="form-select form-select-lg" id="siteSelect" name="site_codes" multiple
                                             style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
                                         <option value="">🌐 All Sites</option>
+                                    </select>
+                                </div>
+                                <small class="text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Hold Ctrl/Cmd to select multiple sites
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-3 col-md-6">
+                            <div class="filter-group">
+                                <label for="categorySelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-tags me-2" style="color: var(--dust-secondary);"></i>
+                                    Category
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <select class="form-select form-select-lg" id="categorySelect" name="category_id"
+                                            style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                        <option value="">📋 All Categories</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <div class="filter-group">
                                 <label for="itemSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-box me-2" style="color: var(--dust-secondary);"></i>
@@ -104,7 +123,7 @@
                             </div>
                         </div>
                         
-                        <div class="col-lg-4 col-md-6">
+                        <div class="col-lg-3 col-md-6">
                             <div class="filter-group">
                                 <label for="asOfDateSelect" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-calendar me-2" style="color: var(--dust-secondary);"></i>
@@ -603,11 +622,14 @@ $(document).ready(function() {
                     filename: function() {
                         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                         let filename = 'stock_by_site_report_' + timestamp;
-                        if (currentFilters.site_code) {
-                            filename += '_site_' + currentFilters.site_code;
+                        if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
+                            filename += '_sites_' + currentFilters.site_codes.length;
                         }
-                        if (currentFilters.stock_level) {
-                            filename += '_' + currentFilters.stock_level + '_stock';
+                        if (currentFilters.category_id) {
+                            filename += '_category_' + currentFilters.category_id;
+                        }
+                        if (currentFilters.as_of_date) {
+                            filename += '_' + currentFilters.as_of_date.replace(/-/g, '');
                         }
                         return filename;
                     },
@@ -615,14 +637,17 @@ $(document).ready(function() {
                         let title = 'Stock by Site Report';
                         const date = new Date().toLocaleDateString();
                         title += ' - Generated on ' + date;
-                        if (currentFilters.site_code) {
-                            title += ' | Site: ' + currentFilters.site_code;
+                        if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
+                            title += ' | Sites: ' + currentFilters.site_codes.length + ' selected';
+                        }
+                        if (currentFilters.category_id) {
+                            title += ' | Category: ' + currentFilters.category_id;
                         }
                         if (currentFilters.item_code) {
                             title += ' | Item: ' + currentFilters.item_code;
                         }
-                        if (currentFilters.stock_level) {
-                            title += ' | Stock Level: ' + currentFilters.stock_level;
+                        if (currentFilters.as_of_date) {
+                            title += ' | As of: ' + currentFilters.as_of_date;
                         }
                         return title;
                     },
@@ -637,11 +662,14 @@ $(document).ready(function() {
                     filename: function() {
                         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                         let filename = 'stock_by_site_report_' + timestamp;
-                        if (currentFilters.site_code) {
-                            filename += '_site_' + currentFilters.site_code;
+                        if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
+                            filename += '_sites_' + currentFilters.site_codes.length;
                         }
-                        if (currentFilters.stock_level) {
-                            filename += '_' + currentFilters.stock_level + '_stock';
+                        if (currentFilters.category_id) {
+                            filename += '_category_' + currentFilters.category_id;
+                        }
+                        if (currentFilters.as_of_date) {
+                            filename += '_' + currentFilters.as_of_date.replace(/-/g, '');
                         }
                         return filename;
                     },
@@ -656,11 +684,14 @@ $(document).ready(function() {
                     filename: function() {
                         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                         let filename = 'stock_by_site_report_' + timestamp;
-                        if (currentFilters.site_code) {
-                            filename += '_site_' + currentFilters.site_code;
+                        if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
+                            filename += '_sites_' + currentFilters.site_codes.length;
                         }
-                        if (currentFilters.stock_level) {
-                            filename += '_' + currentFilters.stock_level + '_stock';
+                        if (currentFilters.category_id) {
+                            filename += '_category_' + currentFilters.category_id;
+                        }
+                        if (currentFilters.as_of_date) {
+                            filename += '_' + currentFilters.as_of_date.replace(/-/g, '');
                         }
                         return filename;
                     },
@@ -668,14 +699,17 @@ $(document).ready(function() {
                         let title = 'Stock by Site Report';
                         const date = new Date().toLocaleDateString();
                         title += ' - Generated on ' + date;
-                        if (currentFilters.site_code) {
-                            title += ' | Site: ' + currentFilters.site_code;
+                        if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
+                            title += ' | Sites: ' + currentFilters.site_codes.length + ' selected';
+                        }
+                        if (currentFilters.category_id) {
+                            title += ' | Category: ' + currentFilters.category_id;
                         }
                         if (currentFilters.item_code) {
                             title += ' | Item: ' + currentFilters.item_code;
                         }
-                        if (currentFilters.stock_level) {
-                            title += ' | Stock Level: ' + currentFilters.stock_level;
+                        if (currentFilters.as_of_date) {
+                            title += ' | As of: ' + currentFilters.as_of_date;
                         }
                         return title;
                     },
@@ -693,14 +727,17 @@ $(document).ready(function() {
                         let title = 'Stock by Site Report';
                         const date = new Date().toLocaleDateString();
                         title += ' - Generated on ' + date;
-                        if (currentFilters.site_code) {
-                            title += ' | Site: ' + currentFilters.site_code;
+                        if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
+                            title += ' | Sites: ' + currentFilters.site_codes.length + ' selected';
+                        }
+                        if (currentFilters.category_id) {
+                            title += ' | Category: ' + currentFilters.category_id;
                         }
                         if (currentFilters.item_code) {
                             title += ' | Item: ' + currentFilters.item_code;
                         }
-                        if (currentFilters.stock_level) {
-                            title += ' | Stock Level: ' + currentFilters.stock_level;
+                        if (currentFilters.as_of_date) {
+                            title += ' | As of: ' + currentFilters.as_of_date;
                         }
                         return title;
                     },
@@ -810,9 +847,9 @@ $(document).ready(function() {
         });
     }
     
-    // Load sites and items
+    // Load sites, categories and items
     function loadDropdownData() {
-        // Load sites
+        // Load sites with multi-select support
         $.get('/api/sites', function(data) {
             const siteSelect = $('#siteSelect');
             siteSelect.empty().append('<option value="">🌐 All Sites</option>');
@@ -820,7 +857,23 @@ $(document).ready(function() {
                 siteSelect.append(`<option value="${site.id}">${site.name}</option>`);
             });
             siteSelect.select2({
-                placeholder: '🌐 All Sites',
+                placeholder: '🌐 Select Sites (multiple allowed)',
+                allowClear: true,
+                width: '100%',
+                multiple: true,
+                closeOnSelect: false
+            });
+        });
+        
+        // Load categories
+        $.get('/api/categories', function(data) {
+            const categorySelect = $('#categorySelect');
+            categorySelect.empty().append('<option value="">📋 All Categories</option>');
+            data.forEach(category => {
+                categorySelect.append(`<option value="${category.id}">${category.name}</option>`);
+            });
+            categorySelect.select2({
+                placeholder: '📋 All Categories',
                 allowClear: true,
                 width: '100%'
             });
@@ -953,9 +1006,11 @@ $(document).ready(function() {
     $('#stockBySiteForm').on('submit', function(e) {
         e.preventDefault();
         
+        const selectedSites = $('#siteSelect').val();
         const filters = {
-            site_code: $('#siteSelect').val(),
+            site_codes: selectedSites && selectedSites.length > 0 ? selectedSites : null,
             item_code: $('#itemSelect').val(),
+            category_id: $('#categorySelect').val(),
             as_of_date: $('#asOfDateSelect').val()
         };
         
@@ -965,7 +1020,7 @@ $(document).ready(function() {
     // Clear filters
     $('#clearBtn').on('click', function() {
         $('#stockBySiteForm')[0].reset();
-        $('#siteSelect, #itemSelect').val('').trigger('change');
+        $('#siteSelect, #itemSelect, #categorySelect').val('').trigger('change');
         $('#asOfDateSelect').val('');
         $('#summaryCards, #resultsSection, #errorSection').hide();
         

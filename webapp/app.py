@@ -14,28 +14,37 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
+# Try to import interbase for direct InterBase connection
+try:
+    import interbase
+    INTERBASE_AVAILABLE = True
+    print("✅ InterBase Python driver available for direct connection")
+except ImportError:
+    INTERBASE_AVAILABLE = False
+    print("⚠️ InterBase Python driver not available, will use ODBC as fallback")
+
 # Suppress warnings to match notebook behavior
 warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'iba-dust-reports-2025'
 
-# Database connection parameters (matching notebook exactly)
+# Database connection parameters
 DATABASE_CONFIG = {
     'DATA_SOURCE': "100.200.2.1",
     'DATABASE_PATH': r"D:\dolly2008\fer2015.dol",
     'USERNAME': "ALIOSS",
-    'PASSWORD': "$9-j[+Mo$AA833C4FA$",
-    'CLIENT_LIBRARY': r"C:\Users\User\Downloads\Compressed\ibclient64-14.1_x86-64\ibclient64-14.1.dll"
+    'PASSWORD': "Ali@123",
+    'CLIENT_LIBRARY': r"C:\Users\User\Downloads\Compressed\ibclient64-14.1_x86-64\ibclient64-14.1.dll"  # InterBase client library location
 }
 
+# ODBC connection string (fallback)
 connection_string = (
     f"DRIVER=Devart ODBC Driver for InterBase;"
     f"Data Source={DATABASE_CONFIG['DATA_SOURCE']};"
     f"Database={DATABASE_CONFIG['DATABASE_PATH']};"
     f"User ID={DATABASE_CONFIG['USERNAME']};"
     f"Password={DATABASE_CONFIG['PASSWORD']};"
-    f"Client Library={DATABASE_CONFIG['CLIENT_LIBRARY']};"
 )
 
 # Global cache for dataframes (matching notebook structure)
@@ -44,27 +53,63 @@ cache_lock = threading.Lock()
 cache_loading = False
 
 def connect_and_load_table(table_name):
-    """Load a table from the database using manual DataFrame creation (matching notebook exactly)"""
+    """Load a table from the database using direct InterBase connection only"""
     try:
         print(f"🔄 Connecting to database for table {table_name}...")
-        conn = pyodbc.connect(connection_string)
-        cursor = conn.cursor()
-        print(f"✅ Connected successfully, loading {table_name}...")
         
-        # Execute query and get column names
+        # Use direct InterBase connection only (no fallback to ODBC)
+        if not INTERBASE_AVAILABLE:
+            raise Exception("InterBase Python library not available")
+        
+        print(f"🔗 Using direct InterBase connection for {table_name}...")
+        
+        # Build direct connection for InterBase
+        # Format: host:database_path
+        dsn = f"{DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}"
+        print(f"📡 DSN: {dsn}")
+        print(f"📚 Client Library: {DATABASE_CONFIG.get('CLIENT_LIBRARY', 'system default')}")
+        
+        # Connect with explicit client library if specified
+        if 'CLIENT_LIBRARY' in DATABASE_CONFIG:
+            conn = interbase.connect(
+                dsn=dsn,
+                user=DATABASE_CONFIG['USERNAME'],
+                password=DATABASE_CONFIG['PASSWORD'],
+                ib_library_name=DATABASE_CONFIG['CLIENT_LIBRARY'],
+                charset='NONE'  # Use UTF-8 charset for better character compatibility
+            )
+        else:
+            conn = interbase.connect(
+                dsn=dsn,
+                user=DATABASE_CONFIG['USERNAME'],
+                password=DATABASE_CONFIG['PASSWORD'],
+                charset='NONE'  # Use UTF-8 charset for better character compatibility
+            )
+        
+        print(f"✅ Direct InterBase connection successful for {table_name}")
+        
+        # Execute query and fetch data
+        cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM {table_name}")
-        columns = [column[0] for column in cursor.description]
+        
+        # Get column names
+        columns = [desc[0] for desc in cursor.description]
+        
+        # Fetch all rows
         rows = cursor.fetchall()
         
-        # Convert to DataFrame manually
-        df = pd.DataFrame([list(row) for row in rows], columns=columns)
+        # Convert to DataFrame
+        df = pd.DataFrame(rows, columns=columns)
         
         conn.close()
-        print(f"✅ {table_name}: {df.shape[0]:,} rows × {df.shape[1]} columns")
+        print(f"✅ {table_name}: {df.shape[0]:,} rows × {df.shape[1]} columns (direct connection)")
         return df
+        
     except Exception as e:
         print(f"❌ {table_name}: Failed to load - {e}")
-        print(f"   Connection string: {connection_string[:50]}...")
+        print(f"   Error type: {type(e).__name__}")
+        print(f"   DSN attempted: {DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}")
+        print(f"   Client Library: {DATABASE_CONFIG.get('CLIENT_LIBRARY', 'system default')}")
         return None
 
 def load_dataframes():
@@ -76,9 +121,41 @@ def load_dataframes():
         
         # Test connection first
         try:
-            test_conn = pyodbc.connect(connection_string)
-            test_conn.close()
-            print("✅ Database connection test successful")
+            if INTERBASE_AVAILABLE:
+                try:
+                    print("🔗 Testing direct InterBase connection...")
+                    dsn = f"{DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}"
+                    print(f"📡 Connecting to DSN: {dsn}")
+                    print(f"👤 User: {DATABASE_CONFIG['USERNAME']}")
+                    print(f"📚 Client Library: {DATABASE_CONFIG.get('CLIENT_LIBRARY', 'system default')}")
+                    
+                    # Connect with explicit client library if specified
+                    if 'CLIENT_LIBRARY' in DATABASE_CONFIG:
+                        test_conn = interbase.connect(
+                            dsn=dsn,
+                            user=DATABASE_CONFIG['USERNAME'],
+                            password=DATABASE_CONFIG['PASSWORD'],
+                            ib_library_name=DATABASE_CONFIG['CLIENT_LIBRARY'],
+                            charset='UTF8'  # Use UTF-8 charset for better character compatibility
+                        )
+                    else:
+                        test_conn = interbase.connect(
+                            dsn=dsn,
+                            user=DATABASE_CONFIG['USERNAME'],
+                            password=DATABASE_CONFIG['PASSWORD'],
+                            charset='UTF8'  # Use UTF-8 charset for better character compatibility
+                        )
+                    test_conn.close()
+                    print("✅ Direct InterBase connection test successful")
+                    print("🚀 Will use direct InterBase connection for all tables")
+                except Exception as interbase_error:
+                    print(f"⚠️ Direct InterBase connection test failed: {interbase_error}")
+                    print(f"� Error type: {type(interbase_error).__name__}")
+                    print("❌ WILL NOT fallback to ODBC - fixing direct connection...")
+                    raise Exception(f"Direct InterBase connection failed: {interbase_error}")
+            else:
+                print("❌ InterBase library not available")
+                raise Exception("InterBase library not available")
         except Exception as e:
             print(f"❌ Database connection test failed: {e}")
             cache_loading = False
@@ -936,8 +1013,38 @@ def api_export_stock_by_site():
         
         if filters.get('item_code'):
             filter_info.append(f"Item: {filters['item_code']}")
+        
+        # Handle site names display
         if filters.get('site_codes') and len(filters['site_codes']) > 0:
-            filter_info.append(f"Sites: {len(filters['site_codes'])} selected")
+            site_codes = filters['site_codes']
+            
+            # Get site names from dataframes if available
+            if 'sites' in dataframes and dataframes['sites'] is not None:
+                site_info = dataframes['sites'][dataframes['sites']['ID'].isin(site_codes)]
+                if not site_info.empty:
+                    site_names = site_info['SITE'].tolist()
+                    
+                    if len(site_names) == 1:
+                        filter_info.append(f"Site: {site_names[0]}")
+                    elif len(site_names) <= 3:
+                        filter_info.append(f"Sites: {', '.join(site_names)}")
+                    else:
+                        # Show first 3 sites and indicate there are more
+                        displayed_sites = ', '.join(site_names[:3])
+                        filter_info.append(f"Sites: {displayed_sites} (+{len(site_names)-3} more)")
+                else:
+                    # Fallback to site codes if names not found
+                    if len(site_codes) == 1:
+                        filter_info.append(f"Site: {site_codes[0]}")
+                    else:
+                        filter_info.append(f"Sites: {len(site_codes)} selected")
+            else:
+                # Fallback if sites dataframe not available
+                if len(site_codes) == 1:
+                    filter_info.append(f"Site: {site_codes[0]}")
+                else:
+                    filter_info.append(f"Sites: {len(site_codes)} selected")
+        
         if filters.get('category_id'):
             filter_info.append(f"Category: {filters['category_id']}")
         if filters.get('as_of_date'):
@@ -958,12 +1065,21 @@ def api_export_stock_by_site():
             # Add title with filters
             worksheet['A1'] = title
             worksheet['A1'].font = Font(size=14, bold=True)
+            
             # Merge cells across all columns in the dataset
-            last_column = worksheet.max_column
+            # Use the DataFrame column count to determine the last column
+            from openpyxl.utils import get_column_letter
+            last_column = len(df.columns)  # Use DataFrame column count instead of worksheet.max_column
+            last_column_letter = get_column_letter(last_column)
+            
             if last_column > 1:
-                worksheet.merge_cells(f'A1:{chr(64 + last_column)}1')
+                worksheet.merge_cells(f'A1:{last_column_letter}1')
+                print(f"📊 Merged cells A1:{last_column_letter}1 for {last_column} columns")
             else:
                 worksheet.merge_cells('A1:A1')
+            
+            # Center the title text
+            worksheet['A1'].alignment = Alignment(horizontal='center', vertical='center')
             
             # Style the header row (now at row 3)
             header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
@@ -1040,14 +1156,25 @@ def api_export_excel():
         
         df = pd.DataFrame(report_data)
         
+        # Get site name if site_code is specified
+        site_name = None
+        if filters.get('site_code') and 'sites' in dataframes and dataframes['sites'] is not None:
+            site_info = dataframes['sites'][dataframes['sites']['ID'] == filters['site_code']]
+            if not site_info.empty:
+                site_name = site_info['SITE'].iloc[0]
+                print(f"📊 Found site name: {site_name} for site code: {filters['site_code']}")
+        
         # Build title with filters
-        title = "Autonomy Report"
+        title = "Stock Autonomy Report"
         filter_info = []
         
         if filters.get('item_code'):
             filter_info.append(f"Item: {filters['item_code']}")
         if filters.get('site_code'):
-            filter_info.append(f"Site: {filters['site_code']}")
+            if site_name:
+                filter_info.append(f"Site: {site_name}")
+            else:
+                filter_info.append(f"Site: {filters['site_code']}")
         if filters.get('from_date'):
             filter_info.append(f"From: {filters['from_date']}")
         if filters.get('to_date'):
@@ -1059,21 +1186,30 @@ def api_export_excel():
         # Create Excel file in memory
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Autonomy Report', index=False, startrow=2)
+            df.to_excel(writer, sheet_name='Stock Autonomy', index=False, startrow=2)
             
             # Get workbook and worksheet for styling
             workbook = writer.book
-            worksheet = writer.sheets['Autonomy Report']
+            worksheet = writer.sheets['Stock Autonomy']
             
             # Add title with filters
             worksheet['A1'] = title
             worksheet['A1'].font = Font(size=14, bold=True)
+            
             # Merge cells across all columns in the dataset
-            last_column = worksheet.max_column
+            # Use the DataFrame column count to determine the last column
+            from openpyxl.utils import get_column_letter
+            last_column = len(df.columns)  # Use DataFrame column count instead of worksheet.max_column
+            last_column_letter = get_column_letter(last_column)
+            
             if last_column > 1:
-                worksheet.merge_cells(f'A1:{chr(64 + last_column)}1')
+                worksheet.merge_cells(f'A1:{last_column_letter}1')
+                print(f"📊 Merged cells A1:{last_column_letter}1 for {last_column} columns")
             else:
                 worksheet.merge_cells('A1:A1')
+            
+            # Center the title text
+            worksheet['A1'].alignment = Alignment(horizontal='center', vertical='center')
             
             # Style the header row (now at row 3)
             header_fill = PatternFill(start_color='1f4e79', end_color='1f4e79', fill_type='solid')
@@ -1104,16 +1240,22 @@ def api_export_excel():
         
         # Create descriptive filename with date and site information
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename_parts = ['autonomy_report']
+        filename_parts = ['stock_autonomy_report']
         
         # Debug logging
         print(f"📊 Building filename - filters: {filters}")
         
-        # Add site (magasin) to filename if specified
+        # Add site (with full name) to filename if specified
         if filters.get('site_code'):
-            site_code = filters['site_code'].replace(' ', '_').replace('/', '_')
-            filename_parts.append(f'magasin_{site_code}')
-            print(f"📊 Added site to filename: magasin_{site_code}")
+            if site_name:
+                # Clean site name for filename (remove special characters)
+                clean_site_name = site_name.replace(' ', '_').replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '').replace('"', '')
+                filename_parts.append(f'site_{clean_site_name}')
+                print(f"📊 Added site to filename: site_{clean_site_name}")
+            else:
+                site_code = filters['site_code'].replace(' ', '_').replace('/', '_')
+                filename_parts.append(f'site_{site_code}')
+                print(f"📊 Added site code to filename: site_{site_code}")
         
         # Add date range to filename if specified
         if filters.get('from_date') and filters.get('to_date'):

@@ -1650,7 +1650,37 @@ $(document).ready(function() {
                  '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',            buttons: [
                 {
                     extend: 'excel',
-                    title: 'Stock Autonomy Report',
+                    title: function() {
+                        let title = 'Stock Autonomy Report';
+                        const date = new Date().toLocaleDateString();
+                        title += ' - Generated on ' + date;
+                        
+                        // Handle site display
+                        const siteCode = $('#siteSelect').val();
+                        if (siteCode) {
+                            const siteOption = $('#siteSelect option[value="' + siteCode + '"]');
+                            if (siteOption.length > 0) {
+                                title += ' | Site: ' + siteOption.text();
+                            }
+                        }
+                        
+                        const itemCode = $('#itemSelect').val();
+                        if (itemCode) {
+                            title += ' | Item: ' + itemCode;
+                        }
+                        
+                        const fromDate = $('#fromDate').val();
+                        const toDate = $('#toDate').val();
+                        if (fromDate && toDate) {
+                            title += ' | From: ' + fromDate + ' | To: ' + toDate;
+                        } else if (fromDate) {
+                            title += ' | From: ' + fromDate;
+                        } else if (toDate) {
+                            title += ' | To: ' + toDate;
+                        }
+                        
+                        return title;
+                    },
                     text: '<i class="fas fa-file-excel me-2"></i>Excel',
                     className: 'btn btn-success btn-sm',
                     filename: function() {
@@ -1674,7 +1704,37 @@ $(document).ready(function() {
                 },
                 {
                     extend: 'pdf',
-                    title: 'Stock Autonomy Report',
+                    title: function() {
+                        let title = 'Stock Autonomy Report';
+                        const date = new Date().toLocaleDateString();
+                        title += ' - Generated on ' + date;
+                        
+                        // Handle site display
+                        const siteCode = $('#siteSelect').val();
+                        if (siteCode) {
+                            const siteOption = $('#siteSelect option[value="' + siteCode + '"]');
+                            if (siteOption.length > 0) {
+                                title += ' | Site: ' + siteOption.text();
+                            }
+                        }
+                        
+                        const itemCode = $('#itemSelect').val();
+                        if (itemCode) {
+                            title += ' | Item: ' + itemCode;
+                        }
+                        
+                        const fromDate = $('#fromDate').val();
+                        const toDate = $('#toDate').val();
+                        if (fromDate && toDate) {
+                            title += ' | From: ' + fromDate + ' | To: ' + toDate;
+                        } else if (fromDate) {
+                            title += ' | From: ' + fromDate;
+                        } else if (toDate) {
+                            title += ' | To: ' + toDate;
+                        }
+                        
+                        return title;
+                    },
                     text: '<i class="fas fa-file-pdf me-2"></i>PDF',
                     className: 'btn btn-danger btn-sm',
                     orientation: 'landscape',
@@ -1688,7 +1748,37 @@ $(document).ready(function() {
                 },
                 {
                     extend: 'print',
-                    title: 'Stock Autonomy Report',
+                    title: function() {
+                        let title = 'Stock Autonomy Report';
+                        const date = new Date().toLocaleDateString();
+                        title += ' - Generated on ' + date;
+                        
+                        // Handle site display
+                        const siteCode = $('#siteSelect').val();
+                        if (siteCode) {
+                            const siteOption = $('#siteSelect option[value="' + siteCode + '"]');
+                            if (siteOption.length > 0) {
+                                title += ' | Site: ' + siteOption.text();
+                            }
+                        }
+                        
+                        const itemCode = $('#itemSelect').val();
+                        if (itemCode) {
+                            title += ' | Item: ' + itemCode;
+                        }
+                        
+                        const fromDate = $('#fromDate').val();
+                        const toDate = $('#toDate').val();
+                        if (fromDate && toDate) {
+                            title += ' | From: ' + fromDate + ' | To: ' + toDate;
+                        } else if (fromDate) {
+                            title += ' | From: ' + fromDate;
+                        } else if (toDate) {
+                            title += ' | To: ' + toDate;
+                        }
+                        
+                        return title;
+                    },
                     text: '<i class="fas fa-print me-2"></i>Print',
                     className: 'btn btn-secondary btn-sm',
                     exportOptions: {

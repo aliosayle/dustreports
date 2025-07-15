@@ -637,9 +637,28 @@ $(document).ready(function() {
                         let title = 'Stock by Site Report';
                         const date = new Date().toLocaleDateString();
                         title += ' - Generated on ' + date;
+                        
+                        // Handle site names display
                         if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
-                            title += ' | Sites: ' + currentFilters.site_codes.length + ' selected';
+                            // Get selected site names from the dropdown
+                            const selectedSiteNames = [];
+                            currentFilters.site_codes.forEach(siteCode => {
+                                const siteOption = $('#siteSelect option[value="' + siteCode + '"]');
+                                if (siteOption.length > 0) {
+                                    selectedSiteNames.push(siteOption.text());
+                                }
+                            });
+                            
+                            if (selectedSiteNames.length === 1) {
+                                title += ' | Site: ' + selectedSiteNames[0];
+                            } else if (selectedSiteNames.length <= 3) {
+                                title += ' | Sites: ' + selectedSiteNames.join(', ');
+                            } else {
+                                const displayedSites = selectedSiteNames.slice(0, 3).join(', ');
+                                title += ' | Sites: ' + displayedSites + ' (+' + (selectedSiteNames.length - 3) + ' more)';
+                            }
                         }
+                        
                         if (currentFilters.category_id) {
                             title += ' | Category: ' + currentFilters.category_id;
                         }
@@ -699,9 +718,28 @@ $(document).ready(function() {
                         let title = 'Stock by Site Report';
                         const date = new Date().toLocaleDateString();
                         title += ' - Generated on ' + date;
+                        
+                        // Handle site names display
                         if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
-                            title += ' | Sites: ' + currentFilters.site_codes.length + ' selected';
+                            // Get selected site names from the dropdown
+                            const selectedSiteNames = [];
+                            currentFilters.site_codes.forEach(siteCode => {
+                                const siteOption = $('#siteSelect option[value="' + siteCode + '"]');
+                                if (siteOption.length > 0) {
+                                    selectedSiteNames.push(siteOption.text());
+                                }
+                            });
+                            
+                            if (selectedSiteNames.length === 1) {
+                                title += ' | Site: ' + selectedSiteNames[0];
+                            } else if (selectedSiteNames.length <= 3) {
+                                title += ' | Sites: ' + selectedSiteNames.join(', ');
+                            } else {
+                                const displayedSites = selectedSiteNames.slice(0, 3).join(', ');
+                                title += ' | Sites: ' + displayedSites + ' (+' + (selectedSiteNames.length - 3) + ' more)';
+                            }
                         }
+                        
                         if (currentFilters.category_id) {
                             title += ' | Category: ' + currentFilters.category_id;
                         }
@@ -727,9 +765,28 @@ $(document).ready(function() {
                         let title = 'Stock by Site Report';
                         const date = new Date().toLocaleDateString();
                         title += ' - Generated on ' + date;
+                        
+                        // Handle site names display
                         if (currentFilters.site_codes && currentFilters.site_codes.length > 0) {
-                            title += ' | Sites: ' + currentFilters.site_codes.length + ' selected';
+                            // Get selected site names from the dropdown
+                            const selectedSiteNames = [];
+                            currentFilters.site_codes.forEach(siteCode => {
+                                const siteOption = $('#siteSelect option[value="' + siteCode + '"]');
+                                if (siteOption.length > 0) {
+                                    selectedSiteNames.push(siteOption.text());
+                                }
+                            });
+                            
+                            if (selectedSiteNames.length === 1) {
+                                title += ' | Site: ' + selectedSiteNames[0];
+                            } else if (selectedSiteNames.length <= 3) {
+                                title += ' | Sites: ' + selectedSiteNames.join(', ');
+                            } else {
+                                const displayedSites = selectedSiteNames.slice(0, 3).join(', ');
+                                title += ' | Sites: ' + displayedSites + ' (+' + (selectedSiteNames.length - 3) + ' more)';
+                            }
                         }
+                        
                         if (currentFilters.category_id) {
                             title += ' | Category: ' + currentFilters.category_id;
                         }

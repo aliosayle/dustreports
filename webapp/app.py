@@ -476,7 +476,7 @@ def calculate_stock_and_sales(item_code=None, site_code=None, from_date=None, to
           # Calculate analytics by same grouping as stock
         # Optimized approach: skip sales analytics for multi-site aggregation to improve performance
         if site_codes and isinstance(site_codes, list) and len(site_codes) > 1:
-            # Multi-site aggregation - skip detailed sales analytics for performance
+            # Multi-site aggregation - skip detailed sales analytics to improve performance
             print("📊 Skipping detailed sales analytics for multi-site aggregation (performance optimization)")
             sales_analytics = pd.DataFrame()
         elif item_code and site_code:
@@ -790,6 +790,11 @@ def custom_reports():
 @app.route('/stock-by-site')
 def stock_by_site():
     return render_template('stock_by_site.html')
+
+@app.route('/ciment-report')
+def ciment_report():
+    """Render the Ciment Report page"""
+    return render_template('ciment_report.html')
 
 @app.route('/api/load-dataframes', methods=['POST'])
 def api_load_dataframes():
@@ -1613,6 +1618,7 @@ def api_custom_report_export():
                 mimetype='text/csv',
                 as_attachment=True,
                 download_name=f'{report_title.replace(" ", "_")}.csv'
+
             )
             
         elif export_format == 'excel':
@@ -1737,6 +1743,383 @@ def api_custom_report_export():
     except Exception as e:
         print(f"Error in export: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ciment-report', methods=['POST'])
+def api_ciment_report():
+    """
+    Generate Ciment Report showing site-wise ciment category sales and stock
+    """
+    try:
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get all non-depot sites (exclude depot sites where SIDNO = '3700004')
+        if 'sites' not in dataframes or dataframes['sites'] is None:
+            return jsonify({'error': 'Sites data not available'}), 400
+        
+        # Get Kinshasa sites only (SIDNO = '3700002')
+        kinshasa_sites = dataframes['sites'][dataframes['sites']['SIDNO'] == '3700002'].copy()
+        
+        if kinshasa_sites.empty:
+            return jsonify({'error': 'No Kinshasa sites found (SIDNO = 3700002)'}), 404
+            
+        print(f"📍 Found {len(kinshasa_sites)} Kinshasa sites for ciment report")
+        
+        # Get ciment category items
+        if 'categories' not in dataframes or dataframes['categories'] is None:
+            return jsonify({'error': 'Categories data not available'}), 400
+        
+        # Find ciment category (look for category containing "ciment" in name)
+        ciment_categories = dataframes['categories'][
+            dataframes['categories']['DESCR'].str.contains('ciment', case=False, na=False)
+        ]
+        
+        if ciment_categories.empty:
+            # Try alternative names
+            ciment_categories = dataframes['categories'][
+                dataframes['categories']['DESCR'].str.contains('cement', case=False, na=False)
+            ]
+        
+        if ciment_categories.empty:
+            return jsonify({'error': 'Ciment category not found. Please check category names.'}), 404
+        
+        ciment_category_id = ciment_categories.iloc[0]['ID']
+        print(f"📋 Found ciment category: {ciment_categories.iloc[0]['DESCR']} (ID: {ciment_category_id})")
+        
+        # Get items in ciment category
+        if 'inventory_items' not in dataframes or dataframes['inventory_items'] is None:
+            return jsonify({'error': 'Inventory items data not available'}), 400
+        
+        # Get all ciment items from the ciment category
+        ciment_items = dataframes['inventory_items'][
+            dataframes['inventory_items']['CATEGORY'].astype(str) == str(ciment_category_id)
+        ]['ITEM'].unique()
+        
+        if len(ciment_items) == 0:
+            return jsonify({'error': 'No items found in ciment category'}), 404
+        
+        print(f"📦 Found {len(ciment_items)} items in ciment category")
+        
+        # Pre-filter sales data to find items with actual sales
+        if 'sales_details' in dataframes and dataframes['sales_details'] is not None:
+            all_sales = dataframes['sales_details'].copy()
+            
+            # Filter by date range if specified
+            if from_date or to_date:
+                all_sales['FDATE'] = pd.to_datetime(all_sales['FDATE'], errors='coerce')
+                if from_date:
+                    from_date_dt = pd.to_datetime(from_date)
+                    all_sales = all_sales[all_sales['FDATE'] >= from_date_dt]
+                if to_date:
+                    to_date_dt = pd.to_datetime(to_date)
+                    all_sales = all_sales[all_sales['FDATE'] <= to_date_dt]
+            
+            # Filter for sales transactions only (FTYPE = 1 for sales)
+            if 'FTYPE' in all_sales.columns:
+                all_sales = all_sales[all_sales['FTYPE'] == 1]
+            
+            # Filter for site sales only (SID starting with "530")
+            if 'SID' in all_sales.columns:
+                all_sales = all_sales[all_sales['SID'].astype(str).str.startswith('530')]
+            
+            # Find ciment items that have sales in the period
+            ciment_items_with_sales = all_sales[
+                all_sales['ITEM'].isin(ciment_items)
+            ]['ITEM'].unique()
+            
+            # Use only ciment items that have sales
+            active_ciment_items = ciment_items_with_sales
+            
+            print(f"📊 Pre-filtered sales data: {len(all_sales)} transactions")
+            print(f"📦 Active ciment items (with sales): {len(active_ciment_items)} items shown")
+        else:
+            all_sales = pd.DataFrame()
+            active_ciment_items = ciment_items
+            print("⚠️ No sales data available - showing all ciment items")
+        # Get item prices for amount calculations
+        item_prices = {}
+        if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
+            price_data = dataframes['inventory_items'][
+                dataframes['inventory_items']['ITEM'].isin(active_ciment_items)
+            ][['ITEM', 'POSPRICE1']].drop_duplicates()
+            item_prices = dict(zip(price_data['ITEM'], price_data['POSPRICE1'].fillna(0)))
+            print(f"📊 Retrieved prices for {len(item_prices)} ciment items")
+        
+        # Calculate sales for each site (no stock data needed)
+        result_data = []
+        
+        for i, (_, site) in enumerate(kinshasa_sites.iterrows()):
+            if i % 10 == 0:  # Progress logging every 10 sites
+                print(f"📍 Processing site {i+1}/{len(kinshasa_sites)}: {site['SITE']}")
+            
+            site_id = site['ID']
+            site_name = site['SITE']
+            
+            # Initialize row data with Python native types (sales only)
+            row_data = {
+                'SITE_ID': str(site_id),
+                'SITE_NAME': str(site_name),
+                'TOTAL_AMOUNT': 0.0,  # Total sales amount (qty × price)
+                'CIMENT_ARTICLES_WITH_SALES': 0,  # Count of ciment items with sales
+                'TOTAL_CIMENT_SALES_QTY': 0.0  # Total ciment sales quantity
+            }
+            
+            # Calculate sales for this site
+            if not all_sales.empty:
+                site_sales = all_sales[all_sales['SITE'] == site_id]
+                
+                # Calculate ciment sales by item with amounts
+                ciment_sales_by_item = {}
+                ciment_amounts_by_item = {}
+                total_ciment_sales = 0.0
+                total_amount = 0.0
+                articles_with_sales = 0
+                
+                for item_code in active_ciment_items:
+                    item_sales = site_sales[site_sales['ITEM'] == item_code]
+                    item_sales_qty = float(item_sales['QTY'].fillna(0).sum())
+                    
+                    # Calculate amount (qty × price)
+                    item_price = item_prices.get(item_code, 0)
+                    item_amount = item_sales_qty * item_price
+                    
+                    if item_sales_qty > 0:
+                        articles_with_sales += 1
+                    
+                    ciment_sales_by_item[str(item_code)] = item_sales_qty
+                    ciment_amounts_by_item[str(item_code)] = item_amount
+                    total_ciment_sales += item_sales_qty
+                    total_amount += item_amount
+                
+                row_data['TOTAL_AMOUNT'] = total_amount
+                row_data['CIMENT_ARTICLES_WITH_SALES'] = articles_with_sales
+                row_data['TOTAL_CIMENT_SALES_QTY'] = total_ciment_sales
+                row_data['CIMENT_SALES_BY_ITEM'] = ciment_sales_by_item
+                row_data['CIMENT_AMOUNTS_BY_ITEM'] = ciment_amounts_by_item
+            else:
+                row_data['CIMENT_SALES_BY_ITEM'] = {str(item): 0.0 for item in active_ciment_items}
+                row_data['CIMENT_AMOUNTS_BY_ITEM'] = {str(item): 0.0 for item in active_ciment_items}
+            
+            result_data.append(row_data)
+        
+        # Sort by site name
+        result_data.sort(key=lambda x: x['SITE_NAME'])
+        
+        # Get ciment item details for column headers (only active items)
+        ciment_item_details = dataframes['inventory_items'][
+            dataframes['inventory_items']['ITEM'].isin(active_ciment_items)
+        ][['ITEM', 'DESCR1']].drop_duplicates()
+        
+        # Convert to JSON-serializable format
+        ciment_item_details = [
+            {
+                'ITEM': str(row['ITEM']), 
+                'DESCR1': str(row['DESCR1']) if pd.notna(row['DESCR1']) else ''
+            } 
+            for _, row in ciment_item_details.iterrows()
+        ]
+        
+        return jsonify({
+            'data': result_data,
+            'metadata': {
+                'total_sites': len(result_data),
+                'ciment_category_id': int(ciment_category_id),  # Convert to Python int
+                'ciment_category_name': str(ciment_categories.iloc[0]['DESCR']),  # Convert to Python string
+                'ciment_items': ciment_item_details,
+                'total_ciment_items_in_category': len(ciment_items),
+                'active_ciment_items_shown': len(active_ciment_items),
+                'from_date': from_date,
+                'to_date': to_date,
+                'sales_only_mode': True,  # Indicate this is sales-only report
+                'columns_info': {
+                    'site': 'Site name',
+                    'total_amount': 'Total amount (sales × price)',
+                    'ciment_articles_with_sales': 'Number of ciment articles with sales',
+                    'total_ciment_sales_qty': 'Total ciment sales quantity'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in ciment report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/export-ciment-report', methods=['POST'])
+def api_export_ciment_report():
+    """Export ciment report to Excel with proper formatting"""
+    try:
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get the ciment report data using the same logic as the API
+        # Call the existing ciment report API logic
+        from flask import current_app
+        with current_app.test_request_context('/api/ciment-report', method='POST', json=data):
+            response = api_ciment_report()
+            if hasattr(response, 'status_code') and response.status_code != 200:
+                return response
+            
+            response_data = response.get_json() if hasattr(response, 'get_json') else response
+        
+        if 'error' in response_data:
+            return jsonify(response_data), 400
+        
+        report_data = response_data['data']
+        metadata = response_data['metadata']
+        
+        if not report_data:
+            return jsonify({'error': 'No data to export'}), 404
+        
+        # Create Excel workbook
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        import io
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Ciment Report"
+        
+        # Define styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1a237e", end_color="1a237e", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Title and metadata
+        title = "Ciment Report"
+        if from_date and to_date:
+            title += f" - Period: {from_date} to {to_date}"
+        elif from_date:
+            title += f" - From: {from_date}"
+        elif to_date:
+            title += f" - To: {to_date}"
+        
+        # Write title
+        ws.merge_cells('A1:F1')
+        ws['A1'] = title
+        ws['A1'].font = Font(bold=True, size=16)
+        ws['A1'].alignment = Alignment(horizontal="center")
+        
+        # Write metadata
+        row = 3
+        ws[f'A{row}'] = f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        row += 1
+        ws[f'A{row}'] = f"Total Sites: {len(report_data)}"
+        row += 1
+        ws[f'A{row}'] = f"Ciment Category: All Ciment Items (Sales Only - Dynamic)"
+        row += 1
+        if metadata.get('active_ciment_items_shown') and metadata.get('total_ciment_items_in_category'):
+            active_count = metadata.get('active_ciment_items_shown')
+            total_count = metadata.get('total_ciment_items_in_category')
+            ws[f'A{row}'] = f"Active Ciment Items: {active_count} of {total_count} ciment items with sales data"
+        else:
+            ws[f'A{row}'] = f"Ciment Items: {len(metadata.get('ciment_items', []))}"
+        row += 1
+        if metadata.get('sales_only_mode'):
+            ws[f'A{row}'] = "Note: This report shows sales data only with amounts (qty × price)"
+        row += 2
+        
+        # Headers (new structure: site, amount, articles with sales, total qty, individual items)
+        headers = [
+            'Site Name',
+            'Total Amount',
+            'Articles with Sales',
+            'Total Sales Qty'
+        ]
+        
+        # Add individual ciment item sales columns only
+        if metadata.get('ciment_items'):
+            for item in metadata['ciment_items']:
+                # Create compact header: "ITEM_CODE - ITEM_NAME" (truncate name if too long)
+                item_code = item['ITEM']
+                item_name = item['DESCR1']
+                
+                # Truncate item name if it's too long to save width
+                if len(item_name) > 25:
+                    item_name = item_name[:22] + "..."
+                
+                compact_header = f"{item_code} - {item_name}" if item_name else item_code
+                headers.append(compact_header)
+        
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+        
+        row += 1
+        
+        # Write data (new structure with amounts and article counts)
+        for site_data in report_data:
+            col = 1
+            
+            # Basic columns (new structure)
+            ws.cell(row=row, column=col, value=site_data.get('SITE_NAME', '')).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=site_data.get('TOTAL_AMOUNT', 0)).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=site_data.get('CIMENT_ARTICLES_WITH_SALES', 0)).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=site_data.get('TOTAL_CIMENT_SALES_QTY', 0)).border = border
+            col += 1
+            
+            # Individual item sales only (no stock)
+            if metadata.get('ciment_items'):
+                for item in metadata['ciment_items']:
+                    sales_value = 0
+                    if site_data.get('CIMENT_SALES_BY_ITEM') and item['ITEM'] in site_data['CIMENT_SALES_BY_ITEM']:
+                        sales_value = site_data['CIMENT_SALES_BY_ITEM'][item['ITEM']]
+                    ws.cell(row=row, column=col, value=sales_value).border = border
+                    col += 1
+            
+            row += 1
+        
+        # Auto-adjust column widths
+        for col in range(1, len(headers) + 1):
+            column_letter = get_column_letter(col)
+            max_length = 0
+            for row_num in range(1, ws.max_row + 1):
+                cell_value = str(ws[f'{column_letter}{row_num}'].value or '')
+                max_length = max(max_length, len(cell_value))
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+        
+        # Save to BytesIO
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Create filename
+        timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'ciment_report_{timestamp}.xlsx'
+        
+        from flask import send_file
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Error in ciment report export: {e}")
+        return jsonify({'error': str(e)}), 500
+    
 
 if __name__ == '__main__':
     print("🚀 Starting DustReports Flask Application")

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Stock by Site Report - DustReports{% endblock %}
+{% block title %}2 - Stock by Site Report - DustReports{% endblock %}
 
 {% block content %}
 <!-- Enhanced Hero Section with DustReports Branding -->
@@ -20,7 +20,7 @@
                         </div>
                         <div>
                             <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
-                                Stock by Site Report
+                                2 - Stock by Site Report
                             </h1>
                             <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
                                 Comprehensive site-wise inventory analysis powered by <strong>DustReports</strong>
@@ -811,24 +811,7 @@ $(document).ready(function() {
                     render: function(data, type, row) {
                         if (type === 'display') {
                             const stock = parseFloat(data) || 0;
-                            let colorClass = '';
-                            let icon = '';
-                            
-                            if (stock === 0) {
-                                colorClass = 'text-danger';
-                                icon = '🔴';
-                            } else if (stock < 100) {
-                                colorClass = 'text-warning';
-                                icon = '🟠';
-                            } else if (stock < 1000) {
-                                colorClass = 'text-info';
-                                icon = '🟡';
-                            } else {
-                                colorClass = 'text-success';
-                                icon = '🟢';
-                            }
-                            
-                            return `<span class="${colorClass} fw-bold">${icon} ${stock.toLocaleString()}</span>`;
+                            return `<span class="fw-bold">${stock.toLocaleString()}</span>`;
                         }
                         return data;
                     }

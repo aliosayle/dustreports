@@ -35,6 +35,8 @@
             --dark-gradient: linear-gradient(135deg, var(--dust-dark) 0%, var(--dust-primary) 100%);
             --success-gradient: linear-gradient(135deg, #10b981 0%, #34d399 100%);
             --info-gradient: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+            --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            --secondary-gradient: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
             
             /* Shadows */
             --shadow-sm: 0 2px 4px rgba(26, 35, 126, 0.1);
@@ -504,6 +506,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('stock_by_site') }}">
                             <i class="fas fa-building me-2"></i>Stock by Site
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('ciment_report') }}">
+                            <i class="fas fa-cubes me-2"></i>Ciment Report
                         </a>
                     </li>
                     <li class="nav-item">

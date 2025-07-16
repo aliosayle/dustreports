@@ -1,0 +1,1074 @@
+{% extends "base.html" %}
+
+{% block title %}Ciment Report - DustReports{% endblock %}
+
+{% block content %}
+<!-- Enhanced Hero Section with DustReports Branding -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="hero-section p-4 rounded-4 text-white position-relative overflow-hidden" 
+             style="background: var(--primary-gradient); min-height: 200px;">
+            <!-- Dust particle background - simplified -->
+            <div class="position-absolute top-0 start-0 w-100 h-100 dust-particles"></div>
+            
+            <div class="row align-items-center position-relative">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="dust-logo me-3" style="width: 64px; height: 64px;">
+                            <div class="position-absolute" style="width: 32px; height: 32px; background: white; border-radius: 50%; opacity: 0.9;"></div>
+                            <div class="position-absolute" style="width: 16px; height: 16px; background: var(--dust-primary); border-radius: 50%; top: 24px; left: 24px;"></div>
+                        </div>
+                        <div>
+                            <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
+                                Ciment Report
+                            </h1>
+                            <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
+                                Site-wise specific ciment sales analysis powered by <strong>DustReports</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="hero-stats d-flex flex-column align-items-end">
+                        <div class="d-flex align-items-center mb-2" style="opacity: 0.9;">
+                            <i class="fas fa-cubes me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Ciment Analytics</span>
+                        </div>
+                        <div class="d-flex align-items-center" style="opacity: 0.9;">
+                            <i class="fas fa-download me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Export Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Professional Filters Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: var(--light-gradient);">
+            <div class="card-header border-0 py-4" style="background: transparent;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="filter-icon me-3" 
+                             style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                            <i class="fas fa-filter text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                                Report Filters
+                            </h5>
+                            <p class="mb-0 small" style="color: #718096 !important;">Configure your ciment analysis parameters</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill shadow-sm" id="clearBtn" 
+                            style="font-weight: 600; border-width: 2px; transition: all 0.3s ease;">
+                        <i class="fas fa-times me-1"></i>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-body pt-0">
+                <form id="cimentForm">
+                    <div class="row g-4">
+                        <div class="col-lg-6 col-md-6">
+                            <div class="filter-group">
+                                <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
+                                    From Date
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="date" class="form-control form-control-lg" id="fromDate" name="from_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-6 col-md-6">
+                            <div class="filter-group">
+                                <label for="toDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar-check me-2" style="color: var(--dust-secondary);"></i>
+                                    To Date
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="date" class="form-control form-control-lg" id="toDate" name="to_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <button type="submit" class="btn btn-lg me-3 px-5 py-3 position-relative overflow-hidden"
+                                    style="background: var(--primary-gradient); border: none; border-radius: 16px; color: white; font-weight: 600; box-shadow: var(--shadow-lg); transition: all 0.3s ease;">
+                                <span class="position-relative z-1">
+                                    <i class="fas fa-magic me-2"></i>
+                                    Generate Ciment Report
+                                </span>
+                                <div class="position-absolute top-50 start-50 translate-middle w-100 h-100 rounded-circle" 
+                                     style="background: rgba(255, 255, 255, 0.1); transform: scale(0); transition: transform 0.3s ease;"></div>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Loading Indicator -->
+<div class="row mt-4" id="loadingIndicator" style="display: none;">
+    <div class="col-12">
+        <div class="loading-card">
+            <div class="loading-content">
+                <div class="loading-spinner">
+                    <div class="spinner-circle"></div>
+                    <div class="spinner-circle spinner-circle-2"></div>
+                    <div class="spinner-circle spinner-circle-3"></div>
+                </div>
+                <h4 class="loading-title">Generating Ciment Report</h4>
+                <p class="loading-subtitle">Analyzing specific ciment sales data across all sites...</p>
+                <div class="loading-bar">
+                    <div class="loading-progress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Summary Cards -->
+<div class="row mt-4" id="summaryCards" style="display: none;">
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-primary">
+            <div class="metric-icon">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalSites" class="metric-value">0</h3>
+                <p class="metric-label">Total Sites</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-success">
+            <div class="metric-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalCimentSales" class="metric-value">$0</h3>
+                <p class="metric-label">Total Amount</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-warning">
+            <div class="metric-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalAllSales" class="metric-value">0</h3>
+                <p class="metric-label">Total Sales Qty</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-secondary">
+            <div class="metric-icon">
+                <i class="fas fa-cubes"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="cimentItems" class="metric-value">0</h3>
+                <p class="metric-label">Ciment Items</p>
+            </div>
+            <div class="metric-trend">
+                <span class="metric-unit">items</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-purple">
+            <div class="metric-icon">
+                <i class="fas fa-calendar-day"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="reportDate" class="metric-value">Today</h3>
+                <p class="metric-label">Report Date</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-clock"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Professional Results Table Section -->
+<div class="row mt-4" id="resultsSection" style="display: none;">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: white;">
+            <div class="card-header border-0 py-4" style="background: var(--light-gradient); border-radius: 16px 16px 0 0;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                        <div class="table-icon me-3" 
+                             style="width: 48px; height: 48px; background: var(--primary-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                            <i class="fas fa-table text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                                Ciment Report Results
+                            </h4>
+                            <p class="mb-0 small" style="color: #718096 !important;">
+                                Site-wise specific ciment sales breakdown
+                            </p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center flex-wrap">
+                        <span class="badge bg-primary me-2 mb-2" style="padding: 8px 16px; font-size: 0.9rem; border-radius: 8px;">
+                            <i class="fas fa-database me-1"></i>
+                            <span id="recordCount">0</span> Sites
+                        </span>
+                        <button class="btn btn-outline-primary btn-sm mb-2" id="refreshData" style="border-radius: 8px;">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                        <button class="btn btn-outline-success btn-sm mb-2 ms-2" id="exportExcel" style="border-radius: 8px;">
+                            <i class="fas fa-file-excel me-1"></i>
+                            Excel Export
+                        </button>
+                    </div>                    </div>
+                </div>
+                
+                <!-- Table Explanation -->
+                <div class="alert alert-info mb-3" style="background: linear-gradient(135deg, #e0f2fe 0%, #f1f8ff 100%); border: 1px solid #2196f3; border-radius: 12px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle me-3" style="color: #2196f3; font-size: 1.2rem;"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1" style="color: #1976d2;">Detailed Report View</h6>
+                            <p class="mb-0 small" style="color: #1565c0;">
+                                This report shows sales data for ciment items that have actual sales. Columns include: Site, Total Amount (sales × price), Number of Articles with Sales, and Total Sales Quantity.
+                                <strong>Green columns</strong> show individual ciment item sales quantities.
+                                <br><strong>Note:</strong> Only ciment items with actual sales data are displayed. No stock information is included.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle" id="cimentTable" style="width: 100%;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center">#</th>
+                                <th><i class="fas fa-building me-2"></i>Site</th>
+                                <th><i class="fas fa-dollar-sign me-2"></i>Total Amount</th>
+                                <th><i class="fas fa-cubes me-2"></i>Articles with Sales</th>
+                                <th><i class="fas fa-shopping-cart me-2"></i>Total Sales Qty</th>
+                                <!-- Dynamic ciment item columns will be added here -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message Section -->
+<div class="row mt-4" id="errorSection" style="display: none;">
+    <div class="col-12">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius: 12px; border: none; box-shadow: var(--shadow-md);">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-circle me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <h6 class="alert-heading mb-1">Error Loading Data</h6>
+                    <p class="mb-0" id="errorMessage">An error occurred while loading the data. Please try again.</p>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Styles -->
+<style>
+    /* Loading Animation */
+    .loading-card {
+        background: white;
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .loading-spinner {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 2rem;
+    }
+    
+    .spinner-circle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 4px solid #e2e8f0;
+        border-radius: 50%;
+        animation: spinnerRotate 1.5s linear infinite;
+    }
+    
+    .spinner-circle-2 {
+        border-color: var(--dust-secondary);
+        border-top-color: transparent;
+        animation-delay: -0.5s;
+    }
+    
+    .spinner-circle-3 {
+        border-color: var(--dust-accent);
+        border-top-color: transparent;
+        animation-delay: -1s;
+    }
+    
+    @keyframes spinnerRotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: var(--dust-gray);
+        margin-bottom: 0.5rem;
+    }
+    
+    .loading-subtitle {
+        color: var(--dust-muted);
+        margin-bottom: 2rem;
+    }
+    
+    .loading-bar {
+        width: 100%;
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+    
+    .loading-progress {
+        height: 100%;
+        background: var(--accent-gradient);
+        border-radius: 2px;
+        animation: loadingProgress 2s ease-in-out infinite;
+    }
+    
+    @keyframes loadingProgress {
+        0% { width: 0%; }
+        50% { width: 70%; }
+        100% { width: 100%; }
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--primary-gradient);
+    }
+    
+    .metric-primary::before { background: var(--primary-gradient); }
+    .metric-success::before { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+    .metric-info::before { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
+    .metric-warning::before { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+    .metric-secondary::before { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); }
+    .metric-purple::before { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: white;
+    }
+    
+    .metric-primary .metric-icon { background: var(--primary-gradient); }
+    .metric-success .metric-icon { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+    .metric-info .metric-icon { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
+    .metric-warning .metric-icon { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+    .metric-secondary .metric-icon { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); }
+    .metric-purple .metric-icon { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--dust-gray);
+        margin-bottom: 0.25rem;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .metric-label {
+        color: var(--dust-muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+    
+    .metric-trend {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        color: var(--dust-muted);
+    }
+    
+    .metric-unit {
+        font-size: 0.8rem;
+        color: var(--dust-muted);
+    }
+    
+    /* Form Enhancements */
+    .form-select:focus,
+    .form-control:focus {
+        border-color: var(--dust-secondary);
+        box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.1);
+    }
+    
+    .filter-input-wrapper::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent-gradient);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
+    .filter-input-wrapper:focus-within::after {
+        transform: scaleX(1);
+    }
+    
+    /* Button Hover Effects */
+    .btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .btn[type="submit"]:hover .position-absolute {
+        transform: scale(1) !important;
+    }
+    
+    /* DataTable Customizations */
+    .table-dark th {
+        background-color: var(--dust-primary) !important;
+        border-color: var(--dust-secondary) !important;
+    }
+    
+    .table-striped > tbody > tr:nth-of-type(odd) > td {
+        background-color: rgba(26, 35, 126, 0.02);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(26, 35, 126, 0.05);
+    }
+    
+    /* Ciment table specific styling for many columns */
+    #cimentTable {
+        font-size: 0.9rem;
+    }
+    
+    #cimentTable th {
+        white-space: nowrap;
+        min-width: 100px;
+        padding: 0.75rem 0.5rem;
+        vertical-align: middle;
+        text-align: center;
+    }
+    
+    #cimentTable th small {
+        font-size: 0.7rem;
+        line-height: 1.2;
+    }
+    
+    #cimentTable td {
+        white-space: nowrap;
+        padding: 0.75rem 0.5rem;
+        vertical-align: middle;
+    }
+    
+    /* First column (site name) should be wider and left-aligned */
+    #cimentTable th:nth-child(2),
+    #cimentTable td:nth-child(2) {
+        min-width: 200px;
+        text-align: left !important;
+        white-space: normal;
+    }
+    
+    /* Sales columns styling */
+    #cimentTable th:has(.fa-chart-line) {
+        background: linear-gradient(135deg, #10b981 0%, #34d399 100%) !important;
+        color: white;
+    }
+    
+    /* Stock columns styling */
+    #cimentTable th:has(.fa-warehouse) {
+        background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%) !important;
+        color: white;
+    }
+    
+    /* Scrollable table container */
+    .table-responsive {
+        border-radius: 12px;
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* DataTable wrapper improvements */
+    .dataTables_wrapper .dataTables_scroll {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .dataTables_wrapper .dataTables_scrollHead {
+        background: var(--dust-primary);
+    }
+    
+    .dataTables_wrapper .dataTables_scrollBody {
+        border: 1px solid #e2e8f0;
+        border-top: none;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .metric-card {
+            margin-bottom: 1rem;
+        }
+        
+        .hero-title {
+            font-size: 1.8rem !important;
+        }
+        
+        .hero-subtitle {
+            font-size: 1rem !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let currentData = [];
+    let currentMetadata = {};
+    let cimentTable;
+    
+    // Initialize DataTable
+    function initializeDataTable() {
+        // Destroy existing table if it exists
+        if (cimentTable) {
+            cimentTable.destroy();
+            cimentTable = null;
+        }
+        
+        // Count total columns to ensure proper initialization
+        const totalColumns = $('#cimentTable thead tr th').length;
+        console.log(`Initializing DataTable with ${totalColumns} columns`);
+        
+        if (totalColumns === 0) {
+            console.error('No columns found in table header');
+            return;
+        }
+        
+        // Build dynamic column definitions
+        const columnDefs = [
+            { targets: [0], orderable: false }, // Row number column
+            { targets: [1], className: 'text-start' }, // Site name column
+            { targets: [2, 3, 4], className: 'text-end' } // Basic numeric columns
+        ];
+        
+        // Add formatting for all numeric columns (including dynamic ones)
+        const numericTargets = [2, 3, 4]; // Amount, Articles count, Sales Qty
+        
+        // Add dynamic ciment item columns (sales only)
+        if (currentMetadata && currentMetadata.ciment_items && currentMetadata.ciment_items.length > 0) {
+            const itemCount = currentMetadata.ciment_items.length;
+            
+            // Sales columns start at index 5
+            for (let i = 0; i < itemCount; i++) {
+                numericTargets.push(5 + i);
+            }
+            
+            // Add column definitions for dynamic columns
+            columnDefs.push({
+                targets: numericTargets.slice(3), // Dynamic columns only (exclude first 3)
+                className: 'text-end'
+            });
+        }
+        
+        // Add number formatting for all numeric columns
+        columnDefs.push({
+            targets: numericTargets,
+            render: function(data, type, row) {
+                if (type === 'display') {
+                    const num = parseFloat(data) || 0;
+                    return num.toLocaleString();
+                }
+                return data;
+            }
+        });
+        
+        // Special formatting for amount column (index 2)
+        columnDefs.push({
+            targets: [2],
+            render: function(data, type, row) {
+                if (type === 'display') {
+                    const num = parseFloat(data) || 0;
+                    return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+                return data;
+            }
+        });
+        
+        try {
+            cimentTable = $('#cimentTable').DataTable({
+                destroy: true, // Allow re-initialization
+                responsive: true,
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                order: [[2, 'desc']], // Sort by Total Amount by default
+                scrollX: true, // Enable horizontal scrolling for many columns
+                buttons: [
+                    {
+                        extend: 'excel',
+                        text: '<i class="fas fa-file-excel me-2"></i>Export Excel',
+                        className: 'btn btn-success btn-sm',
+                        filename: function() {
+                            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                            let filename = 'ciment_report_detailed_' + timestamp;
+                            return filename;
+                        },
+                        title: function() {
+                            let title = 'Ciment Report - Detailed by Item';
+                            const date = new Date().toLocaleDateString();
+                            title += ' - Generated on ' + date;
+                            
+                            if (currentMetadata && currentMetadata.from_date && currentMetadata.to_date) {
+                                title += ' | Period: ' + currentMetadata.from_date + ' to ' + currentMetadata.to_date;
+                            } else if (currentMetadata && currentMetadata.from_date) {
+                                title += ' | From: ' + currentMetadata.from_date;
+                            } else if (currentMetadata && currentMetadata.to_date) {
+                                title += ' | To: ' + currentMetadata.to_date;
+                            }
+                            
+                            return title;
+                        },
+                        exportOptions: {
+                            columns: ':visible'
+                        }
+                    },
+                    {
+                        extend: 'csv',
+                        text: '<i class="fas fa-file-csv me-2"></i>Export CSV',
+                        className: 'btn btn-info btn-sm',
+                        filename: function() {
+                            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                            return 'ciment_report_detailed_' + timestamp;
+                        },
+                        exportOptions: {
+                            columns: ':visible'
+                        }
+                    },
+                    {
+                        extend: 'pdf',
+                        text: '<i class="fas fa-file-pdf me-2"></i>Export PDF',
+                        className: 'btn btn-danger btn-sm',
+                        filename: function() {
+                            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                            return 'ciment_report_detailed_' + timestamp;
+                        },
+                        title: function() {
+                            let title = 'Ciment Report - Detailed by Item';
+                            const date = new Date().toLocaleDateString();
+                            title += ' - Generated on ' + date;
+                            
+                            if (currentMetadata && currentMetadata.from_date && currentMetadata.to_date) {
+                                title += ' | Period: ' + currentMetadata.from_date + ' to ' + currentMetadata.to_date;
+                            } else if (currentMetadata && currentMetadata.from_date) {
+                                title += ' | From: ' + currentMetadata.from_date;
+                            } else if (currentMetadata && currentMetadata.to_date) {
+                                title += ' | To: ' + currentMetadata.to_date;
+                            }
+                            
+                            return title;
+                        },
+                        exportOptions: {
+                            columns: ':visible'
+                        },
+                        orientation: 'landscape',
+                        pageSize: 'A4'
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fas fa-print me-2"></i>Print',
+                        className: 'btn btn-secondary btn-sm',
+                        title: function() {
+                            let title = 'Ciment Report - Detailed by Item';
+                            const date = new Date().toLocaleDateString();
+                            title += ' - Generated on ' + date;
+                            
+                            if (currentMetadata && currentMetadata.from_date && currentMetadata.to_date) {
+                                title += ' | Period: ' + currentMetadata.from_date + ' to ' + currentMetadata.to_date;
+                            } else if (currentMetadata && currentMetadata.from_date) {
+                                title += ' | From: ' + currentMetadata.from_date;
+                            } else if (currentMetadata && currentMetadata.to_date) {
+                                title += ' | To: ' + currentMetadata.to_date;
+                            }
+                            
+                            return title;
+                        },
+                        exportOptions: {
+                            columns: ':visible'
+                        }
+                    }
+                ],
+                columnDefs: columnDefs,
+                dom: '<"row"<"col-md-3"l><"col-md-6"B><"col-md-3"f>>' +
+                     '<"row"<"col-12"t>>' +
+                     '<"row"<"col-md-5"i><"col-md-7"p>>',
+                language: {
+                    search: "Search:",
+                    searchPlaceholder: "Search sites...",
+                    lengthMenu: "Show _MENU_ entries",
+                    info: "Showing _START_ to _END_ of _TOTAL_ sites",
+                    infoEmpty: "No sites found",
+                    infoFiltered: "(filtered from _MAX_ total sites)",
+                    zeroRecords: "No matching sites found",
+                    emptyTable: "No data available in table"
+                }
+            });
+            
+            console.log('DataTable initialized successfully');
+            
+        } catch (error) {
+            console.error('Error initializing DataTable:', error);
+            showError('Error initializing table: ' + error.message);
+        }
+    }
+    
+    // Check cache status and load data
+    function checkCacheStatus() {
+        console.log('Checking cache status...');
+        
+        $.get('/api/cache-status', function(data) {
+            console.log('Cache status:', data);
+            
+            if (!data.cached && !data.loading) {
+                showError('Data not loaded. Please load the database first from the dashboard.');
+            } else if (data.loading) {
+                showLoading();
+                setTimeout(checkCacheStatus, 2000);
+            } else {
+                console.log('Data is loaded and ready');
+            }
+        }).fail(function(xhr, status, error) {
+            console.error('Error checking cache status:', error);
+            showError('Error checking data status: ' + error);
+        });
+    }
+    
+    // Show loading indicator
+    function showLoading() {
+        $('#loadingIndicator').show();
+        $('#summaryCards, #resultsSection, #errorSection').hide();
+    }
+    
+    // Hide loading indicator
+    function hideLoading() {
+        $('#loadingIndicator').hide();
+    }
+    
+    // Show error message
+    function showError(message) {
+        $('#errorMessage').text(message);
+        $('#errorSection').show();
+        $('#loadingIndicator, #summaryCards, #resultsSection').hide();
+    }
+    
+    // Update summary cards
+    function updateSummaryCards(data, metadata) {
+        const totalSites = data.length;
+        const totalAmount = data.reduce((sum, row) => sum + (parseFloat(row.TOTAL_AMOUNT) || 0), 0);
+        const totalCimentSalesQty = data.reduce((sum, row) => sum + (parseFloat(row.TOTAL_CIMENT_SALES_QTY) || 0), 0);
+        const totalArticlesWithSales = data.reduce((sum, row) => sum + (parseInt(row.CIMENT_ARTICLES_WITH_SALES) || 0), 0);
+        const cimentItems = metadata.ciment_items ? metadata.ciment_items.length : 0;
+        
+        $('#totalSites').text(totalSites.toLocaleString());
+        $('#totalCimentSales').text('$' + totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $('#totalAllSales').text(totalCimentSalesQty.toLocaleString());
+        
+        // Show active vs total ciment items
+        if (metadata.active_ciment_items_shown && metadata.total_ciment_items_in_category) {
+            $('#cimentItems').text(`${metadata.active_ciment_items_shown} / ${metadata.total_ciment_items_in_category}`);
+            $('#cimentItems').attr('title', `${metadata.active_ciment_items_shown} items with sales out of ${metadata.total_ciment_items_in_category} total ciment items`);
+        } else {
+            $('#cimentItems').text(cimentItems.toLocaleString());
+        }
+        
+        $('#reportDate').text(new Date().toLocaleDateString());
+        $('#recordCount').text(data.length.toLocaleString());
+    }
+    
+    // Build dynamic table headers
+    function buildDynamicHeaders(metadata) {
+        console.log('Building dynamic headers with metadata:', metadata);
+        
+        const thead = $('#cimentTable thead tr');
+        
+        // Remove any existing dynamic columns (beyond the first 5)
+        thead.find('th:gt(4)').remove();
+        
+        // Add ciment item sales columns only
+        if (metadata && metadata.ciment_items && metadata.ciment_items.length > 0) {
+            console.log(`Adding ${metadata.ciment_items.length} ciment item sales columns`);
+            
+            metadata.ciment_items.forEach(item => {
+                const itemName = item.DESCR1 ? item.DESCR1.substring(0, 20) : item.ITEM;
+                const headerHtml = `<th class="text-center" title="${item.ITEM} - ${item.DESCR1 || ''}">
+                    <i class="fas fa-chart-line me-1 text-success"></i>
+                    <small class="d-block">${item.ITEM}</small>
+                    <span class="fw-bold">${itemName}</span>
+                    <small class="d-block text-muted">Sales</small>
+                </th>`;
+                thead.append(headerHtml);
+            });
+            
+            console.log(`Total columns after building headers: ${thead.find('th').length}`);
+        } else {
+            console.log('No ciment items found in metadata');
+        }
+    }
+    
+    // Load ciment report data
+    function loadCimentData(filters = {}) {
+        showLoading();
+        
+        $.ajax({
+            url: '/api/ciment-report',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(filters),
+            success: function(response) {
+                hideLoading();
+                
+                if (response.error) {
+                    showError(response.error);
+                    return;
+                }
+                
+                currentData = response.data;
+                currentMetadata = response.metadata;
+                
+                updateSummaryCards(currentData, currentMetadata);
+                
+                // Build dynamic headers FIRST
+                buildDynamicHeaders(currentMetadata);
+                
+                // THEN reinitialize DataTable with new structure
+                initializeDataTable();
+                
+                // FINALLY populate the data
+                populateTableData();
+                
+                $('#summaryCards, #resultsSection').show();
+            },
+            error: function(xhr, status, error) {
+                hideLoading();
+                showError('Error loading data: ' + error);
+            }
+        });
+    }
+    
+    // Separate function to populate table data
+    function populateTableData() {
+        if (!cimentTable || !currentData || !currentMetadata) {
+            console.log('Cannot populate table - missing data or table not initialized');
+            return;
+        }
+        
+        console.log(`Populating table with ${currentData.length} rows`);
+        
+        // Clear existing data
+        cimentTable.clear();
+        
+        currentData.forEach((row, index) => {
+            const tableRow = [
+                index + 1,
+                row.SITE_NAME || '',
+                parseFloat(row.TOTAL_AMOUNT || 0),
+                parseInt(row.CIMENT_ARTICLES_WITH_SALES || 0),
+                parseFloat(row.TOTAL_CIMENT_SALES_QTY || 0)
+            ];
+            
+            // Add sales data for each ciment item (no stock data)
+            if (currentMetadata.ciment_items) {
+                currentMetadata.ciment_items.forEach(item => {
+                    const salesValue = row.CIMENT_SALES_BY_ITEM && row.CIMENT_SALES_BY_ITEM[item.ITEM] 
+                        ? parseFloat(row.CIMENT_SALES_BY_ITEM[item.ITEM]) 
+                        : 0;
+                    tableRow.push(salesValue);
+                });
+            }
+            
+            cimentTable.row.add(tableRow);
+        });
+        
+        cimentTable.draw();
+        console.log('Table populated successfully');
+    }
+    
+    // Form submission
+    $('#cimentForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const filters = {
+            from_date: $('#fromDate').val(),
+            to_date: $('#toDate').val()
+        };
+        
+        loadCimentData(filters);
+    });
+    
+    // Clear filters
+    $('#clearBtn').on('click', function() {
+        $('#cimentForm')[0].reset();
+        $('#summaryCards, #resultsSection, #errorSection').hide();
+        
+        if (cimentTable) {
+            cimentTable.clear().draw();
+        }
+    });
+    
+    // Refresh data
+    $('#refreshData').on('click', function() {
+        if (currentData.length > 0) {
+            const filters = {
+                from_date: $('#fromDate').val(),
+                to_date: $('#toDate').val()
+            };
+            loadCimentData(filters);
+        } else {
+            alert('No data to refresh. Please generate a report first.');
+        }
+    });
+    
+    // Excel export
+    $('#exportExcel').on('click', function() {
+        if (currentData.length === 0) {
+            alert('No data to export. Please generate a report first.');
+            return;
+        }
+        
+        const filters = {
+            from_date: $('#fromDate').val(),
+            to_date: $('#toDate').val()
+        };
+        
+        // Show loading state
+        const $btn = $(this);
+        const originalHtml = $btn.html();
+        $btn.html('<i class="fas fa-spinner fa-spin me-1"></i>Exporting...').prop('disabled', true);
+        
+        $.ajax({
+            url: '/api/export-ciment-report',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(filters),
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function(data, status, xhr) {
+                // Create download link
+                const blob = new Blob([data], {
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get filename from response headers or generate one
+                let filename = 'ciment_report.xlsx';
+                const disposition = xhr.getResponseHeader('Content-Disposition');
+                if (disposition && disposition.includes('filename=')) {
+                    filename = disposition.split('filename=')[1].replace(/"/g, '');
+                } else {
+                    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                    filename = `ciment_report_${timestamp}.xlsx`;
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Reset button
+                $btn.html(originalHtml).prop('disabled', false);
+            },
+            error: function(xhr, status, error) {
+                console.error('Export error:', error);
+                alert('Error exporting data: ' + error);
+                
+                // Reset button
+                $btn.html(originalHtml).prop('disabled', false);
+            }
+        });
+    });
+    
+    // Initialize everything
+    checkCacheStatus();
+    // Don't initialize DataTable until we have data
+});
+</script>
+{% endblock %}

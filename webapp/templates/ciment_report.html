@@ -253,21 +253,6 @@
                         </button>
                     </div>                    </div>
                 </div>
-                
-                <!-- Table Explanation -->
-                <div class="alert alert-info mb-3" style="background: linear-gradient(135deg, #e0f2fe 0%, #f1f8ff 100%); border: 1px solid #2196f3; border-radius: 12px;">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-info-circle me-3" style="color: #2196f3; font-size: 1.2rem;"></i>
-                        <div>
-                            <h6 class="alert-heading mb-1" style="color: #1976d2;">Detailed Report View</h6>
-                            <p class="mb-0 small" style="color: #1565c0;">
-                                This report shows sales data for ciment items that have actual sales. Columns include: Site, Total Amount (sales × price), Number of Articles with Sales, and Total Sales Quantity.
-                                <strong>Green columns</strong> show individual ciment item sales quantities.
-                                <br><strong>Note:</strong> Only ciment items with actual sales data are displayed. No stock information is included.
-                            </p>
-                        </div>
-                    </div>
-                </div>
             
             <div class="card-body">
                 <div class="table-responsive">
@@ -874,12 +859,14 @@ $(document).ready(function() {
             console.log(`Adding ${metadata.ciment_items.length} ciment item sales columns`);
             
             metadata.ciment_items.forEach(item => {
-                const itemName = item.DESCR1 ? item.DESCR1.substring(0, 20) : item.ITEM;
+                // Create header: "ITEM_CODE - DESCR1" (keep spaces, remove "Sales" text)
+                const itemCode = item.ITEM;
+                const itemName = item.DESCR1 ? item.DESCR1.substring(0, 20) : itemCode;
+                const headerText = `${itemCode} - ${itemName}`;
+                
                 const headerHtml = `<th class="text-center" title="${item.ITEM} - ${item.DESCR1 || ''}">
                     <i class="fas fa-chart-line me-1 text-success"></i>
-                    <small class="d-block">${item.ITEM}</small>
-                    <span class="fw-bold">${itemName}</span>
-                    <small class="d-block text-muted">Sales</small>
+                    <small class="d-block">${headerText}</small>
                 </th>`;
                 thead.append(headerHtml);
             });

@@ -194,8 +194,15 @@
         
         /* Main Content */
         .main-content {
-            padding: 2rem 0;
+            padding: 1rem 0;
             min-height: calc(100vh - 200px);
+        }
+        
+        /* Wider content on larger screens */
+        @media (min-width: 1400px) {
+            .main-content .container-fluid {
+                max-width: 98% !important;
+            }
         }
         
         /* Cards */
@@ -477,8 +484,8 @@
 <body>
     <!-- Corporate Navigation -->
     <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+        <div class="container-fluid" style="max-width: 95%; padding: 0 15px;">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <div class="dust-logo"></div>
                 <div class="brand-text">
                     <div class="company-name">DustReports</div>
@@ -495,26 +502,26 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
                             <i class="fas fa-home me-2"></i>Dashboard
                         </a>
                     </li>                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('autonomy') }}">
+                        <a class="nav-link" href="{{ url_for('main.autonomy') }}">
                             <i class="fas fa-chart-line me-2"></i>Stock Autonomy
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('stock_by_site') }}">
+                        <a class="nav-link" href="{{ url_for('main.stock_by_site') }}">
                             <i class="fas fa-building me-2"></i>Stock by Site
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ciment_report') }}">
+                        <a class="nav-link" href="{{ url_for('main.ciment_report') }}">
                             <i class="fas fa-cubes me-2"></i>Ciment Report
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('custom_reports') }}">
+                        <a class="nav-link" href="{{ url_for('main.custom_reports') }}">
                             <i class="fas fa-table me-2"></i>Custom Reports
                         </a>
                     </li>
@@ -530,14 +537,14 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        <div class="container">
+        <div class="container-fluid" style="max-width: 95%; padding: 0 15px;">
             {% block content %}{% endblock %}
         </div>
     </div>
 
     <!-- Corporate Footer -->
     <footer class="footer">
-        <div class="container">
+        <div class="container-fluid" style="max-width: 95%; padding: 0 15px;">
             <div class="row">
                 <div class="col-md-8 text-md-start text-center mb-3 mb-md-0">
                     <div class="d-flex align-items-center justify-content-center justify-content-md-start mb-2">

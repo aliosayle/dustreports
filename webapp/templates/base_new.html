@@ -400,7 +400,7 @@
     <!-- Corporate Navigation -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <div class="dust-logo"></div>
                 <div class="brand-text">
                     <div class="company-name">DustReports</div>
@@ -417,12 +417,12 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
                             <i class="fas fa-home me-2"></i>Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('autonomy') }}">
+                        <a class="nav-link" href="{{ url_for('main.autonomy') }}">
                             <i class="fas fa-chart-line me-2"></i>Stock Reports
                         </a>
                     </li>

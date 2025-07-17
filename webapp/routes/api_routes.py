@@ -513,3 +513,213 @@ def api_ciment_report():
     except Exception as e:
         print(f"Error in ciment report: {e}")
         return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/sales-report', methods=['POST'])
+def api_sales_report():
+    """
+    Generate Sales Report using INVOICE table with NET, DISCOUNT, and cumulative calculations
+    Filter for SID starting with "530" and FTYPE = 1 (valid sales transactions)
+    """
+    try:
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        site_type = data.get('site_type')  # 'int' or 'kinshasa'
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get invoice data (original table name: INVOICE)
+        if 'invoice_headers' not in dataframes or dataframes['invoice_headers'] is None:
+            return jsonify({'error': 'Invoice data not available'}), 400
+        
+        invoice_df = dataframes['invoice_headers'].copy()
+        print(f"📊 Working with {len(invoice_df)} invoice records")
+        
+        # Filter for valid sales transactions (FTYPE = 1)
+        if 'FTYPE' in invoice_df.columns:
+            invoice_df = invoice_df[invoice_df['FTYPE'] == 1]
+            print(f"📊 After FTYPE=1 filter: {len(invoice_df)} records")
+        
+        # Filter for SID starting with "530"
+        if 'SID' in invoice_df.columns:
+            invoice_df = invoice_df[invoice_df['SID'].astype(str).str.startswith('530')]
+            print(f"📊 After SID starts with '530' filter: {len(invoice_df)} records")
+        else:
+            return jsonify({'error': 'SID column not found in invoice data'}), 400
+        
+        # Ensure required columns exist
+        required_cols = ['SID', 'NET', 'SUBTOTAL', 'VAT', 'OTHER', 'FDATE']
+        missing_cols = [col for col in required_cols if col not in invoice_df.columns]
+        if missing_cols:
+            return jsonify({'error': f'Missing required columns: {missing_cols}'}), 400
+        
+        # Convert date column and filter by date range
+        invoice_df['FDATE'] = pd.to_datetime(invoice_df['FDATE'], errors='coerce')
+        if from_date:
+            from_date_dt = pd.to_datetime(from_date)
+            invoice_df = invoice_df[invoice_df['FDATE'] >= from_date_dt]
+        if to_date:
+            to_date_dt = pd.to_datetime(to_date)
+            invoice_df = invoice_df[invoice_df['FDATE'] <= to_date_dt]
+        
+        print(f"📊 After date filter: {len(invoice_df)} records")
+        
+        # Fill NaN values for calculations
+        invoice_df['NET'] = invoice_df['NET'].fillna(0)
+        invoice_df['SUBTOTAL'] = invoice_df['SUBTOTAL'].fillna(0)
+        invoice_df['VAT'] = invoice_df['VAT'].fillna(0)
+        invoice_df['OTHER'] = invoice_df['OTHER'].fillna(0)
+        
+        # Calculate discount using the OTHER field from INVOICE table
+        invoice_df['DISCOUNT_CALC'] = invoice_df['OTHER']
+        
+        # Filter SIDs based on site type (ID pattern based)
+        if site_type == 'kinshasa':
+            # Filter for SIDs starting with "5301" (Kinshasa sites)
+            invoice_df = invoice_df[invoice_df['SID'].astype(str).str.startswith('5301')]
+            site_type_name = 'Kinshasa'
+        elif site_type == 'int':
+            # Filter for SIDs starting with "5302" (INT sites)  
+            invoice_df = invoice_df[invoice_df['SID'].astype(str).str.startswith('5302')]
+            site_type_name = 'INT'
+        else:
+            return jsonify({'error': 'Invalid site_type. Must be "kinshasa" or "int"'}), 400
+        
+        if invoice_df.empty:
+            return jsonify({'error': f'No {site_type_name} sales found (SID starting with 530{"1" if site_type == "kinshasa" else "2"})'}), 404
+        
+        print(f"📍 Found {len(invoice_df)} {site_type_name} sales records")
+        
+        # Calculate sales for the selected period (sum NET by SID)
+        period_sales = invoice_df.groupby('SID').agg({
+            'NET': 'sum',
+            'DISCOUNT_CALC': 'sum'
+        }).reset_index()
+        period_sales.columns = ['SID', 'SALES', 'DISCOUNT']
+        
+        # Calculate cumulative sales from INVOICE table (from 1st of month until to_date)
+        if to_date:
+            # Calculate from 1st of the month until to_date
+            to_date_dt = pd.to_datetime(to_date)
+            first_of_month = to_date_dt.replace(day=1)
+            
+            print(f"� Calculating cumulative sales from {first_of_month.strftime('%Y-%m-%d')} to {to_date}")
+            
+            # Get fresh copy of invoice data for cumulative calculation
+            cumulative_invoice_df = dataframes['invoice_headers'].copy()
+            
+            # Apply same base filters
+            if 'FTYPE' in cumulative_invoice_df.columns:
+                cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['FTYPE'] == 1]
+            
+            if 'SID' in cumulative_invoice_df.columns:
+                cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('530')]
+                
+                # Apply site type filter
+                if site_type == 'kinshasa':
+                    cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('5301')]
+                elif site_type == 'int':
+                    cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('5302')]
+            
+            # Filter by cumulative date range (1st of month to to_date)
+            cumulative_invoice_df['FDATE'] = pd.to_datetime(cumulative_invoice_df['FDATE'], errors='coerce')
+            cumulative_invoice_df = cumulative_invoice_df[
+                (cumulative_invoice_df['FDATE'] >= first_of_month) & 
+                (cumulative_invoice_df['FDATE'] <= to_date_dt)
+            ]
+            
+            # Fill NaN values and calculate cumulative sales (sum NET by SID)
+            cumulative_invoice_df['NET'] = cumulative_invoice_df['NET'].fillna(0)
+            
+            # Calculate cumulative sales by SID
+            cumulative_sales = cumulative_invoice_df.groupby('SID')['NET'].sum().reset_index()
+            cumulative_sales.columns = ['SID', 'CUMULATIVE_SALES']
+            
+            print(f"📊 Calculated cumulative sales for {len(cumulative_sales)} SIDs from INVOICE table (1st of month to to_date)")
+        else:
+            # If no to_date specified, use period sales as cumulative
+            print("⚠️ No to_date specified, using period sales as cumulative")
+            cumulative_sales = period_sales[['SID', 'SALES']].copy()
+            cumulative_sales.columns = ['SID', 'CUMULATIVE_SALES']
+        
+        # Merge period and cumulative sales
+        result_df = period_sales.merge(cumulative_sales, on='SID', how='left')
+        result_df['CUMULATIVE_SALES'] = result_df['CUMULATIVE_SALES'].fillna(result_df['SALES'])
+        
+        # Add site information using SUB table for site names
+        if 'accounts' in dataframes and dataframes['accounts'] is not None:
+            # Get site names from SUB table (SQL: SELECT s.sname FROM SUB s WHERE s.sid = :site_id)
+            sub_df = dataframes['accounts'].copy()
+            
+            # Ensure SID columns are strings for proper matching
+            sub_df['SID'] = sub_df['SID'].astype(str) 
+            result_df['SID'] = result_df['SID'].astype(str)
+            
+            # Merge to get site names (SNAME from SUB table)
+            if 'SNAME' in sub_df.columns:
+                site_names = sub_df[['SID', 'SNAME']].drop_duplicates()
+                result_df = result_df.merge(site_names, on='SID', how='left')
+                
+                # Fill missing site names with SID as fallback
+                result_df['SNAME'] = result_df['SNAME'].fillna(result_df['SID'])
+                print(f"📍 Retrieved site names for {len(site_names)} sites from SUB table")
+            else:
+                print("⚠️ SNAME column not found in SUB table, using SID as site name")
+                result_df['SNAME'] = result_df['SID']
+        else:
+            print("⚠️ SUB table (accounts) not available, using SID as site name")
+            result_df['SNAME'] = result_df['SID']
+        
+        # Sort by sales amount descending
+        result_df = result_df.sort_values('SALES', ascending=False)
+        
+        # Convert to list of dictionaries for JSON response
+        result_data = []
+        for _, row in result_df.iterrows():
+            # Use site name from SUB table if available, otherwise use SID
+            site_name = str(row['SNAME']) if pd.notna(row['SNAME']) and str(row['SNAME']).strip() else f"Site {row['SID']}"
+            
+            row_data = {
+                'SITE_ID': str(row['SID']),
+                'SITE_NAME': f"{site_name} ({site_type_name})",
+                'SALES_AMOUNT': float(row['SALES']),
+                'DISCOUNT_AMOUNT': float(row['DISCOUNT']),
+                'CUMULATIVE_SALES': float(row['CUMULATIVE_SALES'])
+            }
+            result_data.append(row_data)
+        
+        total_sales = result_df['SALES'].sum()
+        total_discount = result_df['DISCOUNT'].sum()
+        total_cumulative = result_df['CUMULATIVE_SALES'].sum()
+        
+        return jsonify({
+            'data': result_data,
+            'metadata': {
+                'total_sites': len(result_data),
+                'site_type': site_type,
+                'site_type_name': site_type_name,
+                'total_sales_amount': float(total_sales),
+                'total_discount_amount': float(total_discount),
+                'total_cumulative_sales': float(total_cumulative),
+                'from_date': from_date,
+                'to_date': to_date,
+                'data_source': 'INVOICE table (NET for both sales and cumulative)',
+                'calculation_method': {
+                    'sales': 'NET from INVOICE table for selected period',
+                    'discount': 'OTHER field from INVOICE table',
+                    'cumulative': 'NET from INVOICE table from 1st of month until to_date'
+                },
+                'columns_info': {
+                    'site_name': 'Site identifier (SID)',
+                    'sales_amount': 'Net sales amount for selected period (INVOICE.NET)',
+                    'discount_amount': 'Discount amount (INVOICE.OTHER)',
+                    'cumulative_sales': 'Cumulative sales from 1st of month to end date (INVOICE.NET)'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in sales report: {e}")
+        return jsonify({'error': str(e)}), 500

@@ -1,0 +1,710 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Report - DustReports{% endblock %}
+
+{% block content %}
+<!-- Enhanced Hero Section with DustReports Branding -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="hero-section p-4 rounded-4 text-white position-relative overflow-hidden" 
+             style="background: var(--primary-gradient); min-height: 200px;">
+            <!-- Dust particle background - simplified -->
+            <div class="position-absolute top-0 start-0 w-100 h-100 dust-particles"></div>
+            
+            <div class="row align-items-center position-relative">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="dust-logo me-3" style="width: 64px; height: 64px;">
+                            <div class="position-absolute" style="width: 32px; height: 32px; background: white; border-radius: 50%; opacity: 0.9;"></div>
+                            <div class="position-absolute" style="width: 16px; height: 16px; background: var(--dust-primary); border-radius: 50%; top: 24px; left: 24px;"></div>
+                        </div>
+                        <div>
+                            <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
+                                Sales Report
+                            </h1>
+                            <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
+                                Site-wise sales analysis for INT and Kinshasa locations powered by <strong>DustReports</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="hero-stats d-flex flex-column align-items-end">
+                        <div class="d-flex align-items-center mb-2" style="opacity: 0.9;">
+                            <i class="fas fa-chart-line me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Sales Analytics</span>
+                        </div>
+                        <div class="d-flex align-items-center" style="opacity: 0.9;">
+                            <i class="fas fa-download me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold">Export Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Professional Filters Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: var(--light-gradient);">
+            <div class="card-header border-0 py-4" style="background: transparent;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="filter-icon me-3" 
+                             style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                            <i class="fas fa-filter text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                                Report Filters
+                            </h5>
+                            <p class="mb-0 small" style="color: #718096 !important;">Configure your sales analysis parameters</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill shadow-sm" id="clearBtn" 
+                            style="font-weight: 600; border-width: 2px; transition: all 0.3s ease;">
+                        <i class="fas fa-times me-1"></i>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-body pt-0">
+                <form id="salesForm">
+                    <div class="row g-4">
+                        <div class="col-lg-4 col-md-6">
+                            <div class="filter-group">
+                                <label for="siteType" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
+                                    Site Type
+                                </label>
+                                <select class="form-select form-select-lg" id="siteType" name="site_type" required
+                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                    <option value="">Select Site Type</option>
+                                    <option value="kinshasa">Kinshasa Sites</option>
+                                    <option value="int">INT Sites</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4 col-md-6">
+                            <div class="filter-group">
+                                <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
+                                    From Date
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="date" class="form-control form-control-lg" id="fromDate" name="from_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4 col-md-6">
+                            <div class="filter-group">
+                                <label for="toDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-calendar-check me-2" style="color: var(--dust-secondary);"></i>
+                                    To Date
+                                </label>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="date" class="form-control form-control-lg" id="toDate" name="to_date"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <button type="submit" class="btn btn-lg me-3 px-5 py-3 position-relative overflow-hidden"
+                                    style="background: var(--primary-gradient); border: none; border-radius: 16px; color: white; font-weight: 600; box-shadow: var(--shadow-lg); transition: all 0.3s ease;">
+                                <span class="position-relative z-1">
+                                    <i class="fas fa-chart-line me-2"></i>
+                                    Generate Sales Report
+                                </span>
+                                <div class="position-absolute top-50 start-50 translate-middle w-100 h-100 rounded-circle" 
+                                     style="background: rgba(255, 255, 255, 0.1); transform: scale(0); transition: transform 0.3s ease;"></div>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Loading Indicator -->
+<div class="row mt-4" id="loadingIndicator" style="display: none;">
+    <div class="col-12">
+        <div class="loading-card">
+            <div class="loading-content">
+                <div class="loading-spinner">
+                    <div class="spinner-circle"></div>
+                    <div class="spinner-circle spinner-circle-2"></div>
+                    <div class="spinner-circle spinner-circle-3"></div>
+                </div>
+                <h4 class="loading-title">Generating Sales Report</h4>
+                <p class="loading-subtitle">Analyzing sales data across selected sites...</p>
+                <div class="loading-bar">
+                    <div class="loading-progress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Summary Cards -->
+<div class="row mt-4" id="summaryCards" style="display: none;">
+    <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="metric-card metric-primary">
+            <div class="metric-icon">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalSites" class="metric-value">0</h3>
+                <p class="metric-label">Total Sites</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="metric-card metric-success">
+            <div class="metric-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalSales" class="metric-value">$0</h3>
+                <p class="metric-label">Total Sales</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="metric-card metric-info">
+            <div class="metric-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="averageSales" class="metric-value">$0</h3>
+                <p class="metric-label">Average per Site</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-chart-line"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="metric-card metric-warning">
+            <div class="metric-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalDiscount" class="metric-value">$0</h3>
+                <p class="metric-label">Total Discount</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-tag"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Professional Results Table Section -->
+<div class="row mt-4" id="resultsSection" style="display: none;">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: white;">
+            <div class="card-header border-0 py-4" style="background: var(--light-gradient); border-radius: 16px 16px 0 0;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                        <div class="table-icon me-3" 
+                             style="width: 48px; height: 48px; background: var(--primary-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                            <i class="fas fa-table text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                                Sales Report Results
+                            </h4>
+                            <p class="mb-0 small" style="color: #718096 !important;">
+                                Site-wise sales breakdown with cumulative totals
+                            </p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center flex-wrap">
+                        <span class="badge bg-primary me-2 mb-2" style="padding: 8px 16px; font-size: 0.9rem; border-radius: 8px;">
+                            <i class="fas fa-database me-1"></i>
+                            <span id="recordCount">0</span> Sites
+                        </span>
+                        <button class="btn btn-outline-primary btn-sm mb-2" id="refreshData" style="border-radius: 8px;">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                        <button class="btn btn-outline-success btn-sm mb-2 ms-2" id="exportExcel" style="border-radius: 8px;">
+                            <i class="fas fa-file-excel me-1"></i>
+                            Excel Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle" id="salesTable" style="width: 100%;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center">#</th>
+                                <th><i class="fas fa-building me-2"></i>Site</th>
+                                <th><i class="fas fa-dollar-sign me-2"></i>Sales Amount (USD)</th>
+                                <th><i class="fas fa-percentage me-2"></i>Discount Amount (USD)</th>
+                                <th><i class="fas fa-chart-line me-2"></i>Cumulative Sales (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message Section -->
+<div class="row mt-4" id="errorSection" style="display: none;">
+    <div class="col-12">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius: 12px; border: none; box-shadow: var(--shadow-md);">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-circle me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <h6 class="alert-heading mb-1">Error Loading Data</h6>
+                    <p class="mb-0" id="errorMessage">An error occurred while loading the data. Please try again.</p>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Styles -->
+<style>
+    /* Loading Animation */
+    .loading-card {
+        background: white;
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .loading-spinner {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 2rem;
+    }
+    
+    .spinner-circle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 4px solid #e2e8f0;
+        border-radius: 50%;
+        animation: spinnerRotate 1.5s linear infinite;
+    }
+    
+    .spinner-circle-2 {
+        border-color: var(--dust-secondary);
+        border-top-color: transparent;
+        animation-delay: -0.5s;
+    }
+    
+    .spinner-circle-3 {
+        border-color: var(--dust-accent);
+        border-top-color: transparent;
+        animation-delay: -1s;
+    }
+    
+    @keyframes spinnerRotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: var(--dust-gray);
+        margin-bottom: 0.5rem;
+    }
+    
+    .loading-subtitle {
+        color: var(--dust-muted);
+        margin-bottom: 2rem;
+    }
+    
+    .loading-bar {
+        width: 100%;
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+    
+    .loading-progress {
+        height: 100%;
+        background: var(--accent-gradient);
+        border-radius: 2px;
+        animation: loadingProgress 2s ease-in-out infinite;
+    }
+    
+    @keyframes loadingProgress {
+        0% { width: 0%; }
+        50% { width: 70%; }
+        100% { width: 100%; }
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--primary-gradient);
+    }
+    
+    .metric-primary::before { background: var(--primary-gradient); }
+    .metric-success::before { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+    .metric-info::before { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
+    .metric-warning::before { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+    .metric-secondary::before { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); }
+    .metric-purple::before { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: white;
+    }
+    
+    .metric-primary .metric-icon { background: var(--primary-gradient); }
+    .metric-success .metric-icon { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+    .metric-info .metric-icon { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
+    .metric-warning .metric-icon { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+    .metric-secondary .metric-icon { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); }
+    .metric-purple .metric-icon { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--dust-gray);
+        margin-bottom: 0.25rem;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .metric-label {
+        color: var(--dust-muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+    
+    .metric-trend {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        color: var(--dust-muted);
+    }
+    
+    /* Form Enhancements */
+    .form-select:focus,
+    .form-control:focus {
+        border-color: var(--dust-secondary);
+        box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.1);
+    }
+    
+    .filter-input-wrapper::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent-gradient);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
+    .filter-input-wrapper:focus-within::after {
+        transform: scaleX(1);
+    }
+    
+    /* Button Hover Effects */
+    .btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .btn[type="submit"]:hover .position-absolute {
+        transform: scale(1) !important;
+    }
+    
+    /* DataTable Customizations */
+    .table-dark th {
+        background-color: var(--dust-primary) !important;
+        border-color: var(--dust-secondary) !important;
+    }
+    
+    .table-striped > tbody > tr:nth-of-type(odd) > td {
+        background-color: rgba(26, 35, 126, 0.02);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(26, 35, 126, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let currentData = [];
+    let currentMetadata = {};
+    let salesTable;
+    
+    // Initialize DataTable
+    function initializeDataTable() {
+        if (salesTable) {
+            salesTable.destroy();
+            salesTable = null;
+        }
+        
+        salesTable = $('#salesTable').DataTable({
+            destroy: true,
+            responsive: true,
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            order: [[2, 'desc']], // Sort by Sales Amount by default
+            columnDefs: [
+                { targets: [0], orderable: false }, // Row number column
+                { targets: [1], className: 'text-start' }, // Site name column
+                { targets: [2, 3, 4], className: 'text-end' }, // Amount columns
+                {
+                    targets: [2, 3, 4], // Sales, Discount, and Cumulative columns
+                    render: function(data, type, row) {
+                        if (type === 'display') {
+                            const num = parseFloat(data) || 0;
+                            return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        }
+                        return data;
+                    }
+                }
+            ],
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: '<i class="fas fa-file-excel me-2"></i>Export Excel',
+                    className: 'btn btn-success btn-sm'
+                },
+                {
+                    extend: 'pdf',
+                    text: '<i class="fas fa-file-pdf me-2"></i>Export PDF',
+                    className: 'btn btn-danger btn-sm',
+                    orientation: 'landscape'
+                }
+            ],
+            dom: '<"row"<"col-md-3"l><"col-md-6"B><"col-md-3"f>>' +
+                 '<"row"<"col-12"t>>' +
+                 '<"row"<"col-md-5"i><"col-md-7"p>>',
+            language: {
+                search: "Search:",
+                searchPlaceholder: "Search sites...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ sites",
+                infoEmpty: "No sites found",
+                infoFiltered: "(filtered from _MAX_ total sites)",
+                zeroRecords: "No matching sites found",
+                emptyTable: "No data available in table"
+            }
+        });
+    }
+    
+    // Check cache status
+    function checkCacheStatus() {
+        $.get('/api/cache-status', function(data) {
+            if (!data.cached && !data.loading) {
+                showError('Data not loaded. Please load the database first from the dashboard.');
+            } else if (data.loading) {
+                showLoading();
+                setTimeout(checkCacheStatus, 2000);
+            }
+        }).fail(function(xhr, status, error) {
+            showError('Error checking data status: ' + error);
+        });
+    }
+    
+    // Show loading indicator
+    function showLoading() {
+        $('#loadingIndicator').show();
+        $('#summaryCards, #resultsSection, #errorSection').hide();
+    }
+    
+    // Hide loading indicator
+    function hideLoading() {
+        $('#loadingIndicator').hide();
+    }
+    
+    // Show error message
+    function showError(message) {
+        $('#errorMessage').text(message);
+        $('#errorSection').show();
+        $('#loadingIndicator, #summaryCards, #resultsSection').hide();
+    }
+    
+    // Update summary cards
+    function updateSummaryCards(data, metadata) {
+        const totalSites = data.length;
+        const totalSales = metadata.total_sales_amount || 0;
+        const totalDiscount = metadata.total_discount_amount || 0;
+        const averageSales = totalSites > 0 ? totalSales / totalSites : 0;
+        
+        $('#totalSites').text(totalSites.toLocaleString());
+        $('#totalSales').text('$' + totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $('#totalDiscount').text('$' + totalDiscount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $('#averageSales').text('$' + averageSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $('#recordCount').text(data.length.toLocaleString());
+    }
+    
+    // Load sales report data
+    function loadSalesData(filters = {}) {
+        showLoading();
+        
+        $.ajax({
+            url: '/api/sales-report',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(filters),
+            success: function(response) {
+                hideLoading();
+                
+                if (response.error) {
+                    showError(response.error);
+                    return;
+                }
+                
+                currentData = response.data;
+                currentMetadata = response.metadata;
+                
+                updateSummaryCards(currentData, currentMetadata);
+                initializeDataTable();
+                populateTableData();
+                
+                $('#summaryCards, #resultsSection').show();
+            },
+            error: function(xhr, status, error) {
+                hideLoading();
+                showError('Error loading data: ' + error);
+            }
+        });
+    }
+    
+    // Populate table data
+    function populateTableData() {
+        if (!salesTable || !currentData) return;
+        
+        salesTable.clear();
+        
+        currentData.forEach((row, index) => {
+            const tableRow = [
+                index + 1,
+                row.SITE_NAME || '',
+                parseFloat(row.SALES_AMOUNT || 0),
+                parseFloat(row.DISCOUNT_AMOUNT || 0),
+                parseFloat(row.CUMULATIVE_SALES || 0)
+            ];
+            
+            salesTable.row.add(tableRow);
+        });
+        
+        salesTable.draw();
+    }
+    
+    // Form submission
+    $('#salesForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const filters = {
+            site_type: $('#siteType').val(),
+            from_date: $('#fromDate').val(),
+            to_date: $('#toDate').val()
+        };
+        
+        if (!filters.site_type) {
+            alert('Please select a site type (Kinshasa or INT)');
+            return;
+        }
+        
+        loadSalesData(filters);
+    });
+    
+    // Clear filters
+    $('#clearBtn').on('click', function() {
+        $('#salesForm')[0].reset();
+        $('#summaryCards, #resultsSection, #errorSection').hide();
+        
+        if (salesTable) {
+            salesTable.clear().draw();
+        }
+    });
+    
+    // Refresh data
+    $('#refreshData').on('click', function() {
+        if (currentData.length > 0) {
+            const filters = {
+                site_type: $('#siteType').val(),
+                from_date: $('#fromDate').val(),
+                to_date: $('#toDate').val()
+            };
+            loadSalesData(filters);
+        } else {
+            alert('No data to refresh. Please generate a report first.');
+        }
+    });
+    
+    // Initialize
+    checkCacheStatus();
+});
+</script>
+{% endblock %}

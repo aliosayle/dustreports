@@ -136,7 +136,7 @@ def load_dataframes():
         invoice_headers_df = connect_and_load_table('INVOICE') # Invoice headers
         sales_details_df = connect_and_load_table('ITEMS')     # Sales transaction details
         vouchers_df = connect_and_load_table('PAYM')           # Payment vouchers
-        accounts_df = connect_and_load_table('SACCOUNT')       # Statement of accounts
+        accounts_df = connect_and_load_table('SUB')            # Accounts/Sub-accounts data
         inventory_items_df = connect_and_load_table('STOCK')   # Items/Products master
         inventory_transactions_df = connect_and_load_table('ALLITEM') # All inventory transactions
         

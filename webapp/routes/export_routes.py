@@ -243,3 +243,153 @@ def api_export_ciment_report():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@export_bp.route('/export-sales-report', methods=['POST'])
+def api_export_sales_report():
+    """Export sales report to Excel with proper formatting"""
+    try:
+        data = request.get_json()
+        site_type = data.get('site_type')
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get the sales report data by calling the API function directly
+        from routes.api_routes import api_sales_report
+        from flask import current_app
+        
+        with current_app.test_request_context('/api/sales-report', method='POST', json=data):
+            response = api_sales_report()
+            if hasattr(response, 'status_code') and response.status_code != 200:
+                return response
+            
+            response_data = response.get_json() if hasattr(response, 'get_json') else response
+        
+        if 'error' in response_data:
+            return jsonify(response_data), 400
+        
+        report_data = response_data['data']
+        metadata = response_data['metadata']
+        
+        if not report_data:
+            return jsonify({'error': 'No data to export'}), 404
+        
+        # Create Excel workbook
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        import io
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Sales Report"
+        
+        # Define styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1a237e", end_color="1a237e", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Title and metadata
+        site_type_name = metadata.get('site_type_name', 'Unknown')
+        title = f"Sales Report - {site_type_name} Sites"
+        if from_date and to_date:
+            title += f" - Period: {from_date} to {to_date}"
+        elif from_date:
+            title += f" - From: {from_date}"
+        elif to_date:
+            title += f" - To: {to_date}"
+        
+        # Write title
+        ws.merge_cells('A1:E1')
+        ws['A1'] = title
+        ws['A1'].font = Font(bold=True, size=16)
+        ws['A1'].alignment = Alignment(horizontal="center")
+        
+        # Write metadata
+        row = 3
+        ws[f'A{row}'] = f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        row += 1
+        ws[f'A{row}'] = f"Site Type: {site_type_name}"
+        row += 1
+        ws[f'A{row}'] = f"Total Sites: {len(report_data)}"
+        row += 1
+        ws[f'A{row}'] = f"Total Sales Amount: ${metadata.get('total_sales_amount', 0):,.2f} USD"
+        row += 1
+        ws[f'A{row}'] = f"Total Discount Amount: ${metadata.get('total_discount_amount', 0):,.2f} USD"
+        row += 1
+        ws[f'A{row}'] = f"Note: Sales from INVOICE.NET, Discount = SUBTOTAL-(NET+VAT+OTHER), Cumulative from ITEMS table"
+        row += 1
+        ws[f'A{row}'] = f"Filter: FTYPE=1 and SID starting with 530{'1' if site_type == 'kinshasa' else '2'} ({site_type_name})"
+        row += 2
+        
+        # Headers
+        headers = [
+            'Site Name',
+            'Sales Amount (USD)',
+            'Discount Amount (USD)',
+            'Cumulative Sales (USD)'
+        ]
+        
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+        
+        # Write data
+        for row_idx, site_data in enumerate(report_data, row + 1):
+            ws.cell(row=row_idx, column=1, value=site_data['SITE_NAME']).border = border
+            ws.cell(row=row_idx, column=2, value=site_data['SALES_AMOUNT']).border = border
+            ws.cell(row=row_idx, column=3, value=site_data.get('DISCOUNT_AMOUNT', 0)).border = border
+            ws.cell(row=row_idx, column=4, value=site_data['CUMULATIVE_SALES']).border = border
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 30)
+            ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to memory
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Generate filename
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        filename_parts = ['sales_report', site_type]
+        
+        if from_date and to_date:
+            from_date_str = from_date.replace('-', '')
+            to_date_str = to_date.replace('-', '')
+            filename_parts.append(f'{from_date_str}_to_{to_date_str}')
+        
+        filename_parts.append(timestamp)
+        filename = '_'.join(filename_parts) + '.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

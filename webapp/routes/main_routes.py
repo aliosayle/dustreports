@@ -25,6 +25,11 @@ def ciment_report():
     """Render the Ciment Report page"""
     return render_template('ciment_report.html')
 
+@main_bp.route('/sales-report')
+def sales_report():
+    """Render the Sales Report page"""
+    return render_template('sales_report.html')
+
 @main_bp.route('/favicon.ico')
 def favicon():
     # Redirect to static favicon file

@@ -477,7 +477,18 @@ class SalesAnalyticsCalculator:
         non_zero_sales = daily_sales[daily_sales > 0]
         max_sales = daily_sales.max() if not daily_sales.empty else 0
         min_sales = non_zero_sales.min() if not non_zero_sales.empty else 0
-        avg_sales = round(total_sales_qty / period_days) if period_days > 0 else 0
+        
+        # Calculate average daily sales with minimum of 1 when there are sales
+        if period_days > 0:
+            avg_sales_raw = total_sales_qty / period_days
+            # If there are sales, ensure minimum average is 1
+            if total_sales_qty > 0:
+                avg_sales = max(1, round(avg_sales_raw))
+            else:
+                avg_sales = 0
+        else:
+            avg_sales = 0
+            
         total_transactions = len(group)
         
         return pd.Series({

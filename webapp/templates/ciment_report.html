@@ -1056,6 +1056,17 @@ $(document).ready(function() {
     // Initialize everything
     checkCacheStatus();
     // Don't initialize DataTable until we have data
+    
+    // Set default dates - from 30 days ago to today
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    const todayString = today.toISOString().split('T')[0];
+    const thirtyDaysAgoString = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    $('#toDate').val(todayString);
+    $('#fromDate').val(thirtyDaysAgoString);
 });
 </script>
 {% endblock %}

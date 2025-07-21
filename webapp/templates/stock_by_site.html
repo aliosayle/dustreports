@@ -932,6 +932,11 @@ $(document).ready(function() {
                 width: '100%'
             });
         });
+        
+        // Set default date to today for "As Of Date" field after dropdowns are loaded
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0];
+        $('#asOfDateSelect').val(todayString);
     }
     
     // Check cache status and load data
@@ -1061,7 +1066,12 @@ $(document).ready(function() {
     $('#clearBtn').on('click', function() {
         $('#stockBySiteForm')[0].reset();
         $('#siteSelect, #itemSelect, #categorySelect').val('').trigger('change');
-        $('#asOfDateSelect').val('');
+        
+        // Reset date to today
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0];
+        $('#asOfDateSelect').val(todayString);
+        
         $('#summaryCards, #resultsSection, #errorSection').hide();
         
         if (stockBySiteTable) {

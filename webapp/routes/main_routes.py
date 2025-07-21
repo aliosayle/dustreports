@@ -30,6 +30,11 @@ def sales_report():
     """Render the Sales Report page"""
     return render_template('sales_report.html')
 
+@main_bp.route('/sales-by-item')
+def sales_by_item():
+    """Render the Sales by Item Report page"""
+    return render_template('sales_by_item.html')
+
 @main_bp.route('/favicon.ico')
 def favicon():
     # Redirect to static favicon file

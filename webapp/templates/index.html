@@ -197,9 +197,35 @@
     
     <div class="col-md-6 col-lg-4 mb-4">
         <div class="card h-100 feature-card">
+            <div class="card-header text-center" style="background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); color: white;">
+                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                <h5 class="card-title mb-0">6. Sales by Item Report</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Item-level sales analysis with quantities, prices, discounts, and total sales amounts for detailed inventory performance tracking.
+                </p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Item-wise breakdown</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Quantity and price analysis</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Category filtering</li>
+                    <li><i class="fas fa-check-circle text-success me-2"></i>Discount calculations</li>
+                </ul>
+            </div>
+            <div class="card-footer bg-transparent border-0 text-center">
+                <a href="{{ url_for('main.sales_by_item') }}" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); color: white; border: none;">
+                    <i class="fas fa-arrow-right me-2"></i>
+                    Generate Sales by Item Report
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 feature-card">
             <div class="card-header text-center" style="background: var(--info-gradient); color: #333;">
                 <i class="fas fa-cogs fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">6. System Management</h5>
+                <h5 class="card-title mb-0">7. System Management</h5>
             </div>
             <div class="card-body">
                 <p class="card-text">

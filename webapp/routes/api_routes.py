@@ -70,13 +70,17 @@ def api_categories():
     try:
         dataframes = get_dataframes()
         if 'categories' not in dataframes or dataframes['categories'] is None:
+            print("⚠️ Categories dataframe not available")
             return jsonify([])
         
         # Filter out categories with 0 items
         if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
-            categories_with_items = dataframes['inventory_items']['CATEGORY'].dropna().unique()
+            # Convert category IDs to string for consistent comparison
+            categories_with_items = dataframes['inventory_items']['CATEGORY'].dropna().astype(str).unique()
             
             categories = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
+            # Convert category IDs to string for matching
+            categories['ID'] = categories['ID'].astype(str)
             categories = categories[categories['ID'].isin(categories_with_items)]
             
             categories_list = [{'id': row['ID'], 'name': row['DESCR'] or ''} for _, row in categories.iterrows()]
@@ -85,12 +89,15 @@ def api_categories():
             print(f"📋 Returning {len(categories_list)} categories with items")
             return jsonify(categories_list)
         else:
+            print("⚠️ Inventory items dataframe not available - returning all categories")
             categories = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
             categories_list = [{'id': row['ID'], 'name': row['DESCR'] or ''} for _, row in categories.iterrows()]
             categories_list.sort(key=lambda x: x['name'])
             return jsonify(categories_list)
     except Exception as e:
-        print(f"Error in api_categories: {e}")
+        print(f"❌ Error in api_categories: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify([])
 
 @api_bp.route('/items')
@@ -732,4 +739,327 @@ def api_sales_report():
         
     except Exception as e:
         print(f"Error in sales report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/sales-by-item-report', methods=['POST'])
+def api_sales_by_item_report():
+    """
+    Generate Sales by Item Report using original SQL query logic
+    Replicates: SUM(CREDITUS-DEBITUS) + SUM(creditvatamount-debitvatamount) as total sales
+    Joins ITEMS with INVOICE on MID=ID for discount calculation
+    """
+    try:
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        site_type = data.get('site_type')  # Optional: 'int', 'kinshasa', or null for all
+        
+        # Default to today if no dates provided
+        if not from_date and not to_date:
+            from datetime import datetime
+            today = datetime.now()
+            from_date = to_date = today.strftime('%Y-%m-%d')
+        elif not to_date:
+            to_date = from_date
+        elif not from_date:
+            from_date = to_date
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get sales details data for item-level transactions
+        if 'sales_details' not in dataframes or dataframes['sales_details'] is None:
+            return jsonify({'error': 'Sales details data not available'}), 400
+        
+        # Get invoice headers for joining and discount calculation
+        if 'invoice_headers' not in dataframes or dataframes['invoice_headers'] is None:
+            return jsonify({'error': 'Invoice headers data not available'}), 400
+        
+        sales_df = dataframes['sales_details'].copy()
+        invoice_df = dataframes['invoice_headers'].copy()
+        
+        print(f"📊 Working with {len(sales_df)} sales detail records and {len(invoice_df)} invoice records")
+        
+        # Check for required fields from original query
+        required_sales_fields = ['ITEM', 'FDATE', 'FTYPE', 'SID', 'MID']
+        missing_sales_fields = [field for field in required_sales_fields if field not in sales_df.columns]
+        
+        required_invoice_fields = ['ID', 'OTHER', 'SUBTOTAL']
+        missing_invoice_fields = [field for field in required_invoice_fields if field not in invoice_df.columns]
+        
+        if missing_sales_fields:
+            print(f"⚠️ Missing sales fields: {missing_sales_fields}")
+        if missing_invoice_fields:
+            print(f"⚠️ Missing invoice fields: {missing_invoice_fields}")
+        
+        # Check for original query calculation fields
+        original_calc_fields = ['CREDITQTY', 'DEBITQTY', 'CREDITUS', 'DEBITUS', 'creditvatamount', 'debitvatamount', 'discount']
+        available_calc_fields = [field for field in original_calc_fields if field in sales_df.columns]
+        missing_calc_fields = [field for field in original_calc_fields if field not in sales_df.columns]
+        
+        print(f"📊 Available calculation fields: {available_calc_fields}")
+        if missing_calc_fields:
+            print(f"⚠️ Missing calculation fields: {missing_calc_fields}")
+        
+        # Filter for sales transactions (FTYPE = 1 or 2) - from original query
+        if 'FTYPE' in sales_df.columns:
+            sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
+            print(f"📊 After FTYPE=1,2 filter: {len(sales_df)} records")
+        
+        # Filter for site sales only (SID starting with "530")
+        if 'SID' in sales_df.columns:
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('530')]
+            print(f"📊 After SID filter: {len(sales_df)} records")
+        
+        # Convert date column and filter by date range (FDATE BETWEEN from_date AND to_date)
+        if 'FDATE' in sales_df.columns:
+            sales_df['FDATE'] = pd.to_datetime(sales_df['FDATE'], errors='coerce')
+            
+            if from_date:
+                from_date_dt = pd.to_datetime(from_date)
+                sales_df = sales_df[sales_df['FDATE'] >= from_date_dt]
+            
+            if to_date:
+                to_date_dt = pd.to_datetime(to_date)
+                sales_df = sales_df[sales_df['FDATE'] <= to_date_dt]
+                
+            print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
+        
+        # Filter by site type if specified
+        if site_type:
+            if site_type == 'kinshasa':
+                sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('5301')]
+                site_type_name = 'Kinshasa'
+            elif site_type == 'int':
+                sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('5302')]
+                site_type_name = 'INT'
+            else:
+                return jsonify({'error': 'Invalid site_type. Must be "kinshasa" or "int"'}), 400
+            print(f"📍 After site type filter ({site_type_name}): {len(sales_df)} records")
+        else:
+            site_type_name = 'All Sites'
+        
+        if sales_df.empty:
+            return jsonify({'error': 'No sales found for the specified criteria'}), 404
+        
+        # Prepare invoice data for joining (ITEMS.MID = INVOICE.ID)
+        invoice_df = invoice_df[invoice_df['SUBTOTAL'] != 0]  # invoice.subtotal<>0 from original query
+        
+        # Join sales with invoice data if MID and ID fields are available
+        if 'MID' in sales_df.columns and 'ID' in invoice_df.columns:
+            print("📊 Joining ITEMS with INVOICE on MID=ID")
+            # Perform the join (ITEMS.MID = INVOICE.ID)
+            sales_with_invoice = sales_df.merge(
+                invoice_df[['ID', 'OTHER', 'SUBTOTAL']], 
+                left_on='MID', 
+                right_on='ID', 
+                how='inner'
+            )
+            print(f"📊 After join: {len(sales_with_invoice)} records")
+        else:
+            print("⚠️ Cannot join ITEMS with INVOICE - using sales data only")
+            sales_with_invoice = sales_df.copy()
+            # Add placeholder columns for calculations
+            sales_with_invoice['OTHER'] = 0
+            sales_with_invoice['SUBTOTAL'] = 1  # Avoid division by zero
+        
+        # Fill NaN values for calculations
+        numeric_fields = ['CREDITQTY', 'DEBITQTY', 'CREDITUS', 'DEBITUS', 'creditvatamount', 'debitvatamount', 'QTY']
+        for field in numeric_fields:
+            if field in sales_with_invoice.columns:
+                sales_with_invoice[field] = sales_with_invoice[field].fillna(0)
+        
+        # Calculate using original query logic
+        calculation_results = []
+        
+        # Group by ITEM and discount (from original query: GROUP BY ITEMS.ITEM,ITEMS.discount)
+        if 'discount' in sales_with_invoice.columns:
+            groupby_cols = ['ITEM', 'discount']
+        else:
+            groupby_cols = ['ITEM']
+            sales_with_invoice['discount'] = 0  # Default if field doesn't exist
+        
+        for group_name, group_data in sales_with_invoice.groupby(groupby_cols):
+            if isinstance(group_name, tuple):
+                if len(group_name) == 2:
+                    item_code, item_discount = group_name
+                else:
+                    # Single element tuple case
+                    item_code = group_name[0]
+                    item_discount = 0
+            else:
+                item_code = group_name
+                item_discount = 0
+            
+            # Calculate using original query formulas
+            # SUM(ITEMS.CREDITQTY-ITEMS.DEBITQTY) AS SALES
+            if 'CREDITQTY' in group_data.columns and 'DEBITQTY' in group_data.columns:
+                sales_qty = (group_data['CREDITQTY'] - group_data['DEBITQTY']).sum()
+            else:
+                # Fallback to QTY if original fields not available
+                sales_qty = group_data['QTY'].sum() if 'QTY' in group_data.columns else 0
+            
+            # SUM(ITEMS.CREDITUS-ITEMS.DEBITUS) AS TOTAL
+            if 'CREDITUS' in group_data.columns and 'DEBITUS' in group_data.columns:
+                total_amount = (group_data['CREDITUS'] - group_data['DEBITUS']).sum()
+            else:
+                # Fallback calculation if original fields not available
+                total_amount = 0
+                print(f"⚠️ CREDITUS/DEBITUS fields not available for item {item_code}")
+            
+            # Calculate VAT amount from inventory items VAT rate 
+            # We'll calculate this after merging with inventory items data
+            # For now, set to 0 and calculate later based on VAT rate
+            vat_amount = 0
+            
+            # Final total sales = TOTAL + VAT AMOUNT (as requested)
+            final_total_sales = total_amount + vat_amount
+            
+            # MAX(INVOICE.OTHER*100/INVOICE.SUBTOTAL) AS DISCOUNT
+            if 'OTHER' in group_data.columns and 'SUBTOTAL' in group_data.columns:
+                # Calculate discount percentage for each record and take max
+                discount_percentages = (group_data['OTHER'] * 100 / group_data['SUBTOTAL']).replace([float('inf'), -float('inf')], 0)
+                max_discount_pct = discount_percentages.max()
+                discount_amount = (final_total_sales * max_discount_pct / 100) if max_discount_pct > 0 else 0
+            else:
+                max_discount_pct = 0
+                discount_amount = 0
+            
+            calculation_results.append({
+                'ITEM_CODE': str(item_code),
+                'QTY_SOLD': float(sales_qty),
+                'TOTAL_AMOUNT': float(total_amount),
+                'VAT_AMOUNT': float(vat_amount),
+                'FINAL_SALES_AMOUNT': float(final_total_sales),
+                'ITEM_DISCOUNT': float(item_discount),
+                'DISCOUNT_PERCENTAGE': float(max_discount_pct),
+                'DISCOUNT_AMOUNT': float(discount_amount)
+            })
+        
+        # Convert to DataFrame for easier processing
+        result_df = pd.DataFrame(calculation_results)
+        
+        if result_df.empty:
+            return jsonify({'error': 'No sales calculated for the specified criteria'}), 404
+        
+        print(f"📦 Calculated sales for {len(result_df)} unique items using original query logic")
+        
+        # Get item information (names, categories, prices, VAT rates)
+        if 'inventory_items' not in dataframes or dataframes['inventory_items'] is None:
+            return jsonify({'error': 'Inventory items data not available'}), 400
+        
+        # Include VAT column for proper VAT calculation
+        vat_cols = ['ITEM', 'DESCR1', 'CATEGORY', 'POSPRICE1']
+        if 'VAT' in dataframes['inventory_items'].columns:
+            vat_cols.append('VAT')
+        
+        items_df = dataframes['inventory_items'][vat_cols].drop_duplicates()
+        
+        # Rename columns for consistency
+        new_cols = ['ITEM_CODE', 'ITEM_NAME', 'CATEGORY_ID', 'PRIX']
+        if 'VAT' in dataframes['inventory_items'].columns:
+            new_cols.append('VAT_RATE')
+        
+        items_df.columns = new_cols
+        
+        # Merge with item information
+        result_df = result_df.merge(items_df, on='ITEM_CODE', how='left')
+        
+        # Fill missing item information
+        result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('Unknown Item')
+        result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].fillna('')
+        result_df['PRIX'] = result_df['PRIX'].fillna(0)
+        
+        # Calculate proper VAT amount using VAT rate from inventory items
+        if 'VAT_RATE' in result_df.columns:
+            result_df['VAT_RATE'] = result_df['VAT_RATE'].fillna(0)
+            # VAT amount = total_amount * (VAT rate / 100)
+            result_df['VAT_AMOUNT'] = result_df['TOTAL_AMOUNT'] * (result_df['VAT_RATE'] / 100)
+            # Recalculate final sales amount with proper VAT
+            result_df['FINAL_SALES_AMOUNT'] = result_df['TOTAL_AMOUNT'] + result_df['VAT_AMOUNT']
+            print(f"📊 Calculated VAT amounts using VAT rates from inventory items")
+        else:
+            print(f"⚠️ VAT_RATE column not found - VAT amounts will remain 0")
+        
+        # Get category names
+        if 'categories' in dataframes and dataframes['categories'] is not None:
+            categories_df = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
+            categories_df['ID'] = categories_df['ID'].astype(str)
+            categories_df.columns = ['CATEGORY_ID', 'CATEGORY_NAME']
+            
+            result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].astype(str)
+            result_df = result_df.merge(categories_df, on='CATEGORY_ID', how='left')
+            result_df['CATEGORY_NAME'] = result_df['CATEGORY_NAME'].fillna('Unknown Category')
+        else:
+            result_df['CATEGORY_NAME'] = 'Unknown Category'
+        
+        # Filter out items with no sales
+        result_df = result_df[result_df['QTY_SOLD'] != 0]
+        
+        # Sort by final sales amount descending
+        result_df = result_df.sort_values('FINAL_SALES_AMOUNT', ascending=False)
+        
+        # Convert to list of dictionaries for JSON response
+        result_data = []
+        for _, row in result_df.iterrows():
+            row_data = {
+                'ITEM_CODE': str(row['ITEM_CODE']),
+                'ITEM_NAME': str(row['ITEM_NAME']),
+                'CATEGORY': str(row['CATEGORY_NAME']),
+                'PRIX': float(row['PRIX']),
+                'QTY_SOLD': float(row['QTY_SOLD']),
+                'TOTAL_AMOUNT': float(row['TOTAL_AMOUNT']),
+                'VAT_AMOUNT': float(row['VAT_AMOUNT']),
+                'DISCOUNT': float(row['DISCOUNT_AMOUNT']),
+                'TOTAL_SALES': float(row['FINAL_SALES_AMOUNT'])
+            }
+            result_data.append(row_data)
+        
+        # Calculate totals
+        total_qty_sold = result_df['QTY_SOLD'].sum()
+        total_amount_sum = result_df['TOTAL_AMOUNT'].sum()
+        total_vat_sum = result_df['VAT_AMOUNT'].sum()
+        total_discount = result_df['DISCOUNT_AMOUNT'].sum()
+        total_sales_amount = result_df['FINAL_SALES_AMOUNT'].sum()
+        
+        return jsonify({
+            'data': result_data,
+            'metadata': {
+                'total_items': len(result_data),
+                'from_date': from_date,
+                'to_date': to_date,
+                'site_type': site_type,
+                'site_type_name': site_type_name,
+                'total_qty_sold': float(total_qty_sold),
+                'total_amount': float(total_amount_sum),
+                'total_vat_amount': float(total_vat_sum),
+                'total_discount': float(total_discount),
+                'total_sales_amount': float(total_sales_amount),
+                'data_source': 'Original SQL query logic: ITEMS joined with INVOICE',
+                'calculation_method': {
+                    'filtering': 'FTYPE IN (1,2), FDATE BETWEEN dates, SID like 530%, SUBTOTAL<>0',
+                    'join': 'ITEMS.MID = INVOICE.ID',
+                    'sales_qty': 'SUM(CREDITQTY-DEBITQTY) OR fallback to SUM(QTY)',
+                    'total_amount': 'SUM(CREDITUS-DEBITUS)',
+                    'vat_amount': 'TOTAL_AMOUNT * (VAT_RATE/100) from inventory_items.VAT',
+                    'final_sales': 'TOTAL_AMOUNT + VAT_AMOUNT',
+                    'discount': 'MAX(INVOICE.OTHER*100/INVOICE.SUBTOTAL) applied to final_sales'
+                },
+                'columns_info': {
+                    'item_code': 'Item identifier',
+                    'item_name': 'Item description',
+                    'category': 'Item category name',
+                    'prix': 'Unit price (POSPRICE1 reference)',
+                    'qty_sold': 'Sales quantity (CREDITQTY-DEBITQTY)',
+                    'total_amount': 'Base amount (CREDITUS-DEBITUS)',
+                    'vat_amount': 'VAT amount (calculated from inventory items VAT rate)', 
+                    'discount': 'Calculated discount amount',
+                    'total_sales': 'Final sales (TOTAL + VAT)'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in sales by item report: {e}")
         return jsonify({'error': str(e)}), 500

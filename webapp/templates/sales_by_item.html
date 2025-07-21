@@ -1,0 +1,746 @@
+{% extends "base.html" %}
+
+{% block title %}Sales by Item Report - DustReports{% endblock %}
+
+{% block extra_css %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+
+<style>
+    :root {
+        --dust-primary: #2563eb;
+        --dust-secondary: #7c3aed;
+        --dust-success: #059669;
+        --dust-warning: #d97706;
+        --dust-danger: #dc2626;
+        --dust-light: #f8fafc;
+        --dust-dark: #1e293b;
+    }
+
+    .hero-section {
+        background: linear-gradient(135deg, var(--dust-primary) 0%, var(--dust-secondary) 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" fill="white" opacity="0.1"><polygon points="1000,100 1000,0 0,100"/></svg>');
+        background-size: cover;
+        background-position: bottom;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hero-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: none;
+    }
+
+    .filter-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-select, .form-control {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 12px 16px;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+    }
+
+    .form-select:focus, .form-control:focus {
+        border-color: var(--dust-primary);
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+        transform: translateY(-1px);
+    }
+
+    /* DataTable buttons styling */
+    .dt-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .dt-button {
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-dust-primary {
+        background: linear-gradient(135deg, var(--dust-primary) 0%, var(--dust-secondary) 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-dust-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+        color: white;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: none;
+        transition: transform 0.3s ease;
+        margin-bottom: 1rem;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .summary-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .results-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        padding: 2rem;
+        border: none;
+    }
+
+    .table-responsive {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        background: linear-gradient(135deg, var(--dust-primary) 0%, var(--dust-secondary) 100%);
+        color: white;
+        border: none;
+        padding: 1rem 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.875rem;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(37, 99, 235, 0.05);
+    }
+
+    .table tbody td {
+        padding: 0.875rem 0.75rem;
+        vertical-align: middle;
+        border-color: #e2e8f0;
+    }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #e2e8f0;
+        border-top: 5px solid var(--dust-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .alert {
+        border-radius: 12px;
+        border: none;
+        padding: 1rem 1.5rem;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+    }
+
+    .currency {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+    }
+
+    .item-code {
+        font-family: 'Courier New', monospace;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="text-center">
+        <div class="loading-spinner"></div>
+        <p class="mt-3">Loading sales data...</p>
+    </div>
+</div>
+
+<!-- Hero Section -->
+<section class="hero-section mb-4">
+    <div class="container">
+        <div class="hero-content text-center">
+            <h1 class="hero-title">
+                <i class="fas fa-chart-line me-3"></i>
+                Sales by Item Report
+            </h1>
+            <p class="hero-subtitle mb-0">
+                Detailed item-level sales analysis with quantities, prices, and discounts powered by <strong>DustReports</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Cache Status -->
+<div id="cacheAlert" class="alert alert-warning" style="display: none;">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <span id="cacheMessage">Loading data...</span>
+</div>
+
+<!-- Filters Card -->
+<div class="card filter-card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h5 class="card-title mb-1" style="color: var(--dust-dark);">
+                    <i class="fas fa-filter me-2" style="color: var(--dust-primary);"></i>
+                    Report Filters
+                </h5>
+                <p class="mb-0 small" style="color: #718096;">Configure your sales analysis parameters</p>
+            </div>
+            <button type="button" class="btn btn-outline-secondary" id="refreshData">
+                <i class="fas fa-sync-alt me-2"></i>Refresh
+            </button>
+        </div>
+
+        <form id="salesByItemForm">
+            <div class="row">
+                <div class="col-lg-3 col-md-6">
+                    <div class="filter-group">
+                        <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748;">
+                            <i class="fas fa-calendar-day me-2" style="color: var(--dust-secondary);"></i>
+                            From Date
+                        </label>
+                        <input type="date" class="form-control form-control-lg" id="fromDate" name="from_date" required>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="filter-group">
+                        <label for="toDate" class="form-label fw-semibold" style="color: #2d3748;">
+                            <i class="fas fa-calendar-day me-2" style="color: var(--dust-secondary);"></i>
+                            To Date
+                        </label>
+                        <input type="date" class="form-control form-control-lg" id="toDate" name="to_date" required>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="filter-group">
+                        <label for="siteType" class="form-label fw-semibold" style="color: #2d3748;">
+                            <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
+                            Site Type
+                        </label>
+                        <select class="form-select form-select-lg" id="siteType" name="site_type">
+                            <option value="">All Sites</option>
+                            <option value="kinshasa">Kinshasa</option>
+                            <option value="int">INT</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <div class="filter-group">
+                        <label class="form-label fw-semibold" style="color: #2d3748;">&nbsp;</label>
+                        <button type="submit" class="btn btn-dust-primary btn-lg w-100">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div id="summaryCards" style="display: none;">
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <div class="summary-icon" style="background: rgba(37, 99, 235, 0.1); color: var(--dust-primary);">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Total Items</h6>
+                    <h3 class="mb-0" id="totalItems">0</h3>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <div class="summary-icon" style="background: rgba(5, 150, 105, 0.1); color: var(--dust-success);">
+                        <i class="fas fa-cubes"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Total Quantity Sold</h6>
+                    <h3 class="mb-0" id="totalQtySold">0</h3>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <div class="summary-icon" style="background: rgba(217, 119, 6, 0.1); color: var(--dust-warning);">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Total Discount</h6>
+                    <h3 class="mb-0 currency" id="totalDiscount">$0.00</h3>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card summary-card">
+                <div class="card-body">
+                    <div class="summary-icon" style="background: rgba(220, 38, 38, 0.1); color: var(--dust-danger);">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Total Sales</h6>
+                    <h3 class="mb-0 currency" id="totalSales">$0.00</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section -->
+<div id="resultsSection" style="display: none;">
+    <div class="card results-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 class="card-title mb-1" style="color: var(--dust-dark);">
+                        <i class="fas fa-table me-2" style="color: var(--dust-primary);"></i>
+                        Sales by Item Results
+                    </h5>
+                    <p class="mb-0 small text-muted" id="resultsSubtitle">Detailed breakdown by item</p>
+                </div>
+                <div class="results-actions" id="tableButtons" style="display: none;">
+                    <!-- DataTables export buttons will be inserted here -->
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="salesByItemTable" class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Item Code</th>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Prix (USD)</th>
+                            <th>Qty Sold</th>
+                            <th>Discount (USD)</th>
+                            <th>Total Sales (USD)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Section -->
+<div id="errorSection" style="display: none;">
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <span id="errorMessage">An error occurred</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- DataTables JavaScript -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<!-- DataTables Buttons -->
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+
+<!-- Export Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+
+<!-- DataTables Export Buttons -->
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+
+<script>
+let currentData = [];
+let salesByItemTable = null;
+
+// Function to generate export filename with filters and timestamp
+function generateExportFilename(baseFilename, extension) {
+    const timestamp = new Date().toISOString().slice(0,19).replace(/[-:]/g, '').replace('T', '_');
+    const filenameParts = [baseFilename];
+    
+    // Add site type to filename if specified
+    const siteType = $('#siteType').val();
+    if (siteType) {
+        filenameParts.push(`site_${siteType}`);
+    }
+    
+    // Add date range to filename if specified
+    const fromDate = $('#fromDate').val();
+    const toDate = $('#toDate').val();
+    if (fromDate && toDate) {
+        if (fromDate === toDate) {
+            filenameParts.push(`date_${fromDate.replace(/-/g, '')}`);
+        } else {
+            filenameParts.push(`from_${fromDate.replace(/-/g, '')}_to_${toDate.replace(/-/g, '')}`);
+        }
+    } else if (fromDate) {
+        filenameParts.push(`from_${fromDate.replace(/-/g, '')}`);
+    } else if (toDate) {
+        filenameParts.push(`to_${toDate.replace(/-/g, '')}`);
+    }
+    
+    filenameParts.push(timestamp);
+    return `${filenameParts.join('_')}.${extension}`;
+}
+
+$(document).ready(function() {
+    // Initialize
+    checkCacheStatus();
+    
+    // Set default dates - from 30 days ago to today
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    const todayString = today.toISOString().split('T')[0];
+    const thirtyDaysAgoString = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    $('#fromDate').val(thirtyDaysAgoString);
+    $('#toDate').val(todayString);
+
+    // Form submission
+    $('#salesByItemForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            from_date: $('#fromDate').val(),
+            to_date: $('#toDate').val(),
+            site_type: $('#siteType').val()
+        };
+        
+        loadSalesByItemData(formData);
+    });
+
+    // Refresh data
+    $('#refreshData').on('click', function() {
+        if (currentData.length > 0) {
+            const filters = {
+                from_date: $('#fromDate').val(),
+                to_date: $('#toDate').val(),
+                site_type: $('#siteType').val()
+            };
+            loadSalesByItemData(filters);
+        } else {
+            alert('No data to refresh. Please generate a report first.');
+        }
+    });
+
+
+});
+
+function checkCacheStatus() {
+    $.get('/api/cache-status', function(response) {
+        if (response.loading) {
+            $('#cacheAlert').show();
+            $('#cacheMessage').text('Cache is currently loading. Please wait...');
+        } else if (!response.cached) {
+            $('#cacheAlert').show();
+            $('#cacheMessage').html('Data not loaded. <a href="/" class="alert-link">Please load dataframes first</a>.');
+        } else {
+            $('#cacheAlert').hide();
+        }
+    });
+}
+
+function loadSalesByItemData(filters) {
+    $('#loadingOverlay').show();
+    $('#errorSection').hide();
+    $('#resultsSection').hide();
+    $('#summaryCards').hide();
+
+    $.ajax({
+        url: '/api/sales-by-item-report',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(filters),
+        success: function(response) {
+            currentData = response.data;
+            updateSummaryCards(response.metadata);
+            updateTable(response.data);
+            updateResultsSubtitle(response.metadata);
+            
+            $('#summaryCards').show();
+            $('#resultsSection').show();
+            $('#tableButtons').show();
+            $('#loadingOverlay').hide();
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.error || 'An error occurred while loading data';
+            $('#errorMessage').text(errorMsg);
+            $('#errorSection').show();
+            $('#loadingOverlay').hide();
+        }
+    });
+}
+
+function updateSummaryCards(metadata) {
+    $('#totalItems').text(metadata.total_items.toLocaleString());
+    $('#totalQtySold').text(Math.round(metadata.total_qty_sold).toLocaleString());
+    $('#totalDiscount').text('$' + metadata.total_discount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    $('#totalSales').text('$' + metadata.total_sales_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+}
+
+function updateResultsSubtitle(metadata) {
+    let subtitle = `${metadata.site_type_name} • ${metadata.from_date} to ${metadata.to_date}`;
+    $('#resultsSubtitle').text(subtitle);
+}
+
+function updateTable(data) {
+    if (salesByItemTable) {
+        salesByItemTable.destroy();
+    }
+
+    const tbody = $('#salesByItemTable tbody');
+    tbody.empty();
+
+    data.forEach(function(row) {
+        const tr = $(`
+            <tr>
+                <td><span class="item-code">${row.ITEM_CODE}</span></td>
+                <td>${row.ITEM_NAME}</td>
+                <td><span class="badge bg-light text-dark">${row.CATEGORY}</span></td>
+                <td class="currency">$${row.PRIX.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-end">${Math.round(row.QTY_SOLD).toLocaleString()}</td>
+                <td class="currency">$${row.DISCOUNT.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="currency fw-bold">$${row.TOTAL_SALES.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>
+        `);
+        tbody.append(tr);
+    });
+
+    // Initialize DataTable with export buttons
+    salesByItemTable = $('#salesByItemTable').DataTable({
+        pageLength: 25,
+        order: [[6, 'desc']], // Sort by Total Sales descending
+        columnDefs: [
+            { targets: [3, 4, 5, 6], className: 'text-end' }
+        ],
+        dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row mb-3"<"col-sm-12 text-center"B>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
+        buttons: [
+            {
+                extend: 'excel',
+                text: '<i class="fas fa-file-excel me-2"></i>Excel',
+                className: 'btn btn-success btn-sm',
+                filename: function() {
+                    return generateExportFilename('sales_by_item_report', 'xlsx');
+                },
+                title: function() {
+                    let title = 'Sales by Item Report';
+                    const date = new Date().toLocaleDateString();
+                    title += ' - Generated on ' + date;
+                    
+                    const siteType = $('#siteType').val();
+                    if (siteType) {
+                        title += ' | Site Type: ' + (siteType === 'kinshasa' ? 'Kinshasa' : 'INT');
+                    }
+                    
+                    const fromDate = $('#fromDate').val();
+                    const toDate = $('#toDate').val();
+                    if (fromDate && toDate) {
+                        title += ' | Period: ' + fromDate + ' to ' + toDate;
+                    }
+                    
+                    return title;
+                },
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'csv',
+                text: '<i class="fas fa-file-csv me-2"></i>CSV',
+                className: 'btn btn-info btn-sm',
+                filename: function() {
+                    return generateExportFilename('sales_by_item_report', 'csv');
+                },
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fas fa-file-pdf me-2"></i>PDF',
+                className: 'btn btn-danger btn-sm',
+                filename: function() {
+                    return generateExportFilename('sales_by_item_report', 'pdf');
+                },
+                title: function() {
+                    let title = 'Sales by Item Report';
+                    const date = new Date().toLocaleDateString();
+                    title += ' - Generated on ' + date;
+                    
+                    const siteType = $('#siteType').val();
+                    if (siteType) {
+                        title += ' | Site Type: ' + (siteType === 'kinshasa' ? 'Kinshasa' : 'INT');
+                    }
+                    
+                    const fromDate = $('#fromDate').val();
+                    const toDate = $('#toDate').val();
+                    if (fromDate && toDate) {
+                        title += ' | Period: ' + fromDate + ' to ' + toDate;
+                    }
+                    
+                    return title;
+                },
+                exportOptions: {
+                    columns: ':visible'
+                },
+                orientation: 'landscape',
+                pageSize: 'A4'
+            },
+            {
+                extend: 'print',
+                text: '<i class="fas fa-print me-2"></i>Print',
+                className: 'btn btn-secondary btn-sm',
+                title: function() {
+                    let title = 'Sales by Item Report';
+                    const date = new Date().toLocaleDateString();
+                    title += ' - Generated on ' + date;
+                    
+                    const siteType = $('#siteType').val();
+                    if (siteType) {
+                        title += ' | Site Type: ' + (siteType === 'kinshasa' ? 'Kinshasa' : 'INT');
+                    }
+                    
+                    const fromDate = $('#fromDate').val();
+                    const toDate = $('#toDate').val();
+                    if (fromDate && toDate) {
+                        title += ' | Period: ' + fromDate + ' to ' + toDate;
+                    }
+                    
+                    return title;
+                },
+                exportOptions: {
+                    columns: ':visible'
+                }
+            }
+        ],
+        language: {
+            search: "Search items:",
+            lengthMenu: "Show _MENU_ items per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ items",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            }
+        },
+        initComplete: function() {
+            console.log('DataTable initialized'); // Debug
+            console.log('Buttons found:', $('.dt-buttons').length); // Debug
+            // Move buttons to the designated container and show it
+            $('.dt-buttons').appendTo('#tableButtons');
+            $('#tableButtons').show();
+            console.log('Buttons moved to tableButtons container'); // Debug
+        }
+    });
+}
+
+
+</script>
+{% endblock %} 

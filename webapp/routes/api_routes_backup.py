@@ -16,7 +16,19 @@ def api_load_dataframes():
         print(f"📡 API load-dataframes called. Current cache_loading: {is_cache_loading()}")
         
         with get_cache_lock():
-            if is_cache_loading():
+                 # Calculate cumulative sales from INVOICE table (from 1st of month until report_date)
+        # Calculate from 1st of the month until report_date
+        first_of_month = report_date_dt.replace(day=1)
+        
+        print(f"📊 Calculating cumulative sales from {first_of_month.strftime('%Y-%m-%d')} to {report_date}")
+        
+        # Get fresh copy of invoice data for cumulative calculation
+        cumulative_invoice_df = dataframes['invoice_headers'].copy()late cumulative sales from INVOICE table (from 1st of month until report_date)
+        # Calculate from 1st of the month until report_date
+        report_date_dt = pd.to_datetime(report_date)
+        first_of_month = report_date_dt.replace(day=1)
+        
+        print(f"📊 Calculating cumulative sales from {first_of_month.strftime('%Y-%m-%d')} to {report_date}") if is_cache_loading():
                 print("⏳ Cache loading already in progress")
                 return jsonify({'status': 'loading', 'message': 'Cache loading already in progress'})
         
@@ -514,37 +526,22 @@ def api_ciment_report():
         print(f"Error in ciment report: {e}")
         return jsonify({'error': str(e)}), 500
 
-@api_bp.route('/sales-report', methods=['POST'])
-def api_sales_report():
+@api_bp.route('/daily-sales-report', methods=['POST'])
+def api_daily_sales_report():
     """
-    Generate Sales Report using INVOICE table with NET, DISCOUNT, and cumulative calculations
+    Generate Daily Sales Report using INVOICE table with NET, DISCOUNT, and cumulative calculations
     Filter for SID starting with "530" and FTYPE = 1 (valid sales transactions)
     """
     try:
         data = request.get_json()
+        report_date = data.get('report_date')
         site_type = data.get('site_type')  # 'int' or 'kinshasa'
-        from_date = data.get('from_date')
-        to_date = data.get('to_date')
-        report_date = data.get('report_date')  # New parameter for single date
         
-        # If report_date is provided, use it; otherwise, use from_date or to_date
-        if report_date:
-            selected_date = report_date
-        elif from_date and to_date:
-            # If both dates are provided and they're the same, use that date
-            if from_date == to_date:
-                selected_date = from_date
-            else:
-                # If different dates, default to from_date for backward compatibility
-                selected_date = from_date
-        elif from_date:
-            selected_date = from_date
-        elif to_date:
-            selected_date = to_date
-        else:
-            from datetime import datetime
-            today = datetime.now()
-            selected_date = today.strftime('%Y-%m-%d')
+        # If no date provided, use yesterday as default
+        if not report_date:
+            from datetime import datetime, timedelta
+            yesterday = datetime.now() - timedelta(days=1)
+            report_date = yesterday.strftime('%Y-%m-%d')
         
         dataframes = get_dataframes()
         if not dataframes:
@@ -575,14 +572,14 @@ def api_sales_report():
         if missing_cols:
             return jsonify({'error': f'Missing required columns: {missing_cols}'}), 400
         
-        # Convert date column and filter by selected date
+        # Convert date column and filter by report date
         invoice_df['FDATE'] = pd.to_datetime(invoice_df['FDATE'], errors='coerce')
-        selected_date_dt = pd.to_datetime(selected_date)
+        report_date_dt = pd.to_datetime(report_date)
         
-        # Filter for the specific selected date
-        invoice_df = invoice_df[invoice_df['FDATE'].dt.date == selected_date_dt.date()]
+        # Filter for the specific report date
+        invoice_df = invoice_df[invoice_df['FDATE'].dt.date == report_date_dt.date()]
         
-        print(f"📊 After date filter (selected date: {selected_date}): {len(invoice_df)} records")
+        print(f"📊 After date filter (report date: {report_date}): {len(invoice_df)} records")
         
         # Fill NaN values for calculations
         invoice_df['NET'] = invoice_df['NET'].fillna(0)
@@ -610,50 +607,57 @@ def api_sales_report():
         
         print(f"📍 Found {len(invoice_df)} {site_type_name} sales records")
         
-        # Calculate sales for the selected date (sum NET by SID)
+        # Calculate sales for the selected period (sum NET by SID)
         period_sales = invoice_df.groupby('SID').agg({
             'NET': 'sum',
             'DISCOUNT_CALC': 'sum'
         }).reset_index()
         period_sales.columns = ['SID', 'SALES', 'DISCOUNT']
         
-        # Calculate cumulative sales from INVOICE table (from 1st of month until selected_date)
-        # Calculate from 1st of the month until selected_date
-        first_of_month = selected_date_dt.replace(day=1)
-        
-        print(f"📊 Calculating cumulative sales from {first_of_month.strftime('%Y-%m-%d')} to {selected_date}")
-        
-        # Get fresh copy of invoice data for cumulative calculation
-        cumulative_invoice_df = dataframes['invoice_headers'].copy()
-        
-        # Apply same base filters
-        if 'FTYPE' in cumulative_invoice_df.columns:
-            cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['FTYPE'] == 1]
-        
-        if 'SID' in cumulative_invoice_df.columns:
-            cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('530')]
+        # Calculate cumulative sales from INVOICE table (from 1st of month until to_date)
+        if to_date:
+            # Calculate from 1st of the month until to_date
+            to_date_dt = pd.to_datetime(to_date)
+            first_of_month = to_date_dt.replace(day=1)
             
-            # Apply site type filter
-            if site_type == 'kinshasa':
-                cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('5301')]
-            elif site_type == 'int':
-                cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('5302')]
-        
-        # Filter by cumulative date range (1st of month to selected_date)
-        cumulative_invoice_df['FDATE'] = pd.to_datetime(cumulative_invoice_df['FDATE'], errors='coerce')
-        cumulative_invoice_df = cumulative_invoice_df[
-            (cumulative_invoice_df['FDATE'] >= first_of_month) & 
-            (cumulative_invoice_df['FDATE'] <= selected_date_dt)
-        ]
-        
-        # Fill NaN values and calculate cumulative sales (sum NET by SID)
-        cumulative_invoice_df['NET'] = cumulative_invoice_df['NET'].fillna(0)
-        
-        # Calculate cumulative sales by SID
-        cumulative_sales = cumulative_invoice_df.groupby('SID')['NET'].sum().reset_index()
-        cumulative_sales.columns = ['SID', 'CUMULATIVE_SALES']
-        
-        print(f"📊 Calculated cumulative sales for {len(cumulative_sales)} SIDs from INVOICE table (1st of month to selected date)")
+            print(f"� Calculating cumulative sales from {first_of_month.strftime('%Y-%m-%d')} to {to_date}")
+            
+            # Get fresh copy of invoice data for cumulative calculation
+            cumulative_invoice_df = dataframes['invoice_headers'].copy()
+            
+            # Apply same base filters
+            if 'FTYPE' in cumulative_invoice_df.columns:
+                cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['FTYPE'] == 1]
+            
+            if 'SID' in cumulative_invoice_df.columns:
+                cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('530')]
+                
+                # Apply site type filter
+                if site_type == 'kinshasa':
+                    cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('5301')]
+                elif site_type == 'int':
+                    cumulative_invoice_df = cumulative_invoice_df[cumulative_invoice_df['SID'].astype(str).str.startswith('5302')]
+            
+            # Filter by cumulative date range (1st of month to report_date)
+            cumulative_invoice_df['FDATE'] = pd.to_datetime(cumulative_invoice_df['FDATE'], errors='coerce')
+            cumulative_invoice_df = cumulative_invoice_df[
+                (cumulative_invoice_df['FDATE'] >= first_of_month) & 
+                (cumulative_invoice_df['FDATE'] <= report_date_dt)
+            ]
+            
+            # Fill NaN values and calculate cumulative sales (sum NET by SID)
+            cumulative_invoice_df['NET'] = cumulative_invoice_df['NET'].fillna(0)
+            
+            # Calculate cumulative sales by SID
+            cumulative_sales = cumulative_invoice_df.groupby('SID')['NET'].sum().reset_index()
+            cumulative_sales.columns = ['SID', 'CUMULATIVE_SALES']
+            
+            print(f"📊 Calculated cumulative sales for {len(cumulative_sales)} SIDs from INVOICE table (1st of month to report_date)")
+        else:
+            # If no report_date specified, use period sales as cumulative
+            print("⚠️ No report_date specified, using period sales as cumulative")
+            cumulative_sales = period_sales[['SID', 'SALES']].copy()
+            cumulative_sales.columns = ['SID', 'CUMULATIVE_SALES']
         
         # Merge period and cumulative sales
         result_df = period_sales.merge(cumulative_sales, on='SID', how='left')
@@ -694,7 +698,7 @@ def api_sales_report():
             
             row_data = {
                 'SITE_ID': str(row['SID']),
-                'SITE_NAME': site_name,
+                'SITE_NAME': f"{site_name} ({site_type_name})",
                 'SALES_AMOUNT': float(row['SALES']),
                 'DISCOUNT_AMOUNT': float(row['DISCOUNT']),
                 'CUMULATIVE_SALES': float(row['CUMULATIVE_SALES'])
@@ -714,18 +718,18 @@ def api_sales_report():
                 'total_sales_amount': float(total_sales),
                 'total_discount_amount': float(total_discount),
                 'total_cumulative_sales': float(total_cumulative),
-                'selected_date': selected_date,
+                'report_date': report_date,
                 'data_source': 'INVOICE table (NET for both sales and cumulative)',
                 'calculation_method': {
-                    'sales': 'NET from INVOICE table for specific selected date',
+                    'sales': 'NET from INVOICE table for specific report date',
                     'discount': 'OTHER field from INVOICE table',
-                    'cumulative': 'NET from INVOICE table from 1st of month until selected date'
+                    'cumulative': 'NET from INVOICE table from 1st of month until report_date'
                 },
                 'columns_info': {
                     'site_name': 'Site identifier (SID)',
-                    'sales_amount': 'Net sales amount for selected date (INVOICE.NET)',
+                    'sales_amount': 'Net sales amount for report date (INVOICE.NET)',
                     'discount_amount': 'Discount amount (INVOICE.OTHER)',
-                    'cumulative_sales': 'Cumulative sales from 1st of month to selected date (INVOICE.NET)'
+                    'cumulative_sales': 'Cumulative sales from 1st of month to report date (INVOICE.NET)'
                 }
             }
         })

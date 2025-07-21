@@ -252,6 +252,7 @@ def api_export_sales_report():
         site_type = data.get('site_type')
         from_date = data.get('from_date')
         to_date = data.get('to_date')
+        report_date = data.get('report_date')
         
         dataframes = get_dataframes()
         if not dataframes:
@@ -376,7 +377,14 @@ def api_export_sales_report():
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
         filename_parts = ['sales_report', site_type]
         
-        if from_date and to_date:
+        selected_date = metadata.get('selected_date')
+        if selected_date:
+            date_str = selected_date.replace('-', '')
+            filename_parts.append(date_str)
+        elif report_date:
+            date_str = report_date.replace('-', '')
+            filename_parts.append(date_str)
+        elif from_date and to_date:
             from_date_str = from_date.replace('-', '')
             to_date_str = to_date.replace('-', '')
             filename_parts.append(f'{from_date_str}_to_{to_date_str}')

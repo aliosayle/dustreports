@@ -91,25 +91,12 @@
                         
                         <div class="col-lg-4 col-md-6">
                             <div class="filter-group">
-                                <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                <label for="reportDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
-                                    From Date
+                                    Report Date
                                 </label>
                                 <div class="filter-input-wrapper position-relative">
-                                    <input type="date" class="form-control form-control-lg" id="fromDate" name="from_date"
-                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
-                                <label for="toDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-calendar-check me-2" style="color: var(--dust-secondary);"></i>
-                                    To Date
-                                </label>
-                                <div class="filter-input-wrapper position-relative">
-                                    <input type="date" class="form-control form-control-lg" id="toDate" name="to_date"
+                                    <input type="date" class="form-control form-control-lg" id="reportDate" name="report_date"
                                            style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
                                 </div>
                             </div>
@@ -667,8 +654,7 @@ $(document).ready(function() {
         
         const filters = {
             site_type: $('#siteType').val(),
-            from_date: $('#fromDate').val(),
-            to_date: $('#toDate').val()
+            report_date: $('#reportDate').val()
         };
         
         if (!filters.site_type) {
@@ -694,8 +680,7 @@ $(document).ready(function() {
         if (currentData.length > 0) {
             const filters = {
                 site_type: $('#siteType').val(),
-                from_date: $('#fromDate').val(),
-                to_date: $('#toDate').val()
+                report_date: $('#reportDate').val()
             };
             loadSalesData(filters);
         } else {
@@ -705,6 +690,11 @@ $(document).ready(function() {
     
     // Initialize
     checkCacheStatus();
+    
+    // Set default date to today
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    $('#reportDate').val(todayString);
 });
 </script>
 {% endblock %}

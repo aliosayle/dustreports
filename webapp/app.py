@@ -32,7 +32,7 @@ if __name__ == '__main__':
     print("🚀 Starting DustReports Flask Application...")
     print("📊 Modular architecture loaded successfully")
     print("🔗 Available endpoints:")
-    print("   📋 Main pages: /, /autonomy, /stock-by-site, /custom-reports, /ciment-report")
+    print("   📋 Main pages: /, /autonomy, /stock-by-site, /custom-reports, /ciment-report, /sales-report")
     print("   🔌 API endpoints: /api/...")
     print("   📤 Export endpoints: /api/export-...")
     

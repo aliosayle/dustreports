@@ -3,6 +3,7 @@
 import pandas as pd
 import threading
 import warnings
+from datetime import datetime
 from config.database import DATABASE_CONFIG
 
 # Try to import interbase for direct InterBase connection
@@ -21,6 +22,7 @@ warnings.filterwarnings('ignore')
 dataframes = {}
 cache_lock = threading.Lock()
 cache_loading = False
+cache_timestamp = None
 
 def connect_and_load_table(table_name):
     """Load a table from the database using direct InterBase connection only"""
@@ -84,10 +86,11 @@ def connect_and_load_table(table_name):
 
 def load_dataframes():
     """Load all tables with descriptive names (matching notebook exactly)"""
-    global dataframes, cache_loading
+    global dataframes, cache_loading, cache_timestamp
     
     try:
         print("Loading database tables...")
+        cache_loading = True
         
         # Test connection first
         try:
@@ -161,7 +164,10 @@ def load_dataframes():
         if len(dataframes) == 0:
             raise Exception("No tables were loaded successfully")
             
+        # Set cache timestamp when loading completes successfully
+        cache_timestamp = datetime.now()
         cache_loading = False
+        print(f"\n🕒 Cache loaded successfully at: {cache_timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
         return dataframes
         
     except Exception as e:
@@ -180,3 +186,13 @@ def is_cache_loading():
 def get_cache_lock():
     """Get the cache lock"""
     return cache_lock
+
+def get_cache_timestamp():
+    """Get the cache timestamp"""
+    return cache_timestamp
+
+def get_cache_age_seconds():
+    """Get cache age in seconds"""
+    if cache_timestamp is None:
+        return None
+    return (datetime.now() - cache_timestamp).total_seconds()

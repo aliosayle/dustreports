@@ -160,11 +160,11 @@
     <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
         <div class="metric-card metric-success">
             <div class="metric-icon">
-                <i class="fas fa-dollar-sign"></i>
+                <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="metric-content">
-                <h3 id="totalCimentSales" class="metric-value">$0</h3>
-                <p class="metric-label">Total Amount</p>
+                <h3 id="totalCimentSales" class="metric-value">0</h3>
+                <p class="metric-label">Total Sales Qty</p>
             </div>
             <div class="metric-trend">
                 <i class="fas fa-arrow-up"></i>
@@ -175,11 +175,11 @@
     <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
         <div class="metric-card metric-warning">
             <div class="metric-icon">
-                <i class="fas fa-shopping-cart"></i>
+                <i class="fas fa-cubes"></i>
             </div>
             <div class="metric-content">
                 <h3 id="totalAllSales" class="metric-value">0</h3>
-                <p class="metric-label">Total Sales Qty</p>
+                <p class="metric-label">Articles with Sales</p>
             </div>
             <div class="metric-trend">
                 <i class="fas fa-chart-bar"></i>
@@ -258,14 +258,7 @@
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle" id="cimentTable" style="width: 100%;">
                         <thead class="table-dark">
-                            <tr>
-                                <th class="text-center">#</th>
-                                <th><i class="fas fa-building me-2"></i>Site</th>
-                                <th><i class="fas fa-dollar-sign me-2"></i>Total Amount</th>
-                                <th><i class="fas fa-cubes me-2"></i>Articles with Sales</th>
-                                <th><i class="fas fa-shopping-cart me-2"></i>Total Sales Qty</th>
-                                <!-- Dynamic ciment item columns will be added here -->
-                            </tr>
+                            <!-- Headers will be built dynamically by JavaScript -->
                         </thead>
                         <tbody>
                             <!-- Data will be populated by JavaScript -->
@@ -565,6 +558,33 @@
         border-top: none;
     }
     
+    /* Totals row styling */
+    #cimentTable .table-warning {
+        background-color: #fff3cd !important;
+        border-top: 2px solid #ffc107 !important;
+        font-weight: bold !important;
+    }
+    
+    #cimentTable .table-warning td {
+        background-color: #fff3cd !important;
+        border-top: 2px solid #ffc107 !important;
+        font-weight: bold !important;
+        font-size: 0.95rem;
+    }
+    
+    /* Row Total column styling */
+    #cimentTable td:last-child,
+    #cimentTable th:last-child {
+        background-color: #fff3cd !important;
+        border-left: 2px solid #ffc107 !important;
+        font-weight: bold;
+    }
+    
+    /* Totals row hover effects */
+    #cimentTable .table-warning:hover td {
+        background-color: #ffeaa7 !important;
+    }
+    
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .metric-card {
@@ -589,52 +609,51 @@ $(document).ready(function() {
     let currentMetadata = {};
     let cimentTable;
     
-    // Initialize DataTable
-    function initializeDataTable() {
+    // Initialize DataTable with proper structure
+    function initializeDataTable(tableStructure) {
         // Destroy existing table if it exists
         if (cimentTable) {
             cimentTable.destroy();
             cimentTable = null;
         }
         
-        // Count total columns to ensure proper initialization
-        const totalColumns = $('#cimentTable thead tr th').length;
-        console.log(`Initializing DataTable with ${totalColumns} columns`);
+        console.log(`Initializing DataTable with structure:`, tableStructure);
         
-        if (totalColumns === 0) {
-            console.error('No columns found in table header');
+        if (!tableStructure || tableStructure.totalColumns === 0) {
+            console.error('Invalid table structure or no columns found');
             return;
         }
         
-        // Build dynamic column definitions
+        // Build column definitions
         const columnDefs = [
-            { targets: [0], orderable: false }, // Row number column
-            { targets: [1], className: 'text-start' }, // Site name column
-            { targets: [2, 3, 4], className: 'text-end' } // Basic numeric columns
+            { 
+                targets: [0], 
+                orderable: false,
+                className: 'text-center'
+            }, // Row number column
+            { 
+                targets: [1], 
+                className: 'text-start',
+                createdCell: function(td, cellData, rowData, row, col) {
+                    // Style totals row
+                    if (cellData && cellData.toString().includes('TOTALS')) {
+                        $(td).addClass('fw-bold table-warning');
+                        $(td.parentNode).addClass('table-warning fw-bold');
+                    }
+                }
+            } // Site name column
         ];
         
-        // Add formatting for all numeric columns (including dynamic ones)
-        const numericTargets = [2, 3, 4]; // Amount, Articles count, Sales Qty
-        
-        // Add dynamic ciment item columns (sales only)
-        if (currentMetadata && currentMetadata.ciment_items && currentMetadata.ciment_items.length > 0) {
-            const itemCount = currentMetadata.ciment_items.length;
-            
-            // Sales columns start at index 5
-            for (let i = 0; i < itemCount; i++) {
-                numericTargets.push(5 + i);
-            }
-            
-            // Add column definitions for dynamic columns
-            columnDefs.push({
-                targets: numericTargets.slice(3), // Dynamic columns only (exclude first 3)
-                className: 'text-end'
-            });
+        // Add numeric formatting for all columns from index 2 onwards
+        const numericTargets = [];
+        for (let i = 2; i < tableStructure.totalColumns; i++) {
+            numericTargets.push(i);
         }
         
-        // Add number formatting for all numeric columns
+        // Apply numeric formatting to all numeric columns
         columnDefs.push({
             targets: numericTargets,
+            className: 'text-end',
             render: function(data, type, row) {
                 if (type === 'display') {
                     const num = parseFloat(data) || 0;
@@ -644,16 +663,11 @@ $(document).ready(function() {
             }
         });
         
-        // Special formatting for amount column (index 2)
+        // Special styling for Row Total column (last column)
+        const lastColumnIndex = tableStructure.totalColumns - 1;
         columnDefs.push({
-            targets: [2],
-            render: function(data, type, row) {
-                if (type === 'display') {
-                    const num = parseFloat(data) || 0;
-                    return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                }
-                return data;
-            }
+            targets: [lastColumnIndex],
+            className: 'text-end fw-bold bg-warning-subtle'
         });
         
         try {
@@ -662,7 +676,7 @@ $(document).ready(function() {
                 responsive: true,
                 pageLength: 25,
                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                order: [[2, 'desc']], // Sort by Total Amount by default
+                order: [[2, 'desc']], // Sort by Articles with Sales by default
                 scrollX: true, // Enable horizontal scrolling for many columns
                 buttons: [
                     {
@@ -731,7 +745,7 @@ $(document).ready(function() {
                         exportOptions: {
                             columns: ':visible'
                         },
-                        orientation: 'landscape',
+                        orientation: 'portrait',
                         pageSize: 'A4'
                     },
                     {
@@ -824,14 +838,22 @@ $(document).ready(function() {
     // Update summary cards
     function updateSummaryCards(data, metadata) {
         const totalSites = data.length;
-        const totalAmount = data.reduce((sum, row) => sum + (parseFloat(row.TOTAL_AMOUNT) || 0), 0);
-        const totalCimentSalesQty = data.reduce((sum, row) => sum + (parseFloat(row.TOTAL_CIMENT_SALES_QTY) || 0), 0);
         const totalArticlesWithSales = data.reduce((sum, row) => sum + (parseInt(row.CIMENT_ARTICLES_WITH_SALES) || 0), 0);
         const cimentItems = metadata.ciment_items ? metadata.ciment_items.length : 0;
         
+        // Calculate total items sold from individual item sales
+        let totalItemsSold = 0;
+        data.forEach(row => {
+            if (row.CIMENT_SALES_BY_ITEM) {
+                Object.values(row.CIMENT_SALES_BY_ITEM).forEach(qty => {
+                    totalItemsSold += parseFloat(qty) || 0;
+                });
+            }
+        });
+        
         $('#totalSites').text(totalSites.toLocaleString());
-        $('#totalCimentSales').text('$' + totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-        $('#totalAllSales').text(totalCimentSalesQty.toLocaleString());
+        $('#totalCimentSales').text(totalItemsSold.toLocaleString());
+        $('#totalAllSales').text(totalArticlesWithSales.toLocaleString());
         
         // Show active vs total ciment items
         if (metadata.active_ciment_items_shown && metadata.total_ciment_items_in_category) {
@@ -845,36 +867,54 @@ $(document).ready(function() {
         $('#recordCount').text(data.length.toLocaleString());
     }
     
-    // Build dynamic table headers
-    function buildDynamicHeaders(metadata) {
-        console.log('Building dynamic headers with metadata:', metadata);
+    // Build complete table structure
+    function buildTableStructure(metadata) {
+        console.log('Building complete table structure with metadata:', metadata);
         
-        const thead = $('#cimentTable thead tr');
+        const thead = $('#cimentTable thead');
         
-        // Remove any existing dynamic columns (beyond the first 5)
-        thead.find('th:gt(4)').remove();
+        // Clear and rebuild headers completely
+        thead.empty();
         
-        // Add ciment item sales columns only
+        // Build header row
+        let headerHtml = `
+            <tr>
+                <th class="text-center">#</th>
+                <th class="text-start"><i class="fas fa-building me-2"></i>Site</th>
+                <th class="text-end"><i class="fas fa-cubes me-2"></i>Articles with Sales</th>
+        `;
+        
+        // Add dynamic ciment item columns
         if (metadata && metadata.ciment_items && metadata.ciment_items.length > 0) {
-            console.log(`Adding ${metadata.ciment_items.length} ciment item sales columns`);
+            console.log(`Adding ${metadata.ciment_items.length} ciment item columns`);
             
             metadata.ciment_items.forEach(item => {
-                // Create header: "ITEM_CODE - DESCR1" (keep spaces, remove "Sales" text)
                 const itemCode = item.ITEM;
-                const itemName = item.DESCR1 ? item.DESCR1.substring(0, 20) : itemCode;
+                const itemName = item.DESCR1 ? item.DESCR1.substring(0, 15) : itemCode;
                 const headerText = `${itemCode} - ${itemName}`;
                 
-                const headerHtml = `<th class="text-center" title="${item.ITEM} - ${item.DESCR1 || ''}">
-                    <i class="fas fa-chart-line me-1 text-success"></i>
-                    <small class="d-block">${headerText}</small>
-                </th>`;
-                thead.append(headerHtml);
+                headerHtml += `
+                    <th class="text-end" title="${item.ITEM} - ${item.DESCR1 || ''}">
+                        <i class="fas fa-chart-line me-1 text-success"></i>
+                        <small class="d-block">${headerText}</small>
+                    </th>`;
             });
-            
-            console.log(`Total columns after building headers: ${thead.find('th').length}`);
-        } else {
-            console.log('No ciment items found in metadata');
         }
+        
+        // Add Row Total column
+        headerHtml += `
+                <th class="text-end bg-warning"><i class="fas fa-sum me-2"></i>Row Total</th>
+            </tr>
+        `;
+        
+        thead.html(headerHtml);
+        
+        console.log(`Built table with ${thead.find('th').length} columns`);
+        
+        return {
+            totalColumns: thead.find('th').length,
+            itemCount: metadata && metadata.ciment_items ? metadata.ciment_items.length : 0
+        };
     }
     
     // Load ciment report data
@@ -899,11 +939,11 @@ $(document).ready(function() {
                 
                 updateSummaryCards(currentData, currentMetadata);
                 
-                // Build dynamic headers FIRST
-                buildDynamicHeaders(currentMetadata);
+                // Build complete table structure FIRST
+                const tableStructure = buildTableStructure(currentMetadata);
                 
                 // THEN reinitialize DataTable with new structure
-                initializeDataTable();
+                initializeDataTable(tableStructure);
                 
                 // FINALLY populate the data
                 populateTableData();
@@ -917,7 +957,7 @@ $(document).ready(function() {
         });
     }
     
-    // Separate function to populate table data
+    // Populate table with data and totals row
     function populateTableData() {
         if (!cimentTable || !currentData || !currentMetadata) {
             console.log('Cannot populate table - missing data or table not initialized');
@@ -929,30 +969,78 @@ $(document).ready(function() {
         // Clear existing data
         cimentTable.clear();
         
+        // Calculate totals while adding data
+        let totalArticles = 0;
+        let itemTotals = {};
+        
+        // Initialize item totals
+        if (currentMetadata.ciment_items) {
+            currentMetadata.ciment_items.forEach(item => {
+                itemTotals[item.ITEM] = 0;
+            });
+        }
+        
+        // Add data rows
         currentData.forEach((row, index) => {
             const tableRow = [
                 index + 1,
                 row.SITE_NAME || '',
-                parseFloat(row.TOTAL_AMOUNT || 0),
-                parseInt(row.CIMENT_ARTICLES_WITH_SALES || 0),
-                parseFloat(row.TOTAL_CIMENT_SALES_QTY || 0)
+                parseInt(row.CIMENT_ARTICLES_WITH_SALES || 0)
             ];
             
-            // Add sales data for each ciment item (no stock data)
+            // Track totals
+            totalArticles += parseInt(row.CIMENT_ARTICLES_WITH_SALES || 0);
+            
+            // Add item sales data
+            let rowTotal = 0;
             if (currentMetadata.ciment_items) {
                 currentMetadata.ciment_items.forEach(item => {
                     const salesValue = row.CIMENT_SALES_BY_ITEM && row.CIMENT_SALES_BY_ITEM[item.ITEM] 
                         ? parseFloat(row.CIMENT_SALES_BY_ITEM[item.ITEM]) 
                         : 0;
+                    
                     tableRow.push(salesValue);
+                    rowTotal += salesValue;
+                    itemTotals[item.ITEM] += salesValue;
                 });
             }
             
+            // Add row total
+            tableRow.push(rowTotal);
+            
+            // Add to DataTable
             cimentTable.row.add(tableRow);
         });
         
+        // Add totals row
+        if (currentData.length > 0) {
+            const totalsRow = [
+                '',
+                '<strong>TOTALS</strong>',
+                totalArticles
+            ];
+            
+            // Add item totals
+            let grandTotal = 0;
+            if (currentMetadata.ciment_items) {
+                currentMetadata.ciment_items.forEach(item => {
+                    const itemTotal = itemTotals[item.ITEM] || 0;
+                    totalsRow.push(itemTotal);
+                    grandTotal += itemTotal;
+                });
+            }
+            
+            // Add grand total
+            totalsRow.push(grandTotal);
+            
+            // Add totals row to table
+            cimentTable.row.add(totalsRow);
+        }
+        
+        // Draw table
         cimentTable.draw();
-        console.log('Table populated successfully');
+        
+        console.log('Table populated successfully with totals row');
     }
     
     // Form submission

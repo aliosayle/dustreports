@@ -367,6 +367,46 @@ $(document).ready(function() {
     // Check data status on page load
     checkDataStatus();
     
+    // Set up auto-refresh every hour
+    setInterval(function() {
+        console.log('🕐 Checking for auto-refresh...');
+        autoRefreshCache();
+    }, 60 * 60 * 1000); // Every hour (60 minutes * 60 seconds * 1000 ms)
+    
+    // Also check for auto-refresh every 10 minutes for more responsive UI
+    setInterval(function() {
+        checkDataStatus();
+    }, 10 * 60 * 1000); // Every 10 minutes
+    
+    function autoRefreshCache() {
+        $.post('/api/auto-refresh-cache', JSON.stringify({}), 'json')
+        .done(function(data) {
+            console.log('Auto-refresh response:', data);
+            if (data.status === 'refreshed') {
+                // Show notification that data was auto-refreshed
+                $('body').prepend(`
+                    <div class="alert alert-info alert-dismissible fade show position-fixed" 
+                         style="top: 20px; right: 20px; z-index: 1050; min-width: 300px;" role="alert">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        <strong>Auto-refresh!</strong> Data was automatically updated (cache was ${data.trigger_reason}).
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `);
+                
+                // Auto-hide notification after 8 seconds
+                setTimeout(() => {
+                    $('.alert-info').fadeOut();
+                }, 8000);
+                
+                // Update status display
+                checkDataStatus();
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.log('Auto-refresh failed (silent):', error);
+        });
+    }
+    
     function checkDataStatus() {
         $.get('/api/cache-status')
         .done(function(data) {
@@ -375,14 +415,24 @@ $(document).ready(function() {
             const reloadBtn = $('#reloadDataBtn');
             
             if (data.cached) {
-                const ageMinutes = Math.floor(data.cache_age_seconds / 60);
-                const ageHours = Math.floor(ageMinutes / 60);
                 let ageText;
                 
-                if (ageHours > 0) {
+                if (data.cache_age_seconds && data.cache_age_seconds > 0) {
+                    const ageMinutes = Math.floor(data.cache_age_seconds / 60);
+                    const ageHours = Math.floor(ageMinutes / 60);
+                    const ageDays = Math.floor(ageHours / 24);
+                    
+                    if (ageDays > 0) {
+                        ageText = `${ageDays}d ${ageHours % 24}h ago`;
+                    } else if (ageHours > 0) {
                     ageText = `${ageHours}h ${ageMinutes % 60}m ago`;
                 } else if (ageMinutes > 0) {
                     ageText = `${ageMinutes}m ago`;
+                    } else if (data.cache_age_seconds < 60) {
+                        ageText = 'Just now';
+                    } else {
+                        ageText = 'Just now';
+                    }
                 } else {
                     ageText = 'Just now';
                 }

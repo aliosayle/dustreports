@@ -3,7 +3,8 @@
 from flask import Blueprint, request, jsonify
 import pandas as pd
 from services.database_service import (
-    load_dataframes, get_dataframes, is_cache_loading, get_cache_lock
+    load_dataframes, get_dataframes, is_cache_loading, get_cache_lock,
+    get_cache_timestamp, get_cache_age_seconds
 )
 from models.stock_analysis import StockAnalyzer
 
@@ -43,11 +44,58 @@ def api_load_dataframes():
 def api_cache_status():
     """Get cache status"""
     dataframes = get_dataframes()
-    return jsonify({
+    cache_age = get_cache_age_seconds()
+    cache_timestamp = get_cache_timestamp()
+    
+    response = {
         'cached': len(dataframes) > 0,
         'loading': is_cache_loading(),
-        'tables': list(dataframes.keys()) if dataframes else []
-    })
+        'tables': list(dataframes.keys()) if dataframes else [],
+        'table_count': len(dataframes),
+        'cache_age_seconds': cache_age if cache_age is not None else 0,
+        'cache_timestamp': cache_timestamp.isoformat() if cache_timestamp else None
+    }
+    
+    return jsonify(response)
+
+@api_bp.route('/auto-refresh-cache', methods=['POST'])
+def api_auto_refresh_cache():
+    """Auto-refresh cache if older than specified threshold"""
+    try:
+        data = request.get_json() or {}
+        max_age_hours = data.get('max_age_hours', 1)  # Default 1 hour
+        
+        cache_age = get_cache_age_seconds()
+        max_age_seconds = max_age_hours * 3600  # Convert hours to seconds
+        
+        if cache_age is None or cache_age > max_age_seconds:
+            print(f"🔄 Auto-refresh triggered: cache age {cache_age}s > {max_age_seconds}s threshold")
+            
+            with get_cache_lock():
+                if is_cache_loading():
+                    return jsonify({'status': 'loading', 'message': 'Cache refresh already in progress'})
+            
+            result = load_dataframes()
+            
+            if result and len(result) > 0:
+                return jsonify({
+                    'status': 'refreshed',
+                    'message': f'Cache auto-refreshed successfully',
+                    'tables': list(result.keys()),
+                    'trigger_reason': f'Cache was {cache_age/3600:.1f} hours old'
+                })
+            else:
+                return jsonify({'status': 'error', 'message': 'Auto-refresh failed'}), 500
+        else:
+            return jsonify({
+                'status': 'not_needed',
+                'message': f'Cache is fresh (age: {cache_age/3600:.1f} hours)',
+                'cache_age_hours': cache_age/3600
+            })
+            
+    except Exception as e:
+        print(f"❌ Error in auto-refresh: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @api_bp.route('/sites')
 def api_sites():
@@ -454,8 +502,12 @@ def api_ciment_report():
             
             result_data.append(row_data)
         
-        # Sort by site name
-        result_data.sort(key=lambda x: x['SITE_NAME'])
+        # Filter out sites with zero total sales amount
+        result_data = [site_data for site_data in result_data if site_data['TOTAL_AMOUNT'] > 0]
+        print(f"📊 Filtered out sites with zero sales: {len(result_data)} sites remaining")
+        
+        # Sort by total amount descending (highest sales first)
+        result_data.sort(key=lambda x: x['TOTAL_AMOUNT'], reverse=True)
         
         # Filter out ciment items with 0 overall sales across all sites
         items_with_sales = set()

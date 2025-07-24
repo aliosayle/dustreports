@@ -156,10 +156,10 @@ def api_export_ciment_report():
             ws[f'A{row}'] = f"Ciment Items: {len(metadata.get('ciment_items', []))}"
         row += 1
         if metadata.get('sales_only_mode'):
-            ws[f'A{row}'] = "Note: This report shows sales data only with amounts (qty × price)"
+            ws[f'A{row}'] = "Note: This report shows sales data and stock quantities for ciment items"
         row += 2
         
-        # Headers (new structure: site, total sales, individual items, row total qty, monetary value)
+        # Headers (new structure: site, total sales, individual items, row total qty, stock quantity)
         headers = [
             'Site Name',
             'Total Sales (All Items)'
@@ -181,7 +181,7 @@ def api_export_ciment_report():
         # Add summary columns at the end
         headers.extend([
             'Row Total (Qty)', 
-            'Total Ciment Sales ($)'
+            'Total Ciment Stock'
         ])
         
         # Write headers
@@ -218,8 +218,8 @@ def api_export_ciment_report():
             ws.cell(row=row_idx, column=col_idx, value=row_total_qty).border = border
             col_idx += 1
             
-            # Monetary value
-            ws.cell(row=row_idx, column=col_idx, value=site_data['TOTAL_AMOUNT']).border = border
+            # Stock quantity
+            ws.cell(row=row_idx, column=col_idx, value=site_data['TOTAL_CIMENT_STOCK']).border = border
         
         # Auto-adjust column widths (adjusted for headers with spaces)
         for column in ws.columns:

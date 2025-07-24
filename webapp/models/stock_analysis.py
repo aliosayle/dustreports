@@ -16,7 +16,7 @@ class StockAnalyzer:
         Calculate stock and sales using EXACT notebook logic - OPTIMIZED
         """
         print(f"\n🔍 OPTIMIZED calculate_stock_and_sales:")
-        print(f"   📊 Parameters: item_code={item_code}, site_code={site_code}, from_date={from_date}, to_date={to_date}")
+        print(f"   📊 Parameters: item_code={item_code}, site_code={site_code}, from_date={from_date}, to_date={to_date}, as_of_date={as_of_date}")
         
         if not self.dataframes:
             print("   ❌ No dataframes available")
@@ -46,7 +46,18 @@ class StockAnalyzer:
         
         # 🚀 PERFORMANCE OPTIMIZATION: Calculate ALL sales at once instead of item by item
         print(f"   🚀 Calculating sales for all items at once...")
-        all_sales = self._calculate_all_sales_optimized(sales_df, stock_results, from_date, to_date)
+        
+        # For stock by site reports, if as_of_date is provided but from_date/to_date are not,
+        # we need to calculate sales for a reasonable period (e.g., last 30 days)
+        if as_of_date and (from_date is None or to_date is None):
+            # Use last 30 days from as_of_date for sales calculation
+            as_of_dt = pd.to_datetime(as_of_date)
+            from_date = (as_of_dt - pd.Timedelta(days=30)).strftime('%Y-%m-%d')
+            to_date = as_of_date
+            print(f"   📅 Using sales period: {from_date} to {to_date} (30 days from as_of_date)")
+        
+        # Use inventory transactions for sales calculation (CREDITQTY) - SAME AS AUTONOMY REPORT
+        all_sales = self._calculate_all_sales_optimized(inventory_df, stock_results, from_date, to_date)
         
         # Merge sales with stock results
         stock_results = stock_results.merge(all_sales, on=['SITE', 'ITEM'], how='left')
@@ -77,30 +88,7 @@ class StockAnalyzer:
         
         stock_results['STOCK_AUTONOMY_DAYS'] = stock_results.apply(calculate_autonomy, axis=1)
         
-        # Calculate depot quantity: Only for depot sites (SIDNO = "3700004")
-        def calculate_depot_quantity(row):
-            # Check if site is a depot by looking up SIDNO
-            site_id = row['SITE']
-            is_depot = False
-            
-            # Check if this site is a depot (SIDNO = "3700004")
-            if sites_master is not None and 'SIDNO' in sites_master.columns:
-                depot_sites = sites_master[sites_master['SIDNO'] == '3700004']
-                is_depot = site_id in depot_sites['ID'].values
-            
-            if not is_depot:
-                return 0  # Not a depot site
-                
-            # For depot sites: (7 × Average Daily Sales) - Current Stock
-            avg_daily_sales = row['AVG_DAILY_SALES']
-            current_stock = row['CURRENT_STOCK']
-            target_stock = 7 * avg_daily_sales  # 7 days of stock
-            depot_needed = target_stock - current_stock
-            return max(0, depot_needed)  # 0 if already sufficient
-        
-        stock_results['DEPOT_QUANTITY'] = stock_results.apply(calculate_depot_quantity, axis=1)
-        
-        # Add master data (with proper categories)
+        # Add master data (with proper categories, prices, and depot quantities)
         stock_results = self._add_master_data_optimized(stock_results, items_master, sites_master, categories_master)
         
         print(f"   🎯 Final results: {len(stock_results)} items with sales calculated")
@@ -163,22 +151,40 @@ class StockAnalyzer:
             return (to_dt - from_dt).days + 1
         return 1
     
-    def _calculate_all_sales_optimized(self, sales_df, stock_results, from_date, to_date):
-        """Calculate sales for all items at once - MUCH FASTER with daily stats"""
+    def _calculate_all_sales_optimized(self, inventory_df, stock_results, from_date, to_date):
+        """Calculate sales for all items at once using inventory transactions (CREDITQTY) - SAME AS AUTONOMY REPORT"""
         
         print(f"   📊 Optimized sales calculation for {len(stock_results)} items...")
+        print(f"   📊 Using inventory transactions (CREDITQTY) for sales calculation - same as autonomy report")
         
         # Get unique site/item combinations from stock results
         stock_items = stock_results[['SITE', 'ITEM']].copy()
         
-        # Filter sales data for the date range and FTYPE first
-        sales_filtered = sales_df[
-            (sales_df['FTYPE'].isin([1, 2])) &
-            (pd.to_datetime(sales_df['FDATE']) >= pd.to_datetime(from_date)) &
-            (pd.to_datetime(sales_df['FDATE']) <= pd.to_datetime(to_date))
-        ].copy()
+        # Handle None date parameters by using a default range
+        if from_date is None or to_date is None:
+            # Use last 30 days as default
+            to_date = pd.Timestamp.now().strftime('%Y-%m-%d')
+            from_date = (pd.Timestamp.now() - pd.Timedelta(days=30)).strftime('%Y-%m-%d')
+            print(f"   📅 Using default date range: {from_date} to {to_date}")
         
-        print(f"   📊 Filtered sales to {len(sales_filtered)} records for date range")
+        # Use inventory transactions (ALLITEM table) for sales calculation - SAME AS AUTONOMY REPORT
+        # Sales are calculated from CREDITQTY (outgoing transactions)
+        try:
+            # Filter inventory transactions for the date range
+            sales_filtered = inventory_df[
+                (pd.to_datetime(inventory_df['FDATE']) >= pd.to_datetime(from_date)) &
+                (pd.to_datetime(inventory_df['FDATE']) <= pd.to_datetime(to_date))
+            ].copy()
+        except Exception as e:
+            print(f"   ❌ Error filtering inventory transactions: {e}")
+            # Return zeros for all items if filtering fails
+            stock_items['TOTAL_SALES_QTY'] = 0
+            stock_items['SALES_TRANSACTIONS'] = 0
+            stock_items['MAX_DAILY_SALES'] = 0
+            stock_items['MIN_DAILY_SALES'] = 0
+            return stock_items
+        
+        print(f"   📊 Filtered inventory transactions to {len(sales_filtered)} records for date range")
         
         if sales_filtered.empty:
             # Return zeros for all items
@@ -188,10 +194,10 @@ class StockAnalyzer:
             stock_items['MIN_DAILY_SALES'] = 0
             return stock_items
         
-        # Fill NaN values
+        # Use CREDITQTY for sales calculation (same as autonomy report)
+        # CREDITQTY represents outgoing transactions (sales, issues, transfers out)
         sales_filtered['CREDITQTY'] = sales_filtered['CREDITQTY'].fillna(0)
-        sales_filtered['DEBITQTY'] = sales_filtered['DEBITQTY'].fillna(0)
-        sales_filtered['NET_SALES'] = sales_filtered['CREDITQTY'] - sales_filtered['DEBITQTY']
+        sales_filtered['NET_SALES'] = sales_filtered['CREDITQTY']  # Sales = outgoing transactions
         
         # Group by SITE, ITEM, and DATE to calculate daily sales
         sales_filtered['FDATE'] = pd.to_datetime(sales_filtered['FDATE']).dt.date
@@ -233,16 +239,18 @@ class StockAnalyzer:
         return result
     
     def _add_master_data_optimized(self, results_df, items_master, sites_master, categories_master):
-        """Add item names, site names, and PROPER categories"""
+        """Add item names, site names, categories, prices, and depot quantities"""
         
-        # Add item names and categories
+        # Add item names, categories, and prices
         if items_master is not None:
-            items_subset = items_master[['ITEM', 'DESCR1', 'CATEGORY']].drop_duplicates()
+            items_subset = items_master[['ITEM', 'DESCR1', 'CATEGORY', 'POSPRICE1', 'SUNIT']].drop_duplicates()
             results_df = results_df.merge(items_subset, on='ITEM', how='left')
             results_df.rename(columns={'DESCR1': 'ITEM_NAME'}, inplace=True)
         else:
             results_df['ITEM_NAME'] = 'Unknown Item'
             results_df['CATEGORY'] = ''
+            results_df['POSPRICE1'] = 0
+            results_df['SUNIT'] = ''
         
         # Add category names from categories master
         if categories_master is not None and 'CATEGORY' in results_df.columns:
@@ -271,5 +279,68 @@ class StockAnalyzer:
         results_df['ITEM_NAME'] = results_df['ITEM_NAME'].fillna('Unknown Item')
         results_df['SITE_NAME'] = results_df['SITE_NAME'].fillna(results_df['SITE'])
         results_df['CATEGORY_NAME'] = results_df['CATEGORY_NAME'].fillna('General')
+        results_df['POSPRICE1'] = results_df['POSPRICE1'].fillna(0)
+        results_df['SUNIT'] = results_df['SUNIT'].fillna('')
+        
+        # Calculate stock value (current stock × price)
+        results_df['STOCK_VALUE'] = results_df['CURRENT_STOCK'] * results_df['POSPRICE1']
+        
+        # Calculate depot quantities using the same approach as notebook
+        if sites_master is not None and 'SIDNO' in sites_master.columns:
+            try:
+                # Get depot sites where SIDNO = '3700004' (string value)
+                depot_sites_info = sites_master[sites_master['SIDNO'] == '3700004'].copy()
+                
+                if not depot_sites_info.empty:
+                    depot_site_ids = depot_sites_info['ID'].tolist()
+                    
+                    # Get inventory transactions for depot sites only
+                    inventory_df = self.dataframes.get('inventory_transactions')
+                    if inventory_df is not None:
+                        df_depot = inventory_df[inventory_df['SITE'].isin(depot_site_ids)].copy()
+                        
+                        if not df_depot.empty:
+                            # Fill NaN values and calculate depot quantities by item
+                            df_depot['DEBITQTY'] = df_depot['DEBITQTY'].fillna(0)
+                            df_depot['CREDITQTY'] = df_depot['CREDITQTY'].fillna(0)
+                            
+                            # Calculate depot quantities by item (sum across all depot sites)
+                            depot_qty = df_depot.groupby('ITEM').agg({
+                                'DEBITQTY': 'sum',
+                                'CREDITQTY': 'sum'
+                            }).reset_index()
+                            
+                            depot_qty['DEPOT_QUANTITY'] = depot_qty['DEBITQTY'] - depot_qty['CREDITQTY']
+                            
+                            # Create dictionary for easy lookup
+                            depot_dict = dict(zip(depot_qty['ITEM'], depot_qty['DEPOT_QUANTITY']))
+                            
+                            # Add depot quantity column to results_df
+                            results_df['DEPOT_QUANTITY'] = results_df['ITEM'].map(depot_dict).fillna(0)
+                        else:
+                            results_df['DEPOT_QUANTITY'] = 0
+                    else:
+                        results_df['DEPOT_QUANTITY'] = 0
+                else:
+                    results_df['DEPOT_QUANTITY'] = 0
+            except Exception as e:
+                print(f"   ⚠️ Error calculating depot quantities: {e}")
+                results_df['DEPOT_QUANTITY'] = 0
+        else:
+            results_df['DEPOT_QUANTITY'] = 0
+        
+        # Count stock transactions (from inventory transactions)
+        try:
+            inventory_df = self.dataframes.get('inventory_transactions')
+            if inventory_df is not None:
+                # Count transactions for each SITE/ITEM combination
+                transaction_counts = inventory_df.groupby(['SITE', 'ITEM']).size().reset_index(name='STOCK_TRANSACTIONS')
+                results_df = results_df.merge(transaction_counts, on=['SITE', 'ITEM'], how='left')
+                results_df['STOCK_TRANSACTIONS'] = results_df['STOCK_TRANSACTIONS'].fillna(0)
+            else:
+                results_df['STOCK_TRANSACTIONS'] = 0
+        except Exception as e:
+            print(f"   ⚠️ Error counting transactions: {e}")
+            results_df['STOCK_TRANSACTIONS'] = 0
         
         return results_df

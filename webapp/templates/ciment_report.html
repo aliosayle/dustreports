@@ -278,6 +278,9 @@
                         <tbody>
                             <!-- Data will be populated by JavaScript -->
                         </tbody>
+                        <tfoot>
+                            <!-- Footer will be built dynamically by JavaScript -->
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -694,15 +697,15 @@ $(document).ready(function() {
             className: 'text-end fw-bold bg-warning-subtle'
         });
         
-        // Special styling for monetary column (last column)
-        const monetaryColumnIndex = tableStructure.totalColumns - 1;
+        // Special styling for stock column (last column)
+        const stockColumnIndex = tableStructure.totalColumns - 1;
         columnDefs.push({
-            targets: [monetaryColumnIndex],
-            className: 'text-end fw-bold bg-success-subtle',
+            targets: [stockColumnIndex],
+            className: 'text-end fw-bold bg-info-subtle',
             render: function(data, type, row) {
                 if (type === 'display') {
                     const num = parseFloat(data) || 0;
-                    return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    return num.toLocaleString();
                 }
                 return data;
             }
@@ -881,21 +884,21 @@ $(document).ready(function() {
         
         // Calculate total items sold from individual item sales
         let totalItemsSold = 0;
-        let totalCimentValue = 0;
+        let totalCimentStock = 0;
         data.forEach(row => {
             if (row.CIMENT_SALES_BY_ITEM) {
                 Object.values(row.CIMENT_SALES_BY_ITEM).forEach(qty => {
                     totalItemsSold += parseFloat(qty) || 0;
                 });
             }
-            // Add monetary value from TOTAL_AMOUNT
-            totalCimentValue += parseFloat(row.TOTAL_AMOUNT || 0);
+            // Add stock quantity from TOTAL_CIMENT_STOCK
+            totalCimentStock += parseFloat(row.TOTAL_CIMENT_STOCK || 0);
         });
         
         $('#totalSites').text(totalSites.toLocaleString());
         $('#totalCimentSales').text(totalItemsSold.toLocaleString());
         $('#totalAllSales').text(totalSalesAcrossSites.toLocaleString());
-        $('#totalCimentValue').text('$' + totalCimentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $('#totalCimentValue').text(totalCimentStock.toLocaleString());
         $('#reportDate').text(new Date().toLocaleDateString());
         
         // Show active vs total ciment items
@@ -946,7 +949,7 @@ $(document).ready(function() {
         // Add Row Total column and monetary column
         headerHtml += `
                 <th class="text-end bg-warning"><i class="fas fa-sum me-2"></i>Row Total (Qty)</th>
-                <th class="text-end bg-success text-white"><i class="fas fa-dollar-sign me-2"></i>Total Ciment Sales ($)</th>
+                <th class="text-end bg-info text-white"><i class="fas fa-boxes me-2"></i>Total Ciment Stock</th>
             </tr>
         `;
         
@@ -1014,7 +1017,7 @@ $(document).ready(function() {
         
         // Calculate totals while adding data
         let totalSales = 0;
-        let totalMonetary = 0;
+        let totalStock = 0;
         let itemTotals = {};
         
         // Initialize item totals
@@ -1052,16 +1055,16 @@ $(document).ready(function() {
             // Add row total
             tableRow.push(rowTotal);
             
-            // Add monetary value (TOTAL_AMOUNT from backend)
-            const monetaryValue = parseFloat(row.TOTAL_AMOUNT || 0);
-            tableRow.push(monetaryValue);
-            totalMonetary += monetaryValue;
+            // Add stock value (TOTAL_CIMENT_STOCK from backend)
+            const stockValue = parseFloat(row.TOTAL_CIMENT_STOCK || 0);
+            tableRow.push(stockValue);
+            totalStock += stockValue;
             
             // Add to DataTable
             cimentTable.row.add(tableRow);
         });
         
-        // Add totals row
+        // Add totals row as the last row
         if (currentData.length > 0) {
             const totalsRow = [
                 '',
@@ -1082,8 +1085,8 @@ $(document).ready(function() {
             // Add grand total (quantity)
             totalsRow.push(grandTotal);
             
-            // Add monetary grand total
-            totalsRow.push(totalMonetary);
+            // Add stock grand total
+            totalsRow.push(totalStock);
             
             // Add totals row to table
             cimentTable.row.add(totalsRow);

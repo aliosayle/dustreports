@@ -223,32 +223,34 @@ def api_stock_by_site_report():
         site_codes = data.get('site_codes')
         category_id = data.get('category_id')
         as_of_date = data.get('as_of_date')
-        
+
         dataframes = get_dataframes()
         if not dataframes:
             return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
-        
+
         analyzer = StockAnalyzer()
         result_df = analyzer.calculate_stock_and_sales(
-            item_code=item_code, 
+            item_code=item_code,
             site_code=site_code,
             site_codes=site_codes,
             category_id=category_id,
             as_of_date=as_of_date
         )
-        
+
         if result_df is None or result_df.empty:
             return jsonify({'error': 'No data found for the specified criteria'}), 404
-        
+
         # Sort results
         if site_codes and isinstance(site_codes, list) and len(site_codes) > 1:
-            result_df = result_df.sort_values(['ITEM_NAME', 'CURRENT_STOCK'], ascending=[True, False])
+            if 'ITEM_NAME' in result_df.columns and 'CURRENT_STOCK' in result_df.columns:
+                result_df = result_df.sort_values(['ITEM_NAME', 'CURRENT_STOCK'], ascending=[True, False])
         else:
-            result_df = result_df.sort_values(['SITE_NAME', 'CURRENT_STOCK'], ascending=[True, False])
-        
+            if 'SITE_NAME' in result_df.columns and 'CURRENT_STOCK' in result_df.columns:
+                result_df = result_df.sort_values(['SITE_NAME', 'CURRENT_STOCK'], ascending=[True, False])
+
         # Convert to JSON
         result_json = result_df.to_dict('records')
-        
+
         return jsonify({
             'data': result_json,
             'metadata': {
@@ -261,10 +263,13 @@ def api_stock_by_site_report():
                     'as_of_date': as_of_date
                 }
             }
-        })
-        
+        }), 200
+
     except Exception as e:
         print(f"Error in stock by site report: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return a proper error code and message
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/get-available-columns')
@@ -486,34 +491,69 @@ def api_ciment_report():
             item_prices = dict(zip(price_data['ITEM'], price_data['POSPRICE1'].fillna(0)))
             print(f"📊 Retrieved prices for {len(item_prices)} ciment items")
         
+        # Calculate stock for all ciment items at each site (same approach as autonomy stock)
+        print(f"📦 Calculating stock for ciment items at each site...")
+        inventory_df = dataframes.get('inventory_transactions')
+        if inventory_df is not None:
+            # Filter inventory transactions for ciment items only
+            ciment_inventory = inventory_df[inventory_df['ITEM'].isin(ciment_items)].copy()
+            
+            # Fill NaN values with 0 for calculations
+            ciment_inventory['DEBITQTY'] = ciment_inventory['DEBITQTY'].fillna(0)
+            ciment_inventory['CREDITQTY'] = ciment_inventory['CREDITQTY'].fillna(0)
+            
+            # Calculate stock by SITE and ITEM: DEBITQTY - CREDITQTY (same as autonomy stock)
+            stock_summary = ciment_inventory.groupby(['SITE', 'ITEM']).agg({
+                'DEBITQTY': 'sum',
+                'CREDITQTY': 'sum'
+            }).reset_index()
+            
+            # Calculate current stock: DEBITQTY (incoming) - CREDITQTY (outgoing)
+            stock_summary['CURRENT_STOCK'] = stock_summary['DEBITQTY'] - stock_summary['CREDITQTY']
+            
+            print(f"📊 Stock calculation: {len(stock_summary)} unique item/site combinations for ciment items")
+        else:
+            stock_summary = pd.DataFrame()
+            print("⚠️ No inventory transactions available for stock calculation")
+        
         # Calculate sales for each site (no stock data needed)
         result_data = []
         
-        # Get site names from sites dataframe using DESCR1 field
+        # Get site names from sites dataframe using SITE field
         site_names_mapping = {}
         if 'sites' in dataframes and dataframes['sites'] is not None:
             sites_df = dataframes['sites'].copy()
-            if 'DESCR1' in sites_df.columns:
+            if 'SITE' in sites_df.columns:
+                # Convert both to string for proper matching
                 sites_df['ID'] = sites_df['ID'].astype(str)
-                site_names_dict = dict(zip(sites_df['ID'], sites_df['DESCR1']))
+                site_names_dict = dict(zip(sites_df['ID'], sites_df['SITE']))
                 site_names_mapping = site_names_dict
-                print(f"📍 Retrieved site names for {len(site_names_dict)} sites from sites dataframe (DESCR1 field)")
+                print(f"📍 Retrieved site names for {len(site_names_dict)} sites from sites dataframe (SITE field)")
+                
+                # Debug: Show some sample mappings
+                sample_sites = list(site_names_dict.items())[:5]
+                print(f"📍 Sample site mappings:")
+                for site_id, site_name in sample_sites:
+                    print(f"   {site_id} -> {site_name}")
         
         for i, site_id in enumerate(kinshasa_sites_from_invoices):
             if i % 10 == 0:  # Progress logging every 10 sites
                 print(f"📍 Processing site {i+1}/{len(kinshasa_sites_from_invoices)}: {site_id}")
             
+            # Convert site_id to string for proper matching
+            site_id_str = str(site_id)
+            
             # Use site name from sites dataframe DESCR1 field, otherwise use SITE value
             # NOTE: site_name is for DISPLAY ONLY - all filtering uses actual SITE field
-            site_name = site_names_mapping.get(str(site_id), f"Site {site_id}")
+            site_name = site_names_mapping.get(site_id_str, f"Site {site_id}")
             print(f"  🏷️  SITE {site_id} -> Display name: '{site_name}'")
             
             # Initialize row data with Python native types (sales only)
             row_data = {
-                'SITE_ID': str(site_id),        # Actual SITE field value
+                'SITE_ID': site_id_str,         # Actual SITE field value (as string)
                 'SITE_NAME': str(site_name),    # Display name from sites.DESCR1
                 'TOTAL_SALES': 0.0,             # Total sales for site (all items)
-                'TOTAL_AMOUNT': 0.0,            # Total ciment sales amount (qty × price)
+                'TOTAL_CIMENT_STOCK': 0.0,      # Total ciment stock at this site
                 'CIMENT_ARTICLES_WITH_SALES': 0,  # Count of ciment items with sales
                 'TOTAL_CIMENT_SALES_QTY': 0.0  # Total ciment sales quantity
             }
@@ -531,6 +571,16 @@ def api_ciment_report():
             else:
                 row_data['TOTAL_SALES'] = 0.0
                 print(f"📍 SITE {site_id}: No invoice data available")
+            
+            # Calculate ciment stock for this site
+            if not stock_summary.empty:
+                site_stock = stock_summary[stock_summary['SITE'] == site_id]
+                total_ciment_stock = float(site_stock['CURRENT_STOCK'].fillna(0).sum())
+                row_data['TOTAL_CIMENT_STOCK'] = total_ciment_stock
+                print(f"  📦 SITE {site_id}: {len(site_stock)} ciment items, total stock: {total_ciment_stock:,.0f}")
+            else:
+                row_data['TOTAL_CIMENT_STOCK'] = 0.0
+                print(f"  📦 SITE {site_id}: No stock data available")
             
             # Calculate ciment-specific sales from ITEMS table (for individual item breakdown)
             if not all_sales.empty:
@@ -561,7 +611,6 @@ def api_ciment_report():
                     total_ciment_sales += item_sales_qty
                     total_amount += item_amount
                 
-                row_data['TOTAL_AMOUNT'] = total_amount
                 row_data['CIMENT_ARTICLES_WITH_SALES'] = articles_with_sales
                 row_data['TOTAL_CIMENT_SALES_QTY'] = total_ciment_sales
                 row_data['CIMENT_SALES_BY_ITEM'] = ciment_sales_by_item
@@ -569,8 +618,9 @@ def api_ciment_report():
                 
                 # Debug comparison: Invoice sales vs Ciment sales (all using SITE field for filtering)
                 total_sales = row_data.get('TOTAL_SALES', 0)
+                total_stock = row_data.get('TOTAL_CIMENT_STOCK', 0)
                 if total_sales > 0 or total_amount > 0:
-                    print(f"  💰 SITE {site_id} ('{site_name}'): Invoice Sales: ${total_sales:,.2f}, Ciment Sales: ${total_amount:,.2f}")
+                    print(f"  💰 SITE {site_id} ('{site_name}'): Invoice Sales: ${total_sales:,.2f}, Ciment Sales: ${total_amount:,.2f}, Ciment Stock: {total_stock:,.0f}")
             else:
                 # No ITEMS data available for ciment calculations
                 row_data['CIMENT_SALES_BY_ITEM'] = {str(item): 0.0 for item in active_ciment_items}
@@ -612,11 +662,11 @@ def api_ciment_report():
         
         # Summary comparison of invoice vs ciment sales
         total_invoice_sales = sum(site['TOTAL_SALES'] for site in result_data)
-        total_ciment_sales = sum(site['TOTAL_AMOUNT'] for site in result_data)
+        total_ciment_stock = sum(site['TOTAL_CIMENT_STOCK'] for site in result_data)
         print(f"💰 SALES SUMMARY:")
         print(f"   📊 Total Invoice Sales (INVOICE.NET): ${total_invoice_sales:,.2f}")
-        print(f"   📦 Total Ciment Sales (ITEMS×PRICE): ${total_ciment_sales:,.2f}")
-        print(f"   📈 Ratio (Ciment/Total): {(total_ciment_sales/total_invoice_sales*100):.1f}%" if total_invoice_sales > 0 else "   📈 Ratio: N/A")
+        print(f"   📦 Total Ciment Stock (ALLITEM): {total_ciment_stock:,.0f} units")
+        print(f"   📈 Stock Distribution: {len([s for s in result_data if s['TOTAL_CIMENT_STOCK'] > 0])} sites with ciment stock")
         
         # Get ciment item details for column headers (only items with sales)
         ciment_item_details = dataframes['inventory_items'][
@@ -643,17 +693,18 @@ def api_ciment_report():
                 'active_ciment_items_shown': len(active_ciment_items),
                 'from_date': from_date,
                 'to_date': to_date,
-                'sales_only_mode': True,  # Indicate this is sales-only report
-                'data_source': 'INVOICE table (NET) for total sales + ITEMS table for ciment details',
+                'sales_only_mode': False,  # Now includes stock data
+                'data_source': 'INVOICE table (NET) for total sales + ITEMS table for ciment details + ALLITEM for stock',
                 'calculation_method': {
                     'total_sales': 'SUM(INVOICE.NET) grouped by SITE (filtered by SID patterns for Kinshasa)',
                     'ciment_sales': 'SUM(ITEMS.QTY) filtered by ciment category × STOCK.POSPRICE1',
+                    'ciment_stock': 'SUM(ALLITEM.DEBITQTY - ALLITEM.CREDITQTY) filtered by ciment category and SITE',
                     'filtering': 'FTYPE = 1, SID starts with "530" then "5301" (Kinshasa), then group by SITE, date range filtering'
                 },
                 'columns_info': {
-                    'site': 'Site name from sites.DESCR1 field',
+                    'site': 'Site name from sites.SITE field',
                     'total_sales': 'Total site sales revenue (INVOICE.NET filtered by SITE)',
-                    'total_amount': 'Total ciment sales amount (ITEMS.QTY × STOCK.POSPRICE1 filtered by SITE)',
+                    'total_ciment_stock': 'Total ciment stock quantity (ALLITEM filtered by ciment category and SITE)',
                     'ciment_articles_with_sales': 'Number of ciment articles with sales',
                     'total_ciment_sales_qty': 'Total ciment sales quantity'
                 }

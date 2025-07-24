@@ -175,11 +175,11 @@
     <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
         <div class="metric-card metric-warning">
             <div class="metric-icon">
-                <i class="fas fa-cubes"></i>
+                <i class="fas fa-chart-line"></i>
             </div>
             <div class="metric-content">
                 <h3 id="totalAllSales" class="metric-value">0</h3>
-                <p class="metric-label">Articles with Sales</p>
+                <p class="metric-label">Total Sales</p>
             </div>
             <div class="metric-trend">
                 <i class="fas fa-chart-bar"></i>
@@ -198,6 +198,21 @@
             </div>
             <div class="metric-trend">
                 <span class="metric-unit">items</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-lg-4 col-md-6 mb-3">
+        <div class="metric-card metric-success">
+            <div class="metric-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="metric-content">
+                <h3 id="totalCimentValue" class="metric-value">$0</h3>
+                <p class="metric-label">Ciment Sales Value</p>
+            </div>
+            <div class="metric-trend">
+                <i class="fas fa-arrow-up"></i>
             </div>
         </div>
     </div>
@@ -517,7 +532,7 @@
         vertical-align: middle;
     }
     
-    /* First column (site name) should be wider and left-aligned */
+    /* Site name column should be wider and left-aligned */
     #cimentTable th:nth-child(2),
     #cimentTable td:nth-child(2) {
         min-width: 200px;
@@ -572,12 +587,21 @@
         font-size: 0.95rem;
     }
     
-    /* Row Total column styling */
-    #cimentTable td:last-child,
-    #cimentTable th:last-child {
+    /* Row Total column styling (second to last column) */
+    #cimentTable td:nth-last-child(2),
+    #cimentTable th:nth-last-child(2) {
         background-color: #fff3cd !important;
         border-left: 2px solid #ffc107 !important;
         font-weight: bold;
+    }
+    
+    /* Monetary column styling (last column) */
+    #cimentTable td:last-child,
+    #cimentTable th:last-child {
+        background-color: #d4edda !important;
+        border-left: 2px solid #28a745 !important;
+        font-weight: bold;
+        color: #155724 !important;
     }
     
     /* Totals row hover effects */
@@ -644,7 +668,7 @@ $(document).ready(function() {
             } // Site name column
         ];
         
-        // Add numeric formatting for all columns from index 2 onwards
+        // Add numeric formatting for all columns from index 2 onwards (after #, Site)
         const numericTargets = [];
         for (let i = 2; i < tableStructure.totalColumns; i++) {
             numericTargets.push(i);
@@ -663,11 +687,25 @@ $(document).ready(function() {
             }
         });
         
-        // Special styling for Row Total column (last column)
-        const lastColumnIndex = tableStructure.totalColumns - 1;
+        // Special styling for Row Total column (second to last column)
+        const rowTotalColumnIndex = tableStructure.totalColumns - 2;
         columnDefs.push({
-            targets: [lastColumnIndex],
+            targets: [rowTotalColumnIndex],
             className: 'text-end fw-bold bg-warning-subtle'
+        });
+        
+        // Special styling for monetary column (last column)
+        const monetaryColumnIndex = tableStructure.totalColumns - 1;
+        columnDefs.push({
+            targets: [monetaryColumnIndex],
+            className: 'text-end fw-bold bg-success-subtle',
+            render: function(data, type, row) {
+                if (type === 'display') {
+                    const num = parseFloat(data) || 0;
+                    return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+                return data;
+            }
         });
         
         try {
@@ -676,7 +714,7 @@ $(document).ready(function() {
                 responsive: true,
                 pageLength: 25,
                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                order: [[2, 'desc']], // Sort by Articles with Sales by default
+                order: [[2, 'desc']], // Sort by Total Sales by default
                 scrollX: true, // Enable horizontal scrolling for many columns
                 buttons: [
                     {
@@ -838,22 +876,27 @@ $(document).ready(function() {
     // Update summary cards
     function updateSummaryCards(data, metadata) {
         const totalSites = data.length;
-        const totalArticlesWithSales = data.reduce((sum, row) => sum + (parseInt(row.CIMENT_ARTICLES_WITH_SALES) || 0), 0);
+        const totalSalesAcrossSites = data.reduce((sum, row) => sum + (parseFloat(row.TOTAL_SALES) || 0), 0);
         const cimentItems = metadata.ciment_items ? metadata.ciment_items.length : 0;
         
         // Calculate total items sold from individual item sales
         let totalItemsSold = 0;
+        let totalCimentValue = 0;
         data.forEach(row => {
             if (row.CIMENT_SALES_BY_ITEM) {
                 Object.values(row.CIMENT_SALES_BY_ITEM).forEach(qty => {
                     totalItemsSold += parseFloat(qty) || 0;
                 });
             }
+            // Add monetary value from TOTAL_AMOUNT
+            totalCimentValue += parseFloat(row.TOTAL_AMOUNT || 0);
         });
         
         $('#totalSites').text(totalSites.toLocaleString());
         $('#totalCimentSales').text(totalItemsSold.toLocaleString());
-        $('#totalAllSales').text(totalArticlesWithSales.toLocaleString());
+        $('#totalAllSales').text(totalSalesAcrossSites.toLocaleString());
+        $('#totalCimentValue').text('$' + totalCimentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $('#reportDate').text(new Date().toLocaleDateString());
         
         // Show active vs total ciment items
         if (metadata.active_ciment_items_shown && metadata.total_ciment_items_in_category) {
@@ -863,7 +906,6 @@ $(document).ready(function() {
             $('#cimentItems').text(cimentItems.toLocaleString());
         }
         
-        $('#reportDate').text(new Date().toLocaleDateString());
         $('#recordCount').text(data.length.toLocaleString());
     }
     
@@ -881,7 +923,7 @@ $(document).ready(function() {
             <tr>
                 <th class="text-center">#</th>
                 <th class="text-start"><i class="fas fa-building me-2"></i>Site</th>
-                <th class="text-end"><i class="fas fa-cubes me-2"></i>Articles with Sales</th>
+                <th class="text-end"><i class="fas fa-chart-line me-2"></i>Total Sales</th>
         `;
         
         // Add dynamic ciment item columns
@@ -901,9 +943,10 @@ $(document).ready(function() {
             });
         }
         
-        // Add Row Total column
+        // Add Row Total column and monetary column
         headerHtml += `
-                <th class="text-end bg-warning"><i class="fas fa-sum me-2"></i>Row Total</th>
+                <th class="text-end bg-warning"><i class="fas fa-sum me-2"></i>Row Total (Qty)</th>
+                <th class="text-end bg-success text-white"><i class="fas fa-dollar-sign me-2"></i>Total Ciment Sales ($)</th>
             </tr>
         `;
         
@@ -970,7 +1013,8 @@ $(document).ready(function() {
         cimentTable.clear();
         
         // Calculate totals while adding data
-        let totalArticles = 0;
+        let totalSales = 0;
+        let totalMonetary = 0;
         let itemTotals = {};
         
         // Initialize item totals
@@ -985,11 +1029,11 @@ $(document).ready(function() {
             const tableRow = [
                 index + 1,
                 row.SITE_NAME || '',
-                parseInt(row.CIMENT_ARTICLES_WITH_SALES || 0)
+                parseFloat(row.TOTAL_SALES || 0)
             ];
             
             // Track totals
-            totalArticles += parseInt(row.CIMENT_ARTICLES_WITH_SALES || 0);
+            totalSales += parseFloat(row.TOTAL_SALES || 0);
             
             // Add item sales data
             let rowTotal = 0;
@@ -1008,6 +1052,11 @@ $(document).ready(function() {
             // Add row total
             tableRow.push(rowTotal);
             
+            // Add monetary value (TOTAL_AMOUNT from backend)
+            const monetaryValue = parseFloat(row.TOTAL_AMOUNT || 0);
+            tableRow.push(monetaryValue);
+            totalMonetary += monetaryValue;
+            
             // Add to DataTable
             cimentTable.row.add(tableRow);
         });
@@ -1017,7 +1066,7 @@ $(document).ready(function() {
             const totalsRow = [
                 '',
                 '<strong>TOTALS</strong>',
-                totalArticles
+                totalSales
             ];
             
             // Add item totals
@@ -1030,8 +1079,11 @@ $(document).ready(function() {
                 });
             }
             
-            // Add grand total
+            // Add grand total (quantity)
             totalsRow.push(grandTotal);
+            
+            // Add monetary grand total
+            totalsRow.push(totalMonetary);
             
             // Add totals row to table
             cimentTable.row.add(totalsRow);
@@ -1158,3 +1210,4 @@ $(document).ready(function() {
 });
 </script>
 {% endblock %}
+

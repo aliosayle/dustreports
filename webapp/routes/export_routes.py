@@ -159,18 +159,16 @@ def api_export_ciment_report():
             ws[f'A{row}'] = "Note: This report shows sales data only with amounts (qty × price)"
         row += 2
         
-        # Headers (new structure: site, amount, articles with sales, total qty, individual items)
+        # Headers (new structure: site, total sales, individual items, row total qty, monetary value)
         headers = [
             'Site Name',
-            'Total Amount',
-            'Articles with Sales',
-            'Total Sales Qty'
+            'Total Sales (All Items)'
         ]
         
-        # Add individual ciment item sales columns only
+        # Add individual ciment item sales columns
         if metadata.get('ciment_items'):
             for item in metadata['ciment_items']:
-                # Create header: "ITEM_CODE - DESCR1" (keep spaces, just remove "Sales" text)
+                # Create header: "ITEM_CODE - DESCR1"
                 item_code = item['ITEM']
                 item_name = item['DESCR1']
                 
@@ -179,6 +177,12 @@ def api_export_ciment_report():
                     item_name = item_name[:17] + "..."
                 
                 headers.append(f"{item_code} - {item_name}")
+        
+        # Add summary columns at the end
+        headers.extend([
+            'Row Total (Qty)', 
+            'Total Ciment Sales ($)'
+        ])
         
         # Write headers
         for col, header in enumerate(headers, 1):
@@ -190,18 +194,32 @@ def api_export_ciment_report():
         
         # Write data
         for row_idx, site_data in enumerate(report_data, row + 1):
-            # Basic columns
-            ws.cell(row=row_idx, column=1, value=site_data['SITE_NAME']).border = border
-            ws.cell(row=row_idx, column=2, value=site_data['TOTAL_AMOUNT']).border = border
-            ws.cell(row=row_idx, column=3, value=site_data['CIMENT_ARTICLES_WITH_SALES']).border = border
-            ws.cell(row=row_idx, column=4, value=site_data['TOTAL_CIMENT_SALES_QTY']).border = border
+            col_idx = 1
+            
+            # Site name
+            ws.cell(row=row_idx, column=col_idx, value=site_data['SITE_NAME']).border = border
+            col_idx += 1
+            
+            # Total sales (all items)
+            ws.cell(row=row_idx, column=col_idx, value=site_data['TOTAL_SALES']).border = border
+            col_idx += 1
             
             # Individual item sales
+            row_total_qty = 0
             if metadata.get('ciment_items'):
-                for col_idx, item in enumerate(metadata['ciment_items'], 5):
+                for item in metadata['ciment_items']:
                     item_code = item['ITEM']
                     sales_qty = site_data.get('CIMENT_SALES_BY_ITEM', {}).get(item_code, 0)
                     ws.cell(row=row_idx, column=col_idx, value=sales_qty).border = border
+                    row_total_qty += sales_qty
+                    col_idx += 1
+            
+            # Row total (quantity)
+            ws.cell(row=row_idx, column=col_idx, value=row_total_qty).border = border
+            col_idx += 1
+            
+            # Monetary value
+            ws.cell(row=row_idx, column=col_idx, value=site_data['TOTAL_AMOUNT']).border = border
         
         # Auto-adjust column widths (adjusted for headers with spaces)
         for column in ws.columns:

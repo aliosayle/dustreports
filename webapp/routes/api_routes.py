@@ -356,17 +356,8 @@ def api_ciment_report():
         if not dataframes:
             return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
         
-        # Get all non-depot sites (exclude depot sites where SIDNO = '3700004')
-        if 'sites' not in dataframes or dataframes['sites'] is None:
-            return jsonify({'error': 'Sites data not available'}), 400
-        
-        # Get Kinshasa sites only (SIDNO = '3700002')
-        kinshasa_sites = dataframes['sites'][dataframes['sites']['SIDNO'] == '3700002'].copy()
-        
-        if kinshasa_sites.empty:
-            return jsonify({'error': 'No Kinshasa sites found (SIDNO = 3700002)'}), 404
-            
-        print(f"📍 Found {len(kinshasa_sites)} Kinshasa sites for ciment report")
+        # NOTE: Removed ALLSTOCK-based site filtering to match sales report exactly
+        # We'll filter by SID patterns in the INVOICE table directly (same as sales report)
         
         # Get ciment category items
         if 'categories' not in dataframes or dataframes['categories'] is None:
@@ -403,7 +394,57 @@ def api_ciment_report():
         
         print(f"📦 Found {len(ciment_items)} items in ciment category")
         
-        # Pre-filter sales data to find items with actual sales
+        # Get invoice data for total sales calculation (same logic as sales report)
+        if 'invoice_headers' not in dataframes or dataframes['invoice_headers'] is None:
+            return jsonify({'error': 'Invoice data not available'}), 400
+        
+        invoice_df = dataframes['invoice_headers'].copy()
+        print(f"📊 Working with {len(invoice_df)} invoice records for total sales")
+        
+        # Filter for valid sales transactions (FTYPE = 1) - same as sales report
+        if 'FTYPE' in invoice_df.columns:
+            invoice_df = invoice_df[invoice_df['FTYPE'] == 1]
+            print(f"📊 After FTYPE=1 filter: {len(invoice_df)} invoice records")
+        
+        # Filter for SID starting with "530" - EXACT same logic as sales report
+        if 'SID' in invoice_df.columns:
+            invoice_df = invoice_df[invoice_df['SID'].astype(str).str.startswith('530')]
+            print(f"📊 After SID starts with '530' filter: {len(invoice_df)} invoice records")
+        else:
+            return jsonify({'error': 'SID column not found in invoice data'}), 400
+        
+        # Filter for Kinshasa sites (SID starting with "5301") - EXACT same logic as sales report
+        invoice_df = invoice_df[invoice_df['SID'].astype(str).str.startswith('5301')]
+        print(f"📊 After Kinshasa SID filter (5301): {len(invoice_df)} invoice records")
+        
+        if invoice_df.empty:
+            return jsonify({'error': 'No Kinshasa sales found (SID starting with 5301)'}), 404
+        
+        # Filter by date range if specified
+        if from_date or to_date:
+            invoice_df['FDATE'] = pd.to_datetime(invoice_df['FDATE'], errors='coerce')
+            if from_date:
+                from_date_dt = pd.to_datetime(from_date)
+                invoice_df = invoice_df[invoice_df['FDATE'] >= from_date_dt]
+            if to_date:
+                to_date_dt = pd.to_datetime(to_date)
+                invoice_df = invoice_df[invoice_df['FDATE'] <= to_date_dt]
+            print(f"📊 After date filter: {len(invoice_df)} invoice records")
+        
+        # Fill NaN values for calculations
+        invoice_df['NET'] = invoice_df['NET'].fillna(0)
+        
+        # Get unique SITE values from filtered invoice data (SITE is the actual site identifier)
+        kinshasa_sites_from_invoices = invoice_df['SITE'].unique()
+        print(f"📍 Found {len(kinshasa_sites_from_invoices)} unique SITE values from Kinshasa invoices: {list(kinshasa_sites_from_invoices)[:10]}...")
+        
+        # Also show SID to SITE mapping for debugging
+        sid_site_mapping = invoice_df[['SID', 'SITE']].drop_duplicates().head(10)
+        print(f"📍 SID to SITE mapping (sample):")
+        for _, row in sid_site_mapping.iterrows():
+            print(f"   SID: {row['SID']} -> SITE: {row['SITE']}")
+        
+        # Pre-filter sales data from ITEMS table to find ciment items with actual sales
         if 'sales_details' in dataframes and dataframes['sales_details'] is not None:
             all_sales = dataframes['sales_details'].copy()
             
@@ -448,25 +489,54 @@ def api_ciment_report():
         # Calculate sales for each site (no stock data needed)
         result_data = []
         
-        for i, (_, site) in enumerate(kinshasa_sites.iterrows()):
+        # Get site names from sites dataframe using DESCR1 field
+        site_names_mapping = {}
+        if 'sites' in dataframes and dataframes['sites'] is not None:
+            sites_df = dataframes['sites'].copy()
+            if 'DESCR1' in sites_df.columns:
+                sites_df['ID'] = sites_df['ID'].astype(str)
+                site_names_dict = dict(zip(sites_df['ID'], sites_df['DESCR1']))
+                site_names_mapping = site_names_dict
+                print(f"📍 Retrieved site names for {len(site_names_dict)} sites from sites dataframe (DESCR1 field)")
+        
+        for i, site_id in enumerate(kinshasa_sites_from_invoices):
             if i % 10 == 0:  # Progress logging every 10 sites
-                print(f"📍 Processing site {i+1}/{len(kinshasa_sites)}: {site['SITE']}")
+                print(f"📍 Processing site {i+1}/{len(kinshasa_sites_from_invoices)}: {site_id}")
             
-            site_id = site['ID']
-            site_name = site['SITE']
+            # Use site name from sites dataframe DESCR1 field, otherwise use SITE value
+            # NOTE: site_name is for DISPLAY ONLY - all filtering uses actual SITE field
+            site_name = site_names_mapping.get(str(site_id), f"Site {site_id}")
+            print(f"  🏷️  SITE {site_id} -> Display name: '{site_name}'")
             
             # Initialize row data with Python native types (sales only)
             row_data = {
-                'SITE_ID': str(site_id),
-                'SITE_NAME': str(site_name),
-                'TOTAL_AMOUNT': 0.0,  # Total sales amount (qty × price)
+                'SITE_ID': str(site_id),        # Actual SITE field value
+                'SITE_NAME': str(site_name),    # Display name from sites.DESCR1
+                'TOTAL_SALES': 0.0,             # Total sales for site (all items)
+                'TOTAL_AMOUNT': 0.0,            # Total ciment sales amount (qty × price)
                 'CIMENT_ARTICLES_WITH_SALES': 0,  # Count of ciment items with sales
                 'TOTAL_CIMENT_SALES_QTY': 0.0  # Total ciment sales quantity
             }
             
-            # Calculate sales for this site
+            # Calculate total sales for this site using INVOICE.NET
+            if not invoice_df.empty:
+                # Use SITE column from INVOICE table (site_id is the SITE field value)
+                site_invoices = invoice_df[invoice_df['SITE'] == site_id]
+                
+                # Calculate total sales using NET amounts (actual invoiced revenue)
+                total_site_sales = float(site_invoices['NET'].fillna(0).sum())
+                row_data['TOTAL_SALES'] = total_site_sales
+                
+                print(f"📍 SITE {site_id}: {len(site_invoices)} invoices, total sales: ${total_site_sales:,.2f}")
+            else:
+                row_data['TOTAL_SALES'] = 0.0
+                print(f"📍 SITE {site_id}: No invoice data available")
+            
+            # Calculate ciment-specific sales from ITEMS table (for individual item breakdown)
             if not all_sales.empty:
+                # Use site_id (SITE field) for filtering ITEMS table, not site_name
                 site_sales = all_sales[all_sales['SITE'] == site_id]
+                print(f"  📦 ITEMS table filtering: Found {len(site_sales)} records for SITE {site_id}")
                 
                 # Calculate ciment sales by item with amounts
                 ciment_sales_by_item = {}
@@ -496,18 +566,24 @@ def api_ciment_report():
                 row_data['TOTAL_CIMENT_SALES_QTY'] = total_ciment_sales
                 row_data['CIMENT_SALES_BY_ITEM'] = ciment_sales_by_item
                 row_data['CIMENT_AMOUNTS_BY_ITEM'] = ciment_amounts_by_item
+                
+                # Debug comparison: Invoice sales vs Ciment sales (all using SITE field for filtering)
+                total_sales = row_data.get('TOTAL_SALES', 0)
+                if total_sales > 0 or total_amount > 0:
+                    print(f"  💰 SITE {site_id} ('{site_name}'): Invoice Sales: ${total_sales:,.2f}, Ciment Sales: ${total_amount:,.2f}")
             else:
+                # No ITEMS data available for ciment calculations
                 row_data['CIMENT_SALES_BY_ITEM'] = {str(item): 0.0 for item in active_ciment_items}
                 row_data['CIMENT_AMOUNTS_BY_ITEM'] = {str(item): 0.0 for item in active_ciment_items}
             
             result_data.append(row_data)
         
-        # Filter out sites with zero total sales amount
-        result_data = [site_data for site_data in result_data if site_data['TOTAL_AMOUNT'] > 0]
-        print(f"📊 Filtered out sites with zero sales: {len(result_data)} sites remaining")
+        # Filter out sites with zero total sales (using INVOICE.NET amounts)
+        result_data = [site_data for site_data in result_data if site_data['TOTAL_SALES'] > 0]
+        print(f"📊 Filtered out sites with zero invoice sales: {len(result_data)} sites remaining")
         
-        # Sort by total amount descending (highest sales first)
-        result_data.sort(key=lambda x: x['TOTAL_AMOUNT'], reverse=True)
+        # Sort by total sales descending (highest invoice sales first)
+        result_data.sort(key=lambda x: x['TOTAL_SALES'], reverse=True)
         
         # Filter out ciment items with 0 overall sales across all sites
         items_with_sales = set()
@@ -533,6 +609,14 @@ def api_ciment_report():
                 }
         
         print(f"📊 Filtered to {len(active_ciment_items)} ciment items with actual sales")
+        
+        # Summary comparison of invoice vs ciment sales
+        total_invoice_sales = sum(site['TOTAL_SALES'] for site in result_data)
+        total_ciment_sales = sum(site['TOTAL_AMOUNT'] for site in result_data)
+        print(f"💰 SALES SUMMARY:")
+        print(f"   📊 Total Invoice Sales (INVOICE.NET): ${total_invoice_sales:,.2f}")
+        print(f"   📦 Total Ciment Sales (ITEMS×PRICE): ${total_ciment_sales:,.2f}")
+        print(f"   📈 Ratio (Ciment/Total): {(total_ciment_sales/total_invoice_sales*100):.1f}%" if total_invoice_sales > 0 else "   📈 Ratio: N/A")
         
         # Get ciment item details for column headers (only items with sales)
         ciment_item_details = dataframes['inventory_items'][
@@ -560,9 +644,16 @@ def api_ciment_report():
                 'from_date': from_date,
                 'to_date': to_date,
                 'sales_only_mode': True,  # Indicate this is sales-only report
+                'data_source': 'INVOICE table (NET) for total sales + ITEMS table for ciment details',
+                'calculation_method': {
+                    'total_sales': 'SUM(INVOICE.NET) grouped by SITE (filtered by SID patterns for Kinshasa)',
+                    'ciment_sales': 'SUM(ITEMS.QTY) filtered by ciment category × STOCK.POSPRICE1',
+                    'filtering': 'FTYPE = 1, SID starts with "530" then "5301" (Kinshasa), then group by SITE, date range filtering'
+                },
                 'columns_info': {
-                    'site': 'Site name',
-                    'total_amount': 'Total amount (sales × price)',
+                    'site': 'Site name from sites.DESCR1 field',
+                    'total_sales': 'Total site sales revenue (INVOICE.NET filtered by SITE)',
+                    'total_amount': 'Total ciment sales amount (ITEMS.QTY × STOCK.POSPRICE1 filtered by SITE)',
                     'ciment_articles_with_sales': 'Number of ciment articles with sales',
                     'total_ciment_sales_qty': 'Total ciment sales quantity'
                 }

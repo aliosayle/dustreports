@@ -1257,3 +1257,346 @@ def api_sales_by_item_report():
     except Exception as e:
         print(f"Error in sales by item report: {e}")
         return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/kinshasa-bureau-client-report', methods=['POST'])
+def api_kinshasa_bureau_client_report():
+    """
+    Generate Kinshasa Sales Bureau Client Report
+    Shows sales and returns for office clients (SID starting with 4112)
+    """
+    try:
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        
+        # Validate dates
+        if not from_date or not to_date:
+            return jsonify({'error': 'Both from_date and to_date are required'}), 400
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get sales details data (ITEMS table)
+        if 'sales_details' not in dataframes or dataframes['sales_details'] is None:
+            return jsonify({'error': 'Sales details data not available'}), 400
+        
+        sales_df = dataframes['sales_details'].copy()
+        print(f"📊 Working with {len(sales_df)} sales detail records")
+        
+        # Filter for SID starting with "4112" (office clients)
+        if 'SID' in sales_df.columns:
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('4112')]
+            print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'SID column not found in sales details'}), 400
+        
+        # Filter by date range
+        if 'FDATE' in sales_df.columns:
+            sales_df['FDATE'] = pd.to_datetime(sales_df['FDATE'], errors='coerce')
+            from_date_dt = pd.to_datetime(from_date)
+            to_date_dt = pd.to_datetime(to_date)
+            
+            sales_df = sales_df[
+                (sales_df['FDATE'] >= from_date_dt) & 
+                (sales_df['FDATE'] <= to_date_dt)
+            ]
+            print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'FDATE column not found in sales details'}), 400
+        
+        if sales_df.empty:
+            return jsonify({'error': 'No sales found for the specified criteria'}), 404
+        
+        # Ensure FTYPE and QTY columns exist
+        if 'FTYPE' not in sales_df.columns:
+            return jsonify({'error': 'FTYPE column not found in sales details'}), 400
+        
+        # Get quantity column
+        qty_col = 'QTY' if 'QTY' in sales_df.columns else ('QTY1' if 'QTY1' in sales_df.columns else None)
+        if qty_col is None:
+            return jsonify({'error': 'No quantity column (QTY/QTY1) found in sales details'}), 400
+        
+        # Fill NaN values
+        sales_df[qty_col] = sales_df[qty_col].fillna(0)
+        
+        # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
+        sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
+        
+        # Calculate sales (FTYPE = 1) and returns (FTYPE = 2) by SID (client)
+        sales_by_client = sales_df.groupby(['SID', 'FTYPE'])[qty_col].sum().reset_index()
+        
+        # Separate sales and returns
+        sales_only = sales_by_client[sales_by_client['FTYPE'] == 1].copy()
+        returns_only = sales_by_client[sales_by_client['FTYPE'] == 2].copy()
+        
+        # Create result dataframe
+        result_data = []
+        all_sids = sales_df['SID'].unique()
+        
+        for sid in all_sids:
+            sid_str = str(sid)
+            
+            # Get sales quantity (FTYPE = 1)
+            sales_qty = sales_only[sales_only['SID'] == sid][qty_col].sum() if not sales_only[sales_only['SID'] == sid].empty else 0
+            
+            # Get returns quantity (FTYPE = 2)
+            returns_qty = returns_only[returns_only['SID'] == sid][qty_col].sum() if not returns_only[returns_only['SID'] == sid].empty else 0
+            
+            # Calculate total (sales - returns)
+            total_qty = sales_qty - returns_qty
+            
+            result_data.append({
+                'SID': sid_str,
+                'SALES_QTY': float(sales_qty),
+                'RETURNS_QTY': float(returns_qty),
+                'TOTAL_QTY': float(total_qty)
+            })
+        
+        # Get client names from SUB table (accounts dataframe)
+        client_names = {}
+        if 'accounts' in dataframes and dataframes['accounts'] is not None:
+            accounts_df = dataframes['accounts'].copy()
+            if 'SID' in accounts_df.columns and 'SNAME' in accounts_df.columns:
+                # Convert SID to string for matching
+                accounts_df['SID'] = accounts_df['SID'].astype(str)
+                # Get unique SID-SNAME mappings
+                sid_name_map = accounts_df[['SID', 'SNAME']].drop_duplicates()
+                client_names = dict(zip(sid_name_map['SID'], sid_name_map['SNAME']))
+                print(f"📍 Retrieved client names for {len(client_names)} clients from SUB table")
+        
+        # Add client names to result data
+        for row in result_data:
+            sid = row['SID']
+            row['CLIENT_NAME'] = client_names.get(sid, f"Client {sid}")
+        
+        # Sort by total quantity descending
+        result_data.sort(key=lambda x: x['TOTAL_QTY'], reverse=True)
+        
+        # Calculate totals
+        total_sales = sum(row['SALES_QTY'] for row in result_data)
+        total_returns = sum(row['RETURNS_QTY'] for row in result_data)
+        total_net = sum(row['TOTAL_QTY'] for row in result_data)
+        
+        return jsonify({
+            'data': result_data,
+            'metadata': {
+                'total_clients': len(result_data),
+                'from_date': from_date,
+                'to_date': to_date,
+                'total_sales_qty': float(total_sales),
+                'total_returns_qty': float(total_returns),
+                'total_net_qty': float(total_net),
+                'filter': 'SID starting with 4112 (Office Clients)',
+                'data_source': 'ITEMS table (sales_details)',
+                'calculation_method': {
+                    'sales': 'SUM(QTY) where FTYPE = 1',
+                    'returns': 'SUM(QTY) where FTYPE = 2',
+                    'total': 'SALES_QTY - RETURNS_QTY'
+                },
+                'columns_info': {
+                    'client_name': 'Client name from SUB.SNAME',
+                    'sales_qty': 'Total sales quantity (FTYPE = 1)',
+                    'returns_qty': 'Total returns quantity (FTYPE = 2)',
+                    'total_qty': 'Net quantity (Sales - Returns)'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in Kinshasa Bureau Client report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/kinshasa-bureau-items-report', methods=['POST'])
+def api_kinshasa_bureau_items_report():
+    """
+    Generate Kinshasa Sales Bureau Top Items Report
+    Shows top items by sales/returns for office clients (SID starting with 4112)
+    """
+    try:
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        top_n = data.get('top_n', 50)  # Default to top 50 items
+        
+        # Convert top_n to int if it's a string
+        try:
+            top_n = int(top_n) if top_n else 0
+        except (ValueError, TypeError):
+            top_n = 50  # Default to 50 if conversion fails
+        
+        # Validate dates
+        if not from_date or not to_date:
+            return jsonify({'error': 'Both from_date and to_date are required'}), 400
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get sales details data (ITEMS table)
+        if 'sales_details' not in dataframes or dataframes['sales_details'] is None:
+            return jsonify({'error': 'Sales details data not available'}), 400
+        
+        sales_df = dataframes['sales_details'].copy()
+        print(f"📊 Working with {len(sales_df)} sales detail records")
+        
+        # Filter for SID starting with "4112" (office clients)
+        if 'SID' in sales_df.columns:
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('4112')]
+            print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'SID column not found in sales details'}), 400
+        
+        # Filter by date range
+        if 'FDATE' in sales_df.columns:
+            sales_df['FDATE'] = pd.to_datetime(sales_df['FDATE'], errors='coerce')
+            from_date_dt = pd.to_datetime(from_date)
+            to_date_dt = pd.to_datetime(to_date)
+            
+            sales_df = sales_df[
+                (sales_df['FDATE'] >= from_date_dt) & 
+                (sales_df['FDATE'] <= to_date_dt)
+            ]
+            print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'FDATE column not found in sales details'}), 400
+        
+        if sales_df.empty:
+            return jsonify({'error': 'No sales found for the specified criteria'}), 404
+        
+        # Ensure FTYPE and QTY columns exist
+        if 'FTYPE' not in sales_df.columns:
+            return jsonify({'error': 'FTYPE column not found in sales details'}), 400
+        
+        # Get quantity column
+        qty_col = 'QTY' if 'QTY' in sales_df.columns else ('QTY1' if 'QTY1' in sales_df.columns else None)
+        if qty_col is None:
+            return jsonify({'error': 'No quantity column (QTY/QTY1) found in sales details'}), 400
+        
+        # Fill NaN values
+        sales_df[qty_col] = sales_df[qty_col].fillna(0)
+        
+        # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
+        sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
+        
+        # Calculate sales (FTYPE = 1) and returns (FTYPE = 2) by ITEM
+        sales_by_item = sales_df.groupby(['ITEM', 'FTYPE'])[qty_col].sum().reset_index()
+        
+        # Separate sales and returns
+        sales_only = sales_by_item[sales_by_item['FTYPE'] == 1].copy()
+        returns_only = sales_by_item[sales_by_item['FTYPE'] == 2].copy()
+        
+        # Create result dataframe
+        all_items = sales_df['ITEM'].unique()
+        result_data = []
+        
+        for item_code in all_items:
+            # Get sales quantity (FTYPE = 1)
+            sales_qty = sales_only[sales_only['ITEM'] == item_code][qty_col].sum() if not sales_only[sales_only['ITEM'] == item_code].empty else 0
+            
+            # Get returns quantity (FTYPE = 2)
+            returns_qty = returns_only[returns_only['ITEM'] == item_code][qty_col].sum() if not returns_only[returns_only['ITEM'] == item_code].empty else 0
+            
+            # Calculate total (sales - returns)
+            total_qty = sales_qty - returns_qty
+            
+            result_data.append({
+                'ITEM_CODE': str(item_code),
+                'SALES_QTY': float(sales_qty),
+                'RETURNS_QTY': float(returns_qty),
+                'TOTAL_QTY': float(total_qty)
+            })
+        
+        # Convert to DataFrame for easier processing
+        result_df = pd.DataFrame(result_data)
+        
+        # Get item information (names, categories) from inventory_items
+        if 'inventory_items' not in dataframes or dataframes['inventory_items'] is None:
+            return jsonify({'error': 'Inventory items data not available'}), 400
+        
+        items_df = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY']].drop_duplicates()
+        items_df.columns = ['ITEM_CODE', 'ITEM_NAME', 'CATEGORY_ID']
+        items_df['ITEM_CODE'] = items_df['ITEM_CODE'].astype(str)
+        result_df['ITEM_CODE'] = result_df['ITEM_CODE'].astype(str)
+        
+        # Merge with item information
+        result_df = result_df.merge(items_df, on='ITEM_CODE', how='left')
+        result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('Unknown Item')
+        result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].fillna('')
+        
+        # Get category names
+        if 'categories' in dataframes and dataframes['categories'] is not None:
+            categories_df = dataframes['categories'][['ID', 'DESCR']].drop_duplicates()
+            categories_df['ID'] = categories_df['ID'].astype(str)
+            categories_df.columns = ['CATEGORY_ID', 'CATEGORY_NAME']
+            
+            result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].astype(str)
+            result_df = result_df.merge(categories_df, on='CATEGORY_ID', how='left')
+            result_df['CATEGORY_NAME'] = result_df['CATEGORY_NAME'].fillna('Unknown Category')
+        else:
+            result_df['CATEGORY_NAME'] = 'Unknown Category'
+        
+        # Filter out items with no sales
+        result_df = result_df[result_df['TOTAL_QTY'] != 0]
+        
+        # Sort by total quantity descending to get top items
+        result_df = result_df.sort_values('TOTAL_QTY', ascending=False)
+        
+        # Limit to top N items (top_n is already converted to int at the beginning)
+        if top_n > 0:
+            result_df = result_df.head(top_n)
+        
+        # Convert to list of dictionaries for JSON response
+        result_data = []
+        for _, row in result_df.iterrows():
+            row_data = {
+                'ITEM_CODE': str(row['ITEM_CODE']),
+                'ITEM_NAME': str(row['ITEM_NAME']),
+                'CATEGORY': str(row['CATEGORY_NAME']),
+                'SALES_QTY': float(row['SALES_QTY']),
+                'RETURNS_QTY': float(row['RETURNS_QTY']),
+                'TOTAL_QTY': float(row['TOTAL_QTY'])
+            }
+            result_data.append(row_data)
+        
+        # Calculate totals
+        total_sales = result_df['SALES_QTY'].sum()
+        total_returns = result_df['RETURNS_QTY'].sum()
+        total_net = result_df['TOTAL_QTY'].sum()
+        
+        return jsonify({
+            'data': result_data,
+            'metadata': {
+                'total_items': len(result_data),
+                'top_n': int(top_n) if top_n and str(top_n) != '0' else 'all',
+                'from_date': from_date,
+                'to_date': to_date,
+                'total_sales_qty': float(total_sales),
+                'total_returns_qty': float(total_returns),
+                'total_net_qty': float(total_net),
+                'filter': 'SID starting with 4112 (Office Clients)',
+                'data_source': 'ITEMS table (sales_details)',
+                'calculation_method': {
+                    'sales': 'SUM(QTY) where FTYPE = 1',
+                    'returns': 'SUM(QTY) where FTYPE = 2',
+                    'total': 'SALES_QTY - RETURNS_QTY',
+                    'sorting': 'Sorted by TOTAL_QTY descending (top items)'
+                },
+                'columns_info': {
+                    'item_code': 'Item code',
+                    'item_name': 'Item description (DESCR1)',
+                    'category': 'Category name from categories.DESCR',
+                    'sales_qty': 'Total sales quantity (FTYPE = 1)',
+                    'returns_qty': 'Total returns quantity (FTYPE = 2)',
+                    'total_qty': 'Net quantity (Sales - Returns)'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in Kinshasa Bureau Items report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

@@ -1,0 +1,498 @@
+
+
+
+🔍 DEBUG formatNumber result: 
+Object { input: 0.03225806451612903, output: 0.03, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 24, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 232.5, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 232.5, output: 232.5, wasChanged: false }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL070", site: "LIM", raw_total_sales: 2, type: "number", formatted_sales: 2, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 15, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.06451612903225806, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.06451612903225806, output: 0.06, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 4172, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 51.66666666666667, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 51.66666666666667, output: 51.67, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL080", site: "LIM", raw_total_sales: 3, type: "number", formatted_sales: 3, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 5, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.0967741935483871, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.0967741935483871, output: 0.1, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1135, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 217, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL081", site: "LIM", raw_total_sales: 1, type: "number", formatted_sales: 1, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 7, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.03225806451612903, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.03225806451612903, output: 0.03, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1048, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 279, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL082", site: "LIM", raw_total_sales: 1, type: "number", formatted_sales: 1, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 9, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.03225806451612903, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.03225806451612903, output: 0.03, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 148, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 93, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL083", site: "LIM", raw_total_sales: 1, type: "number", formatted_sales: 1, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.03225806451612903, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.03225806451612903, output: 0.03, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 79, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 193.75, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 193.75, output: 193.75, wasChanged: false }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL090", site: "LIM", raw_total_sales: 4, type: "number", formatted_sales: 4, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 25, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.12903225806451613, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.12903225806451613, output: 0.13, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 4324, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 45.58823529411765, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 45.58823529411765, output: 45.59, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 17, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG: Processing sales value: 
+Object { item: "JKL091", site: "LIM", raw_total_sales: 17, type: "number", formatted_sales: 17, is_positive: true, is_zero: false }
+autonomy:2326:25
+🔍 DEBUG formatNumber: 
+Object { input: 25, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 17, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 0.5483870967741935, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber result: 
+Object { input: 0.5483870967741935, output: 0.55, wasChanged: true }
+autonomy:2130:21
+🔍 DEBUG formatNumber: 
+Object { input: 6, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2100:21
+🔍 DEBUG formatNumber: 
+Object { input: 17, type: "number", isNaN: false }
+autonomy:2100:21
+
+​
+
+
+🔍 DEBUG formatNumber: 
+Object { input: 0.06451612903225806, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 5, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 7, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 6, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 5, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 7, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 14, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 6, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 9, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 7, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 13, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 13, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 9, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 11, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 5, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 16, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 6, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 6, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 10, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 17, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 18, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 5, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 2, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 5, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 4, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 3, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 1, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG formatNumber: 
+Object { input: 17, type: "number", isNaN: false }
+autonomy:2122:21
+🔍 DEBUG: P258_E20-LEXT in DataTables: 1 autonomy:2631:17
+🔍 DEBUG: P258_E20-LEXT in table 0: 
+Object { SITE: "LIM", ITEM: "P258_E20-LEXT", ITEM_NAME: "LATEX EXT EAGLE 20 KG", CATEGORY: "PEINTURE", CURRENT_STOCK: -3 }
+autonomy:2634:25
+🔍 DEBUG: Total rows in DOM table: 25 autonomy:2647:21
+🔍 DEBUG: P258_E20-LEXT rows in DOM: 0 autonomy:2667:21
+🔍 DEBUG: DataTables search filter: <empty string> autonomy:2676:21
+🔍 DEBUG: DataTables page info: 
+Object { page: 0, pages: 21, start: 0, end: 25, length: 25, recordsTotal: 505, recordsDisplay: 505, serverSide: false }
+autonomy:2688:21
+🔍 DEBUG: P258_E20-LEXT index in all data: 445 autonomy:2693:21
+🔍 DEBUG: P258_E20-LEXT at index 445, current page shows 0-25 autonomy:2698:25
+🔍 DEBUG: P258_E20-LEXT is NOT on current page! autonomy:2701:29
+🔍 DEBUG: Going to page 17 to find P258_E20-LEXT autonomy:2704:29
+🔍 DEBUG: P258_E20-LEXT is in DataTables but not in DOM - likely filtered out! autonomy:2711:25
+🔍 DEBUG: Try clearing all filters... autonomy:2712:25
+🔍 DEBUG: P258_E20-LEXT rows in DOM after clearing filters: 0 autonomy:2735:29
+
+​
+

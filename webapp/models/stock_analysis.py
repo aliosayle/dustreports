@@ -56,8 +56,8 @@ class StockAnalyzer:
             to_date = as_of_date
             print(f"   📅 Using sales period: {from_date} to {to_date} (30 days from as_of_date)")
         
-        # Use inventory transactions for sales calculation (CREDITQTY) - SAME AS AUTONOMY REPORT
-        all_sales = self._calculate_all_sales_optimized(inventory_df, stock_results, from_date, to_date)
+        # Use sales details with FTYPE logic (1=sale, 2=return -> subtract)
+        all_sales = self._calculate_all_sales_optimized(stock_results, from_date, to_date)
         
         # Merge sales with stock results
         stock_results = stock_results.merge(all_sales, on=['SITE', 'ITEM'], how='left')
@@ -151,11 +151,11 @@ class StockAnalyzer:
             return (to_dt - from_dt).days + 1
         return 1
     
-    def _calculate_all_sales_optimized(self, inventory_df, stock_results, from_date, to_date):
-        """Calculate sales for all items at once using inventory transactions (CREDITQTY) - SAME AS AUTONOMY REPORT"""
+    def _calculate_all_sales_optimized(self, stock_results, from_date, to_date):
+        """Calculate sales using sales_details with FTYPE handling (1=sale, 2=return -> subtract)."""
         
         print(f"   📊 Optimized sales calculation for {len(stock_results)} items...")
-        print(f"   📊 Using inventory transactions (CREDITQTY) for sales calculation - same as autonomy report")
+        print(f"   📊 Using sales_details with FTYPE (1 sale, 2 return) for sales calculation")
         
         # Get unique site/item combinations from stock results
         stock_items = stock_results[['SITE', 'ITEM']].copy()
@@ -167,68 +167,86 @@ class StockAnalyzer:
             from_date = (pd.Timestamp.now() - pd.Timedelta(days=30)).strftime('%Y-%m-%d')
             print(f"   📅 Using default date range: {from_date} to {to_date}")
         
-        # Use inventory transactions (ALLITEM table) for sales calculation - SAME AS AUTONOMY REPORT
-        # Sales are calculated from CREDITQTY (outgoing transactions)
-        try:
-            # Filter inventory transactions for the date range
-            sales_filtered = inventory_df[
-                (pd.to_datetime(inventory_df['FDATE']) >= pd.to_datetime(from_date)) &
-                (pd.to_datetime(inventory_df['FDATE']) <= pd.to_datetime(to_date))
-            ].copy()
-        except Exception as e:
-            print(f"   ❌ Error filtering inventory transactions: {e}")
-            # Return zeros for all items if filtering fails
+        sales_df = self.dataframes.get('sales_details')
+        
+        if sales_df is None:
+            print("   ❌ sales_details not available; returning zeros")
             stock_items['TOTAL_SALES_QTY'] = 0
             stock_items['SALES_TRANSACTIONS'] = 0
             stock_items['MAX_DAILY_SALES'] = 0
             stock_items['MIN_DAILY_SALES'] = 0
             return stock_items
         
-        print(f"   📊 Filtered inventory transactions to {len(sales_filtered)} records for date range")
+        df = sales_df.copy()
         
-        if sales_filtered.empty:
-            # Return zeros for all items
+        # No fallback joins; rely strictly on sales_details content
+        
+        # Ensure required columns exist (strict: must have ITEM, SITE, FTYPE)
+        if 'ITEM' not in df.columns or 'SITE' not in df.columns or 'FTYPE' not in df.columns:
+            print("   ❌ Required columns missing in sales_details (need ITEM, SITE, FTYPE); returning zeros")
             stock_items['TOTAL_SALES_QTY'] = 0
             stock_items['SALES_TRANSACTIONS'] = 0
             stock_items['MAX_DAILY_SALES'] = 0
             stock_items['MIN_DAILY_SALES'] = 0
             return stock_items
         
-        # Use CREDITQTY for sales calculation (same as autonomy report)
-        # CREDITQTY represents outgoing transactions (sales, issues, transfers out)
-        sales_filtered['CREDITQTY'] = sales_filtered['CREDITQTY'].fillna(0)
-        sales_filtered['NET_SALES'] = sales_filtered['CREDITQTY']  # Sales = outgoing transactions
+        # Date filter
+        if 'FDATE' in df.columns:
+            try:
+                df['FDATE'] = pd.to_datetime(df['FDATE'], errors='coerce')
+                df = df[(df['FDATE'] >= pd.to_datetime(from_date)) & (df['FDATE'] <= pd.to_datetime(to_date))]
+            except Exception as e:
+                print(f"   ⚠️ Error parsing FDATE for sales filter: {e}")
+        else:
+            print("   ⚠️ No FDATE available in sales data; skipping date filter")
         
-        # Group by SITE, ITEM, and DATE to calculate daily sales
-        sales_filtered['FDATE'] = pd.to_datetime(sales_filtered['FDATE']).dt.date
-        daily_sales = sales_filtered.groupby(['SITE', 'ITEM', 'FDATE']).agg({
-            'NET_SALES': 'sum'
+        if df.empty:
+            stock_items['TOTAL_SALES_QTY'] = 0
+            stock_items['SALES_TRANSACTIONS'] = 0
+            stock_items['MAX_DAILY_SALES'] = 0
+            stock_items['MIN_DAILY_SALES'] = 0
+            return stock_items
+        
+        # Quantity column
+        qty_col = 'QTY' if 'QTY' in df.columns else ('QTY1' if 'QTY1' in df.columns else None)
+        if qty_col is None:
+            print("   ❌ No quantity column (QTY/QTY1) in sales_details; returning zeros")
+            stock_items['TOTAL_SALES_QTY'] = 0
+            stock_items['SALES_TRANSACTIONS'] = 0
+            stock_items['MAX_DAILY_SALES'] = 0
+            stock_items['MIN_DAILY_SALES'] = 0
+            return stock_items
+        df[qty_col] = df[qty_col].fillna(0)
+        
+        # Apply FTYPE logic strictly: include only 1 or 2; 1 = +, 2 = -
+        df = df[df['FTYPE'].isin([1, 2])]
+        df['SIGNED_QTY'] = df.apply(lambda r: r[qty_col] if r['FTYPE'] == 1 else -r[qty_col], axis=1)
+        
+        # Compute daily sales when dates are available
+        if 'FDATE' in df.columns:
+            df['FDATE_ONLY'] = df['FDATE'].dt.date
+            daily_sales = df.groupby(['SITE', 'ITEM', 'FDATE_ONLY']).agg({'SIGNED_QTY': 'sum'}).reset_index()
+            daily_stats = daily_sales.groupby(['SITE', 'ITEM']).agg({'SIGNED_QTY': ['max', 'min']}).reset_index()
+            daily_stats.columns = ['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES']
+        else:
+            daily_stats = pd.DataFrame(columns=['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES'])
+        
+        # Totals and transaction counts
+        sales_summary = df.groupby(['SITE', 'ITEM']).agg({
+            'SIGNED_QTY': 'sum',
+            qty_col: 'count'
         }).reset_index()
+        sales_summary.rename(columns={'SIGNED_QTY': 'TOTAL_SALES_QTY', qty_col: 'SALES_TRANSACTIONS'}, inplace=True)
         
-        # Calculate total sales and transaction count
-        sales_summary = sales_filtered.groupby(['SITE', 'ITEM']).agg({
-            'NET_SALES': 'sum',
-            'FDATE': 'count'  # Count transactions using a different column
-        }).reset_index()
-        sales_summary.rename(columns={'NET_SALES': 'TOTAL_SALES_QTY', 'FDATE': 'SALES_TRANSACTIONS'}, inplace=True)
-        
-        # Calculate max and min daily sales
-        daily_stats = daily_sales.groupby(['SITE', 'ITEM']).agg({
-            'NET_SALES': ['max', 'min']
-        }).reset_index()
-        daily_stats.columns = ['SITE', 'ITEM', 'MAX_DAILY_SALES', 'MIN_DAILY_SALES']
-        
-        # Merge all sales data
+        # Merge stats
         sales_summary = sales_summary.merge(daily_stats, on=['SITE', 'ITEM'], how='left')
-        
-        # Fill missing values for items with no daily variation
         sales_summary['MAX_DAILY_SALES'] = sales_summary['MAX_DAILY_SALES'].fillna(0)
         sales_summary['MIN_DAILY_SALES'] = sales_summary['MIN_DAILY_SALES'].fillna(0)
         
         # Merge with stock items to include items with no sales
         result = stock_items.merge(sales_summary, on=['SITE', 'ITEM'], how='left')
         
-        print(f"   📊 Sales calculated: {len(sales_summary)} items have sales, {len(result)} total items")
+        print(f"   📊 Sales calculated (FTYPE-aware): {len(sales_summary)} items have sales, {len(result)} total items")
         
         # Debug for F858
         f858_sales = result[(result['ITEM'] == 'F858') & (result['TOTAL_SALES_QTY'] > 0)]

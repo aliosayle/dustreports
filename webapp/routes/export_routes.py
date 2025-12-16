@@ -587,7 +587,27 @@ def api_export_bureau_client_report():
         data = request.get_json()
         from_date = data.get('from_date')
         to_date = data.get('to_date')
-        report_data = data.get('data', [])
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get the bureau client report data by calling the API function directly
+        from routes.api_routes import api_kinshasa_bureau_client_report
+        from flask import current_app
+        
+        with current_app.test_request_context('/api/kinshasa-bureau-client-report', method='POST', json=data):
+            response = api_kinshasa_bureau_client_report()
+            if hasattr(response, 'status_code') and response.status_code != 200:
+                return response
+            
+            response_data = response.get_json() if hasattr(response, 'get_json') else response
+        
+        if 'error' in response_data:
+            return jsonify(response_data), 400
+        
+        report_data = response_data['data']
+        metadata = response_data['metadata']
         
         if not report_data:
             return jsonify({'error': 'No data to export'}), 404
@@ -635,21 +655,12 @@ def api_export_bureau_client_report():
         ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
         row += 1
         ws[f'A{row}'] = f"Period: {from_date} to {to_date}"
-        row += 2
-        
-        # Calculate totals
-        total_sales = sum(item.get('SALES_QTY', 0) for item in report_data)
-        total_returns = sum(item.get('RETURNS_QTY', 0) for item in report_data)
-        total_net = sum(item.get('TOTAL_QTY', 0) for item in report_data)
-        
-        # Write summary
-        ws[f'A{row}'] = "Summary:"
         row += 1
-        ws[f'A{row}'] = f"Total Sales Qty: {total_sales:,.2f}"
+        ws[f'A{row}'] = f"Total Sales Qty: {metadata.get('total_sales_qty', 0):,.2f}"
         row += 1
-        ws[f'A{row}'] = f"Total Returns Qty: {total_returns:,.2f}"
+        ws[f'A{row}'] = f"Total Returns Qty: {metadata.get('total_returns_qty', 0):,.2f}"
         row += 1
-        ws[f'A{row}'] = f"Total Net Qty: {total_net:,.2f}"
+        ws[f'A{row}'] = f"Total Net Qty: {metadata.get('total_net_qty', 0):,.2f}"
         row += 2
         
         # Headers
@@ -682,11 +693,11 @@ def api_export_bureau_client_report():
         ws.cell(row=totals_row, column=1, value="TOTALS").font = Font(bold=True)
         ws.cell(row=totals_row, column=1).border = border
         ws.cell(row=totals_row, column=2, value="").border = border
-        ws.cell(row=totals_row, column=3, value=total_sales).font = Font(bold=True)
+        ws.cell(row=totals_row, column=3, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=3).border = border
-        ws.cell(row=totals_row, column=4, value=total_returns).font = Font(bold=True)
+        ws.cell(row=totals_row, column=4, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=4).border = border
-        ws.cell(row=totals_row, column=5, value=total_net).font = Font(bold=True)
+        ws.cell(row=totals_row, column=5, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=5).border = border
         
         # Auto-adjust column widths
@@ -737,7 +748,27 @@ def api_export_bureau_items_report():
         from_date = data.get('from_date')
         to_date = data.get('to_date')
         top_n = data.get('top_n', 50)
-        report_data = data.get('data', [])
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get the bureau items report data by calling the API function directly
+        from routes.api_routes import api_kinshasa_bureau_items_report
+        from flask import current_app
+        
+        with current_app.test_request_context('/api/kinshasa-bureau-items-report', method='POST', json=data):
+            response = api_kinshasa_bureau_items_report()
+            if hasattr(response, 'status_code') and response.status_code != 200:
+                return response
+            
+            response_data = response.get_json() if hasattr(response, 'get_json') else response
+        
+        if 'error' in response_data:
+            return jsonify(response_data), 400
+        
+        report_data = response_data['data']
+        metadata = response_data['metadata']
         
         if not report_data:
             return jsonify({'error': 'No data to export'}), 404
@@ -787,21 +818,12 @@ def api_export_bureau_items_report():
         ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
         row += 1
         ws[f'A{row}'] = f"Period: {from_date} to {to_date}"
-        row += 2
-        
-        # Calculate totals
-        total_sales = sum(item.get('SALES_QTY', 0) for item in report_data)
-        total_returns = sum(item.get('RETURNS_QTY', 0) for item in report_data)
-        total_net = sum(item.get('TOTAL_QTY', 0) for item in report_data)
-        
-        # Write summary
-        ws[f'A{row}'] = "Summary:"
         row += 1
-        ws[f'A{row}'] = f"Total Sales Qty: {total_sales:,.2f}"
+        ws[f'A{row}'] = f"Total Sales Qty: {metadata.get('total_sales_qty', 0):,.2f}"
         row += 1
-        ws[f'A{row}'] = f"Total Returns Qty: {total_returns:,.2f}"
+        ws[f'A{row}'] = f"Total Returns Qty: {metadata.get('total_returns_qty', 0):,.2f}"
         row += 1
-        ws[f'A{row}'] = f"Total Net Qty: {total_net:,.2f}"
+        ws[f'A{row}'] = f"Total Net Qty: {metadata.get('total_net_qty', 0):,.2f}"
         row += 2
         
         # Headers
@@ -837,11 +859,11 @@ def api_export_bureau_items_report():
         ws.cell(row=totals_row, column=1).border = border
         ws.cell(row=totals_row, column=2, value="").border = border
         ws.cell(row=totals_row, column=3, value="").border = border
-        ws.cell(row=totals_row, column=4, value=total_sales).font = Font(bold=True)
+        ws.cell(row=totals_row, column=4, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=4).border = border
-        ws.cell(row=totals_row, column=5, value=total_returns).font = Font(bold=True)
+        ws.cell(row=totals_row, column=5, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=5).border = border
-        ws.cell(row=totals_row, column=6, value=total_net).font = Font(bold=True)
+        ws.cell(row=totals_row, column=6, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=6).border = border
         
         # Auto-adjust column widths

@@ -347,6 +347,10 @@ $(document).ready(function() {
         } else {
             data.forEach(function(row) {
                 const tr = $('<tr>');
+                tr.css('cursor', 'pointer');
+                tr.addClass('clickable-row');
+                tr.attr('data-sid', row.SID || '');
+                tr.attr('data-client-name', row.CLIENT_NAME || 'Unknown');
                 tr.append($('<td>').text(row.CLIENT_NAME || 'Unknown'));
                 tr.append($('<td>').text(row.SID || ''));
                 tr.append($('<td>').text(formatNumber(row.SALES_QTY || 0)));
@@ -374,19 +378,42 @@ $(document).ready(function() {
             dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
         });
         
+        // Make rows clickable
+        $(document).on('click', '#bureauClientTable tbody tr.clickable-row', function() {
+            const sid = $(this).attr('data-sid');
+            const clientName = $(this).attr('data-client-name');
+            if (sid && currentFilters) {
+                // Navigate to client items page with parameters
+                const params = new URLSearchParams({
+                    sid: sid,
+                    client_name: clientName,
+                    from_date: currentFilters.from_date,
+                    to_date: currentFilters.to_date
+                });
+                window.location.href = '/kinshasa-bureau-client-items?' + params.toString();
+            }
+        });
+        
+        // Add hover effect
+        $(document).on('mouseenter', '#bureauClientTable tbody tr.clickable-row', function() {
+            $(this).css('background-color', '#f0f0f0');
+        });
+        $(document).on('mouseleave', '#bureauClientTable tbody tr.clickable-row', function() {
+            $(this).css('background-color', '');
+        });
+        
         $('#resultsSection').show();
         $('#summaryCards').show();
         $('#exportBtn').show();
     }
     
     function exportToExcel() {
-        if (!currentReportData || !currentFilters) {
-            showError('No data to export.');
+        if (!currentFilters) {
+            showError('No filters available. Please generate a report first.');
             return;
         }
         
         const exportData = {
-            data: currentReportData,
             from_date: currentFilters.from_date,
             to_date: currentFilters.to_date
         };

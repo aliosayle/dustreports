@@ -45,6 +45,11 @@ def kinshasa_bureau_items():
     """Render the Kinshasa Sales Bureau Top Items Report page"""
     return render_template('kinshasa_bureau_items.html')
 
+@main_bp.route('/kinshasa-bureau-client-items')
+def kinshasa_bureau_client_items():
+    """Render the Kinshasa Bureau Client Items page"""
+    return render_template('kinshasa_bureau_client_items.html')
+
 @main_bp.route('/favicon.ico')
 def favicon():
     # Redirect to static favicon file

@@ -401,13 +401,12 @@ $(document).ready(function() {
     }
     
     function exportToExcel() {
-        if (!currentReportData || !currentFilters) {
-            showError('No data to export.');
+        if (!currentFilters) {
+            showError('No filters available. Please generate a report first.');
             return;
         }
         
         const exportData = {
-            data: currentReportData,
             from_date: currentFilters.from_date,
             to_date: currentFilters.to_date,
             top_n: currentFilters.top_n

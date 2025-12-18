@@ -165,6 +165,9 @@ $(document).ready(function() {
     const fromDate = urlParams.get('from_date');
     const toDate = urlParams.get('to_date');
     
+    // Get site_sidno from URL (can be multiple)
+    const siteSidno = urlParams.getAll('site_sidno');
+    
     // Display client info
     $('#clientNameDisplay').text(clientName);
     $('#clientSidDisplay').text(clientSid || '-');
@@ -180,18 +183,25 @@ $(document).ready(function() {
     }
     
     // Load client items
-    loadClientItems(clientSid, fromDate, toDate);
+    loadClientItems(clientSid, fromDate, toDate, siteSidno.length > 0 ? siteSidno : null);
     
-    function loadClientItems(sid, from_date, to_date) {
+    function loadClientItems(sid, from_date, to_date, site_sidno) {
+        const requestData = {
+            client_sid: sid,
+            from_date: from_date,
+            to_date: to_date
+        };
+        
+        // Add site filter if present
+        if (site_sidno && site_sidno.length > 0) {
+            requestData.site_sidno = site_sidno;
+        }
+        
         $.ajax({
             url: '/api/kinshasa-bureau-client-items',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({
-                client_sid: sid,
-                from_date: from_date,
-                to_date: to_date
-            })
+            data: JSON.stringify(requestData)
         })
         .done(function(response) {
             $('#loadingIndicator').hide();

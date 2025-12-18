@@ -74,7 +74,7 @@
             <div class="card-body pt-0">
                 <form id="bureauClientForm">
                     <div class="row g-4">
-                        <div class="col-lg-6 col-md-6">
+                        <div class="col-lg-4 col-md-6">
                             <div class="filter-group">
                                 <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
@@ -89,7 +89,7 @@
                             </div>
                         </div>
                         
-                        <div class="col-lg-6 col-md-6">
+                        <div class="col-lg-4 col-md-6">
                             <div class="filter-group">
                                 <label for="toDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-calendar-check me-2" style="color: var(--dust-secondary);"></i>
@@ -101,6 +101,25 @@
                                     <i class="fas fa-calendar position-absolute" 
                                        style="right: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none;"></i>
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4 col-md-6">
+                            <div class="filter-group">
+                                <label for="siteFilter" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
+                                    Site Filter (SIDNO) - Multiple Selection
+                                </label>
+                                <select class="form-select form-select-lg" id="siteFilter" name="site_sidno" multiple
+                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease; min-height: 120px;">
+                                    <option value="3700002">3700002 - Kinshasa</option>
+                                    <option value="3700004">3700004 - Depot Kinshasa</option>
+                                    <option value="3700003">3700003 - Interieur</option>
+                                </select>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Hold Ctrl (Windows) or Cmd (Mac) to select multiple sites
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -193,17 +212,6 @@
         </div>
     </div>
 
-    <!-- Export Button -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-success btn-lg rounded-pill px-4 shadow-sm" id="exportBtn">
-                    <i class="fas fa-file-excel me-2"></i>
-                    Export to Excel
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Data Table -->
     <div class="row">
@@ -222,9 +230,11 @@
                                 <tr>
                                     <th style="border-radius: 8px 0 0 0;">Client Name</th>
                                     <th>Client ID (SID)</th>
+                                    <th>Number of Invoices</th>
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Total (Net)</th>
+                                    <th>Total (Net)</th>
+                                    <th style="border-radius: 0 8px 0 0;">Quantity in USD</th>
                                 </tr>
                             </thead>
                             <tbody id="bureauClientTableBody">
@@ -270,20 +280,15 @@ $(document).ready(function() {
         $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
     });
     
-    // Export button
-    $('#exportBtn').on('click', function() {
-        if (!currentReportData) {
-            showError('No data to export. Please generate a report first.');
-            return;
-        }
-        
-        exportToExcel();
-    });
     
     function generateReport() {
+        // Get selected site SIDNO values (array)
+        const selectedSites = $('#siteFilter').val() || [];
+        
         const formData = {
             from_date: $('#fromDate').val(),
-            to_date: $('#toDate').val()
+            to_date: $('#toDate').val(),
+            site_sidno: selectedSites.length > 0 ? selectedSites : null
         };
         
         // Validate dates
@@ -302,7 +307,6 @@ $(document).ready(function() {
         $('#loadingIndicator').show();
         $('#resultsSection').hide();
         $('#summaryCards').hide();
-        $('#exportBtn').hide();
         $('#errorAlert').hide();
         
         $.ajax({
@@ -343,7 +347,7 @@ $(document).ready(function() {
         tbody.empty();
         
         if (data.length === 0) {
-            tbody.append('<tr><td colspan="5" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
+            tbody.append('<tr><td colspan="7" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
         } else {
             data.forEach(function(row) {
                 const tr = $('<tr>');
@@ -353,9 +357,11 @@ $(document).ready(function() {
                 tr.attr('data-client-name', row.CLIENT_NAME || 'Unknown');
                 tr.append($('<td>').text(row.CLIENT_NAME || 'Unknown'));
                 tr.append($('<td>').text(row.SID || ''));
+                tr.append($('<td>').text(formatNumber(row.NUM_INVOICES || 0)));
                 tr.append($('<td>').text(formatNumber(row.SALES_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.RETURNS_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.TOTAL_QTY || 0)));
+                tr.append($('<td>').text(formatCurrency(row.QUANTITY_USD || 0)));
                 tbody.append(tr);
             });
         }
@@ -366,7 +372,7 @@ $(document).ready(function() {
         }
         
         $('#bureauClientTable').DataTable({
-            order: [[4, 'desc']], // Sort by Total descending
+            order: [[5, 'desc']], // Sort by Total descending
             pageLength: 25,
             language: {
                 search: "Search clients:",
@@ -375,7 +381,58 @@ $(document).ready(function() {
                 infoEmpty: "No clients found",
                 infoFiltered: "(filtered from _MAX_ total clients)"
             },
-            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+            dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                 '<"row mb-3"<"col-sm-12 text-center"B>>' +
+                 '<"row"<"col-sm-12"tr>>' +
+                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: '<i class="fas fa-file-excel me-2"></i>Export to Excel',
+                    className: 'btn btn-success btn-sm',
+                    filename: function() {
+                        let filename = 'kinshasa_bureau_client_report';
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'kinshasa',
+                                '3700004': 'depot_kinshasa',
+                                '3700003': 'interieur'
+                            };
+                            const siteParts = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `sidno_${sidno}`;
+                            });
+                            filename += '_' + siteParts.join('_');
+                        }
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            filename += '_' + currentFilters.from_date.replace(/-/g, '') + '_to_' + currentFilters.to_date.replace(/-/g, '');
+                        }
+                        filename += '_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
+                        return filename;
+                    },
+                    title: function() {
+                        let title = 'Kinshasa Sales Bureau Client Report';
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            title += ' - Period: ' + currentFilters.from_date + ' to ' + currentFilters.to_date;
+                        }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'Depot Kinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteLabels = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `SIDNO ${sidno}`;
+                            });
+                            title += ' | Sites: ' + siteLabels.join(', ');
+                        }
+                        title += ' | Generated on ' + new Date().toLocaleDateString();
+                        return title;
+                    },
+                    exportOptions: {
+                        columns: ':visible'
+                    }
+                }
+            ]
         });
         
         // Make rows clickable
@@ -390,6 +447,14 @@ $(document).ready(function() {
                     from_date: currentFilters.from_date,
                     to_date: currentFilters.to_date
                 });
+                
+                // Add site filter if present
+                if (currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                    currentFilters.site_sidno.forEach(function(sidno) {
+                        params.append('site_sidno', sidno);
+                    });
+                }
+                
                 window.location.href = '/kinshasa-bureau-client-items?' + params.toString();
             }
         });
@@ -404,51 +469,6 @@ $(document).ready(function() {
         
         $('#resultsSection').show();
         $('#summaryCards').show();
-        $('#exportBtn').show();
-    }
-    
-    function exportToExcel() {
-        if (!currentFilters) {
-            showError('No filters available. Please generate a report first.');
-            return;
-        }
-        
-        const exportData = {
-            from_date: currentFilters.from_date,
-            to_date: currentFilters.to_date
-        };
-        
-        // Show loading
-        const exportBtn = $('#exportBtn');
-        const originalHtml = exportBtn.html();
-        exportBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Exporting...');
-        
-        $.ajax({
-            url: '/api/export-bureau-client-report',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(exportData),
-            xhrFields: {
-                responseType: 'blob'
-            }
-        })
-        .done(function(blob) {
-            // Create download link
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `kinshasa_bureau_client_report_${currentFilters.from_date}_to_${currentFilters.to_date}_${new Date().getTime()}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            exportBtn.prop('disabled', false).html(originalHtml);
-        })
-        .fail(function(xhr, status, error) {
-            exportBtn.prop('disabled', false).html(originalHtml);
-            showError('Failed to export report: ' + error);
-        });
     }
     
     function showError(message) {
@@ -462,6 +482,15 @@ $(document).ready(function() {
     function formatNumber(num) {
         return new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(num);
+    }
+    
+    function formatCurrency(num) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
     }

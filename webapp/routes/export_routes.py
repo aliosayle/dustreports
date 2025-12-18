@@ -587,6 +587,7 @@ def api_export_bureau_client_report():
         data = request.get_json()
         from_date = data.get('from_date')
         to_date = data.get('to_date')
+        site_sidno = data.get('site_sidno')
         
         dataframes = get_dataframes()
         if not dataframes:
@@ -637,9 +638,17 @@ def api_export_bureau_client_report():
         title = "Kinshasa Sales Bureau Client Report"
         if from_date and to_date:
             title += f" - Period: {from_date} to {to_date}"
+        if site_sidno:
+            site_names = {
+                '3700002': 'Kinshasa',
+                '3700004': 'Depot Kinshasa',
+                '3700003': 'Interieur'
+            }
+            site_name = site_names.get(str(site_sidno), f'SIDNO {site_sidno}')
+            title += f" - {site_name}"
         
         # Write title
-        ws.merge_cells('A1:E1')
+        ws.merge_cells('A1:G1')
         ws['A1'] = title
         ws['A1'].font = Font(bold=True, size=16)
         ws['A1'].alignment = Alignment(horizontal="center")
@@ -650,9 +659,18 @@ def api_export_bureau_client_report():
         row += 1
         ws[f'A{row}'] = f"Total Clients: {len(report_data)}"
         row += 1
-        ws[f'A{row}'] = f"Filter: SID starting with 4112 (Office Clients)"
+        filter_text = "SID starting with 4112 (Office Clients)"
+        if site_sidno:
+            site_names = {
+                '3700002': 'Kinshasa',
+                '3700004': 'Depot Kinshasa',
+                '3700003': 'Interieur'
+            }
+            site_name = site_names.get(str(site_sidno), f'SIDNO {site_sidno}')
+            filter_text += f", SIDNO = {site_sidno} ({site_name})"
+        ws[f'A{row}'] = f"Filter: {filter_text}"
         row += 1
-        ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
+        ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details) joined with ALLSTOCK table (sites) for SIDNO filtering"
         row += 1
         ws[f'A{row}'] = f"Period: {from_date} to {to_date}"
         row += 1
@@ -661,15 +679,21 @@ def api_export_bureau_client_report():
         ws[f'A{row}'] = f"Total Returns Qty: {metadata.get('total_returns_qty', 0):,.2f}"
         row += 1
         ws[f'A{row}'] = f"Total Net Qty: {metadata.get('total_net_qty', 0):,.2f}"
+        row += 1
+        ws[f'A{row}'] = f"Total Invoices: {metadata.get('total_invoices', 0):,}"
+        row += 1
+        ws[f'A{row}'] = f"Total Quantity in USD: ${metadata.get('total_quantity_usd', 0):,.2f}"
         row += 2
         
         # Headers
         headers = [
             'Client Name',
             'Client ID (SID)',
+            'Number of Invoices',
             'Sales Qty (FTYPE=1)',
             'Returns Qty (FTYPE=2)',
-            'Total (Net)'
+            'Total (Net)',
+            'Quantity in USD'
         ]
         
         # Write headers
@@ -684,21 +708,27 @@ def api_export_bureau_client_report():
         for row_idx, client_data in enumerate(report_data, row + 1):
             ws.cell(row=row_idx, column=1, value=client_data.get('CLIENT_NAME', 'Unknown')).border = border
             ws.cell(row=row_idx, column=2, value=client_data.get('SID', '')).border = border
-            ws.cell(row=row_idx, column=3, value=client_data.get('SALES_QTY', 0)).border = border
-            ws.cell(row=row_idx, column=4, value=client_data.get('RETURNS_QTY', 0)).border = border
-            ws.cell(row=row_idx, column=5, value=client_data.get('TOTAL_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=3, value=client_data.get('NUM_INVOICES', 0)).border = border
+            ws.cell(row=row_idx, column=4, value=client_data.get('SALES_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=5, value=client_data.get('RETURNS_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=6, value=client_data.get('TOTAL_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=7, value=client_data.get('QUANTITY_USD', 0)).border = border
         
         # Add totals row
         totals_row = row + len(report_data) + 1
         ws.cell(row=totals_row, column=1, value="TOTALS").font = Font(bold=True)
         ws.cell(row=totals_row, column=1).border = border
         ws.cell(row=totals_row, column=2, value="").border = border
-        ws.cell(row=totals_row, column=3, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=3, value=metadata.get('total_invoices', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=3).border = border
-        ws.cell(row=totals_row, column=4, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=4, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=4).border = border
-        ws.cell(row=totals_row, column=5, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=5, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=5).border = border
+        ws.cell(row=totals_row, column=6, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=6).border = border
+        ws.cell(row=totals_row, column=7, value=metadata.get('total_quantity_usd', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=7).border = border
         
         # Auto-adjust column widths
         for column in ws.columns:
@@ -721,6 +751,15 @@ def api_export_bureau_client_report():
         # Generate filename
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
         filename_parts = ['kinshasa_bureau_client_report']
+        
+        if site_sidno:
+            site_names = {
+                '3700002': 'kinshasa',
+                '3700004': 'depot_kinshasa',
+                '3700003': 'interieur'
+            }
+            site_name = site_names.get(str(site_sidno), f'sidno_{site_sidno}')
+            filename_parts.append(site_name)
         
         if from_date and to_date:
             from_date_str = from_date.replace('-', '')
@@ -887,6 +926,183 @@ def api_export_bureau_items_report():
         # Generate filename
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
         filename_parts = ['kinshasa_bureau_items_report']
+        
+        if from_date and to_date:
+            from_date_str = from_date.replace('-', '')
+            to_date_str = to_date.replace('-', '')
+            filename_parts.append(f'{from_date_str}_to_{to_date_str}')
+        
+        filename_parts.append(timestamp)
+        filename = '_'.join(filename_parts) + '.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@export_bp.route('/export-item-clients-report', methods=['POST'])
+def api_export_item_clients_report():
+    """Export Kinshasa Bureau Item Clients report to Excel with proper formatting"""
+    try:
+        data = request.get_json()
+        item_code = data.get('item_code')
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get the item clients report data by calling the API function directly
+        from routes.api_routes import api_kinshasa_bureau_item_clients
+        from flask import current_app
+        
+        with current_app.test_request_context('/api/kinshasa-bureau-item-clients', method='POST', json=data):
+            response = api_kinshasa_bureau_item_clients()
+            if hasattr(response, 'status_code') and response.status_code != 200:
+                return response
+            
+            response_data = response.get_json() if hasattr(response, 'get_json') else response
+        
+        if 'error' in response_data:
+            return jsonify(response_data), 400
+        
+        report_data = response_data['data']
+        metadata = response_data['metadata']
+        
+        if not report_data:
+            return jsonify({'error': 'No data to export'}), 404
+        
+        # Create Excel workbook
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        import io
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Item Clients Report"
+        
+        # Define styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1a237e", end_color="1a237e", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Title and metadata
+        title = f"Item Clients Report - {metadata.get('item_code', 'Unknown')}"
+        if from_date and to_date:
+            title += f" - Period: {from_date} to {to_date}"
+        
+        # Write title
+        ws.merge_cells('A1:G1')
+        ws['A1'] = title
+        ws['A1'].font = Font(bold=True, size=16)
+        ws['A1'].alignment = Alignment(horizontal="center")
+        
+        # Write metadata
+        row = 3
+        ws[f'A{row}'] = f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        row += 1
+        ws[f'A{row}'] = f"Item Code: {metadata.get('item_code', 'Unknown')}"
+        row += 1
+        ws[f'A{row}'] = f"Item Name: {metadata.get('item_name', 'Unknown')}"
+        row += 1
+        ws[f'A{row}'] = f"Total Clients: {len(report_data)}"
+        row += 1
+        ws[f'A{row}'] = f"Filter: SID starting with 4112 (Office Clients)"
+        row += 1
+        ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
+        row += 1
+        ws[f'A{row}'] = f"Period: {from_date} to {to_date}"
+        row += 1
+        ws[f'A{row}'] = f"Total Sales Qty: {metadata.get('total_sales_qty', 0):,.2f}"
+        row += 1
+        ws[f'A{row}'] = f"Total Returns Qty: {metadata.get('total_returns_qty', 0):,.2f}"
+        row += 1
+        ws[f'A{row}'] = f"Total Net Qty: {metadata.get('total_net_qty', 0):,.2f}"
+        row += 1
+        ws[f'A{row}'] = f"Total Invoices: {metadata.get('total_invoices', 0):,}"
+        row += 1
+        ws[f'A{row}'] = f"Total Quantity in USD: ${metadata.get('total_quantity_usd', 0):,.2f}"
+        row += 2
+        
+        # Headers
+        headers = [
+            'Client Name',
+            'Client ID (SID)',
+            'Number of Invoices',
+            'Sales Qty (FTYPE=1)',
+            'Returns Qty (FTYPE=2)',
+            'Total (Net)',
+            'Quantity in USD'
+        ]
+        
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+        
+        # Write data
+        for row_idx, client_data in enumerate(report_data, row + 1):
+            ws.cell(row=row_idx, column=1, value=client_data.get('CLIENT_NAME', 'Unknown')).border = border
+            ws.cell(row=row_idx, column=2, value=client_data.get('SID', '')).border = border
+            ws.cell(row=row_idx, column=3, value=client_data.get('NUM_INVOICES', 0)).border = border
+            ws.cell(row=row_idx, column=4, value=client_data.get('SALES_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=5, value=client_data.get('RETURNS_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=6, value=client_data.get('TOTAL_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=7, value=client_data.get('QUANTITY_USD', 0)).border = border
+        
+        # Add totals row
+        totals_row = row + len(report_data) + 1
+        ws.cell(row=totals_row, column=1, value="TOTALS").font = Font(bold=True)
+        ws.cell(row=totals_row, column=1).border = border
+        ws.cell(row=totals_row, column=2, value="").border = border
+        ws.cell(row=totals_row, column=3, value=metadata.get('total_invoices', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=3).border = border
+        ws.cell(row=totals_row, column=4, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=4).border = border
+        ws.cell(row=totals_row, column=5, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=5).border = border
+        ws.cell(row=totals_row, column=6, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=6).border = border
+        ws.cell(row=totals_row, column=7, value=metadata.get('total_quantity_usd', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=7).border = border
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 40)
+            ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to memory
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Generate filename
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        filename_parts = ['item_clients_report', item_code]
         
         if from_date and to_date:
             from_date_str = from_date.replace('-', '')

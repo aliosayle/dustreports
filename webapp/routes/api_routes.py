@@ -1268,6 +1268,7 @@ def api_kinshasa_bureau_client_report():
         data = request.get_json()
         from_date = data.get('from_date')
         to_date = data.get('to_date')
+        site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
         
         # Validate dates
         if not from_date or not to_date:
@@ -1290,6 +1291,46 @@ def api_kinshasa_bureau_client_report():
             print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
         else:
             return jsonify({'error': 'SID column not found in sales details'}), 400
+        
+        # Filter by SIDNO from ALLSTOCK table if site_sidno is provided
+        # Join: ITEMS.SITE = ALLSTOCK.ID, then filter by ALLSTOCK.SIDNO
+        # site_sidno can be a single value or an array
+        if site_sidno:
+            if 'sites' not in dataframes or dataframes['sites'] is None:
+                return jsonify({'error': 'Sites data (ALLSTOCK) not available'}), 400
+            
+            sites_df = dataframes['sites'].copy()
+            
+            # Check if SIDNO column exists
+            if 'SIDNO' not in sites_df.columns:
+                return jsonify({'error': 'SIDNO column not found in sites (ALLSTOCK) table'}), 400
+            
+            # Convert site_sidno to list if it's a single value
+            if not isinstance(site_sidno, list):
+                site_sidno = [site_sidno]
+            
+            # Convert all to strings for comparison
+            site_sidno_str = [str(s) for s in site_sidno]
+            
+            # Filter sites by SIDNO (multiple values)
+            filtered_sites = sites_df[sites_df['SIDNO'].astype(str).isin(site_sidno_str)]
+            
+            if filtered_sites.empty:
+                return jsonify({'error': f'No sites found with SIDNO in {site_sidno_str}'}), 404
+            
+            # Get site IDs (ALLSTOCK.ID) that match any of the SIDNO values
+            site_ids = filtered_sites['ID'].unique().tolist()
+            print(f"📍 Found {len(site_ids)} sites with SIDNO in {site_sidno_str}")
+            
+            # Filter sales_df by SITE (ITEMS.SITE = ALLSTOCK.ID)
+            if 'SITE' in sales_df.columns:
+                # Convert both to string for proper matching
+                sales_df['SITE'] = sales_df['SITE'].astype(str)
+                site_ids_str = [str(sid) for sid in site_ids]
+                sales_df = sales_df[sales_df['SITE'].isin(site_ids_str)]
+                print(f"📊 After SIDNO filter ({site_sidno_str}): {len(sales_df)} records")
+            else:
+                return jsonify({'error': 'SITE column not found in sales details'}), 400
         
         # Filter by date range
         if 'FDATE' in sales_df.columns:
@@ -1320,6 +1361,16 @@ def api_kinshasa_bureau_client_report():
         # Fill NaN values
         sales_df[qty_col] = sales_df[qty_col].fillna(0)
         
+        # Fill NaN values for USD calculation fields
+        if 'CREDITUS' in sales_df.columns:
+            sales_df['CREDITUS'] = sales_df['CREDITUS'].fillna(0)
+        if 'DEBITUS' in sales_df.columns:
+            sales_df['DEBITUS'] = sales_df['DEBITUS'].fillna(0)
+        if 'creditvatamount' in sales_df.columns:
+            sales_df['creditvatamount'] = sales_df['creditvatamount'].fillna(0)
+        if 'debitvatamount' in sales_df.columns:
+            sales_df['debitvatamount'] = sales_df['debitvatamount'].fillna(0)
+        
         # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
         sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
         
@@ -1329,6 +1380,45 @@ def api_kinshasa_bureau_client_report():
         # Separate sales and returns
         sales_only = sales_by_client[sales_by_client['FTYPE'] == 1].copy()
         returns_only = sales_by_client[sales_by_client['FTYPE'] == 2].copy()
+        
+        # Calculate number of invoices (distinct MID) per client
+        invoice_counts = {}
+        if 'MID' in sales_df.columns:
+            # Count distinct MID per SID
+            invoice_counts_df = sales_df.groupby('SID')['MID'].nunique().reset_index()
+            invoice_counts_df.columns = ['SID', 'INVOICE_COUNT']
+            invoice_counts = dict(zip(invoice_counts_df['SID'].astype(str), invoice_counts_df['INVOICE_COUNT']))
+            print(f"📊 Calculated invoice counts for {len(invoice_counts)} clients")
+        else:
+            print("⚠️ MID column not found - invoice count will be 0")
+        
+        # Calculate USD amounts per client using CREDITUS-DEBITUS formula (same as sales by item report)
+        usd_amounts = {}
+        if 'CREDITUS' in sales_df.columns and 'DEBITUS' in sales_df.columns:
+            # Calculate base amount: SUM(CREDITUS - DEBITUS) by SID
+            sales_df['BASE_AMOUNT'] = sales_df['CREDITUS'] - sales_df['DEBITUS']
+            base_amounts = sales_df.groupby('SID')['BASE_AMOUNT'].sum().reset_index()
+            base_amounts.columns = ['SID', 'BASE_AMOUNT']
+            
+            # Calculate VAT amount if available: SUM(creditvatamount - debitvatamount) by SID
+            vat_amounts = pd.Series(0, index=sales_df['SID'].unique())
+            if 'creditvatamount' in sales_df.columns and 'debitvatamount' in sales_df.columns:
+                sales_df['VAT_AMOUNT'] = sales_df['creditvatamount'] - sales_df['debitvatamount']
+                vat_amounts_df = sales_df.groupby('SID')['VAT_AMOUNT'].sum().reset_index()
+                vat_amounts_df.columns = ['SID', 'VAT_AMOUNT']
+                vat_amounts = dict(zip(vat_amounts_df['SID'].astype(str), vat_amounts_df['VAT_AMOUNT']))
+            
+            # Merge base amounts with VAT amounts
+            for _, row in base_amounts.iterrows():
+                sid_str = str(row['SID'])
+                base_amount = float(row['BASE_AMOUNT'])
+                vat_amount = float(vat_amounts.get(sid_str, 0))
+                # Final USD amount = BASE_AMOUNT + VAT_AMOUNT (same as sales by item report)
+                usd_amounts[sid_str] = base_amount + vat_amount
+            
+            print(f"📊 Calculated USD amounts for {len(usd_amounts)} clients using CREDITUS-DEBITUS formula")
+        else:
+            print("⚠️ CREDITUS/DEBITUS columns not found - USD amounts will be 0")
         
         # Create result dataframe
         result_data = []
@@ -1346,11 +1436,19 @@ def api_kinshasa_bureau_client_report():
             # Calculate total (sales - returns)
             total_qty = sales_qty - returns_qty
             
+            # Get number of invoices
+            num_invoices = invoice_counts.get(sid_str, 0)
+            
+            # Get USD amount
+            usd_amount = usd_amounts.get(sid_str, 0.0)
+            
             result_data.append({
                 'SID': sid_str,
                 'SALES_QTY': float(sales_qty),
                 'RETURNS_QTY': float(returns_qty),
-                'TOTAL_QTY': float(total_qty)
+                'TOTAL_QTY': float(total_qty),
+                'NUM_INVOICES': int(num_invoices),
+                'QUANTITY_USD': float(usd_amount)
             })
         
         # Get client names from SUB table (accounts dataframe)
@@ -1377,6 +1475,8 @@ def api_kinshasa_bureau_client_report():
         total_sales = sum(row['SALES_QTY'] for row in result_data)
         total_returns = sum(row['RETURNS_QTY'] for row in result_data)
         total_net = sum(row['TOTAL_QTY'] for row in result_data)
+        total_invoices = sum(row['NUM_INVOICES'] for row in result_data)
+        total_usd = sum(row['QUANTITY_USD'] for row in result_data)
         
         return jsonify({
             'data': result_data,
@@ -1387,18 +1487,32 @@ def api_kinshasa_bureau_client_report():
                 'total_sales_qty': float(total_sales),
                 'total_returns_qty': float(total_returns),
                 'total_net_qty': float(total_net),
-                'filter': 'SID starting with 4112 (Office Clients)',
-                'data_source': 'ITEMS table (sales_details)',
+                'total_invoices': int(total_invoices),
+                'total_quantity_usd': float(total_usd),
+                'site_sidno': site_sidno if site_sidno else None,
+                'site_sidno_names': [
+                    {
+                        '3700002': 'Kinshasa',
+                        '3700004': 'Depot Kinshasa',
+                        '3700003': 'Interieur'
+                    }.get(str(s), f'SIDNO {s}') for s in (site_sidno if isinstance(site_sidno, list) else [site_sidno])
+                ] if site_sidno else None,
+                'filter': f'SID starting with 4112 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else ''),
+                'data_source': 'ITEMS table (sales_details) joined with ALLSTOCK table (sites) for SIDNO filtering',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',
                     'returns': 'SUM(QTY) where FTYPE = 2',
-                    'total': 'SALES_QTY - RETURNS_QTY'
+                    'total': 'SALES_QTY - RETURNS_QTY',
+                    'num_invoices': 'COUNT(DISTINCT MID) per SID',
+                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(creditvatamount - debitvatamount) per SID (same as sales by item report)'
                 },
                 'columns_info': {
                     'client_name': 'Client name from SUB.SNAME',
                     'sales_qty': 'Total sales quantity (FTYPE = 1)',
                     'returns_qty': 'Total returns quantity (FTYPE = 2)',
-                    'total_qty': 'Net quantity (Sales - Returns)'
+                    'total_qty': 'Net quantity (Sales - Returns)',
+                    'num_invoices': 'Number of distinct invoices (MID) for this client',
+                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(creditvatamount-debitvatamount)'
                 }
             }
         })
@@ -1420,6 +1534,7 @@ def api_kinshasa_bureau_client_items():
         client_sid = data.get('client_sid')
         from_date = data.get('from_date')
         to_date = data.get('to_date')
+        site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
         
         # Validate inputs
         if not client_sid:
@@ -1442,6 +1557,46 @@ def api_kinshasa_bureau_client_items():
             sales_df = sales_df[sales_df['SID'].astype(str) == str(client_sid)]
         else:
             return jsonify({'error': 'SID column not found in sales details'}), 400
+        
+        # Filter by SIDNO from ALLSTOCK table if site_sidno is provided
+        # Join: ITEMS.SITE = ALLSTOCK.ID, then filter by ALLSTOCK.SIDNO
+        # site_sidno can be a single value or an array
+        if site_sidno:
+            if 'sites' not in dataframes or dataframes['sites'] is None:
+                return jsonify({'error': 'Sites data (ALLSTOCK) not available'}), 400
+            
+            sites_df = dataframes['sites'].copy()
+            
+            # Check if SIDNO column exists
+            if 'SIDNO' not in sites_df.columns:
+                return jsonify({'error': 'SIDNO column not found in sites (ALLSTOCK) table'}), 400
+            
+            # Convert site_sidno to list if it's a single value
+            if not isinstance(site_sidno, list):
+                site_sidno = [site_sidno]
+            
+            # Convert all to strings for comparison
+            site_sidno_str = [str(s) for s in site_sidno]
+            
+            # Filter sites by SIDNO (multiple values)
+            filtered_sites = sites_df[sites_df['SIDNO'].astype(str).isin(site_sidno_str)]
+            
+            if filtered_sites.empty:
+                return jsonify({'error': f'No sites found with SIDNO in {site_sidno_str}'}), 404
+            
+            # Get site IDs (ALLSTOCK.ID) that match any of the SIDNO values
+            site_ids = filtered_sites['ID'].unique().tolist()
+            print(f"📍 Found {len(site_ids)} sites with SIDNO in {site_sidno_str}")
+            
+            # Filter sales_df by SITE (ITEMS.SITE = ALLSTOCK.ID)
+            if 'SITE' in sales_df.columns:
+                # Convert both to string for proper matching
+                sales_df['SITE'] = sales_df['SITE'].astype(str)
+                site_ids_str = [str(sid) for sid in site_ids]
+                sales_df = sales_df[sales_df['SITE'].isin(site_ids_str)]
+                print(f"📊 After SIDNO filter ({site_sidno_str}): {len(sales_df)} records")
+            else:
+                return jsonify({'error': 'SITE column not found in sales details'}), 400
         
         # Filter by date range
         if 'FDATE' in sales_df.columns:
@@ -1579,6 +1734,244 @@ def api_kinshasa_bureau_client_items():
         
     except Exception as e:
         print(f"Error in Kinshasa Bureau Client Items: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/kinshasa-bureau-item-clients', methods=['POST'])
+def api_kinshasa_bureau_item_clients():
+    """
+    Get all clients who purchased a specific item for Kinshasa Bureau
+    Shows clients with sales and returns quantities, number of invoices, and USD amounts
+    Similar to Report 7 but filtered by item code
+    """
+    try:
+        data = request.get_json()
+        item_code = data.get('item_code')
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        
+        # Validate inputs
+        if not item_code:
+            return jsonify({'error': 'Item code is required'}), 400
+        if not from_date or not to_date:
+            return jsonify({'error': 'Both from_date and to_date are required'}), 400
+        
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get sales details data (ITEMS table)
+        if 'sales_details' not in dataframes or dataframes['sales_details'] is None:
+            return jsonify({'error': 'Sales details data not available'}), 400
+        
+        sales_df = dataframes['sales_details'].copy()
+        print(f"📊 Working with {len(sales_df)} sales detail records")
+        
+        # Filter for SID starting with "4112" (office clients)
+        if 'SID' in sales_df.columns:
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('4112')]
+            print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'SID column not found in sales details'}), 400
+        
+        # Filter for specific item code
+        if 'ITEM' in sales_df.columns:
+            sales_df = sales_df[sales_df['ITEM'].astype(str) == str(item_code)]
+            print(f"📊 After item filter ({item_code}): {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'ITEM column not found in sales details'}), 400
+        
+        # Filter by date range
+        if 'FDATE' in sales_df.columns:
+            sales_df['FDATE'] = pd.to_datetime(sales_df['FDATE'], errors='coerce')
+            from_date_dt = pd.to_datetime(from_date)
+            to_date_dt = pd.to_datetime(to_date)
+            
+            sales_df = sales_df[
+                (sales_df['FDATE'] >= from_date_dt) & 
+                (sales_df['FDATE'] <= to_date_dt)
+            ]
+            print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
+        else:
+            return jsonify({'error': 'FDATE column not found in sales details'}), 400
+        
+        if sales_df.empty:
+            return jsonify({'error': 'No sales found for this item in the specified period'}), 404
+        
+        # Ensure FTYPE and QTY columns exist
+        if 'FTYPE' not in sales_df.columns:
+            return jsonify({'error': 'FTYPE column not found in sales details'}), 400
+        
+        # Get quantity column
+        qty_col = 'QTY' if 'QTY' in sales_df.columns else ('QTY1' if 'QTY1' in sales_df.columns else None)
+        if qty_col is None:
+            return jsonify({'error': 'No quantity column (QTY/QTY1) found in sales details'}), 400
+        
+        # Fill NaN values
+        sales_df[qty_col] = sales_df[qty_col].fillna(0)
+        
+        # Fill NaN values for USD calculation fields
+        if 'CREDITUS' in sales_df.columns:
+            sales_df['CREDITUS'] = sales_df['CREDITUS'].fillna(0)
+        if 'DEBITUS' in sales_df.columns:
+            sales_df['DEBITUS'] = sales_df['DEBITUS'].fillna(0)
+        if 'creditvatamount' in sales_df.columns:
+            sales_df['creditvatamount'] = sales_df['creditvatamount'].fillna(0)
+        if 'debitvatamount' in sales_df.columns:
+            sales_df['debitvatamount'] = sales_df['debitvatamount'].fillna(0)
+        
+        # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
+        sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
+        
+        # Calculate sales (FTYPE = 1) and returns (FTYPE = 2) by SID (client)
+        sales_by_client = sales_df.groupby(['SID', 'FTYPE'])[qty_col].sum().reset_index()
+        
+        # Separate sales and returns
+        sales_only = sales_by_client[sales_by_client['FTYPE'] == 1].copy()
+        returns_only = sales_by_client[sales_by_client['FTYPE'] == 2].copy()
+        
+        # Calculate number of invoices (distinct MID) per client
+        invoice_counts = {}
+        if 'MID' in sales_df.columns:
+            # Count distinct MID per SID
+            invoice_counts_df = sales_df.groupby('SID')['MID'].nunique().reset_index()
+            invoice_counts_df.columns = ['SID', 'INVOICE_COUNT']
+            invoice_counts = dict(zip(invoice_counts_df['SID'].astype(str), invoice_counts_df['INVOICE_COUNT']))
+            print(f"📊 Calculated invoice counts for {len(invoice_counts)} clients")
+        else:
+            print("⚠️ MID column not found - invoice count will be 0")
+        
+        # Calculate USD amounts per client using CREDITUS-DEBITUS formula (same as sales by item report)
+        usd_amounts = {}
+        if 'CREDITUS' in sales_df.columns and 'DEBITUS' in sales_df.columns:
+            # Calculate base amount: SUM(CREDITUS - DEBITUS) by SID
+            sales_df['BASE_AMOUNT'] = sales_df['CREDITUS'] - sales_df['DEBITUS']
+            base_amounts = sales_df.groupby('SID')['BASE_AMOUNT'].sum().reset_index()
+            base_amounts.columns = ['SID', 'BASE_AMOUNT']
+            
+            # Calculate VAT amount if available: SUM(creditvatamount - debitvatamount) by SID
+            vat_amounts = pd.Series(0, index=sales_df['SID'].unique())
+            if 'creditvatamount' in sales_df.columns and 'debitvatamount' in sales_df.columns:
+                sales_df['VAT_AMOUNT'] = sales_df['creditvatamount'] - sales_df['debitvatamount']
+                vat_amounts_df = sales_df.groupby('SID')['VAT_AMOUNT'].sum().reset_index()
+                vat_amounts_df.columns = ['SID', 'VAT_AMOUNT']
+                vat_amounts = dict(zip(vat_amounts_df['SID'].astype(str), vat_amounts_df['VAT_AMOUNT']))
+            
+            # Merge base amounts with VAT amounts
+            for _, row in base_amounts.iterrows():
+                sid_str = str(row['SID'])
+                base_amount = float(row['BASE_AMOUNT'])
+                vat_amount = float(vat_amounts.get(sid_str, 0))
+                # Final USD amount = BASE_AMOUNT + VAT_AMOUNT (same as sales by item report)
+                usd_amounts[sid_str] = base_amount + vat_amount
+            
+            print(f"📊 Calculated USD amounts for {len(usd_amounts)} clients using CREDITUS-DEBITUS formula")
+        else:
+            print("⚠️ CREDITUS/DEBITUS columns not found - USD amounts will be 0")
+        
+        # Create result dataframe
+        result_data = []
+        all_sids = sales_df['SID'].unique()
+        
+        for sid in all_sids:
+            sid_str = str(sid)
+            
+            # Get sales quantity (FTYPE = 1)
+            sales_qty = sales_only[sales_only['SID'] == sid][qty_col].sum() if not sales_only[sales_only['SID'] == sid].empty else 0
+            
+            # Get returns quantity (FTYPE = 2)
+            returns_qty = returns_only[returns_only['SID'] == sid][qty_col].sum() if not returns_only[returns_only['SID'] == sid].empty else 0
+            
+            # Calculate total (sales - returns)
+            total_qty = sales_qty - returns_qty
+            
+            # Get number of invoices
+            num_invoices = invoice_counts.get(sid_str, 0)
+            
+            # Get USD amount
+            usd_amount = usd_amounts.get(sid_str, 0.0)
+            
+            result_data.append({
+                'SID': sid_str,
+                'SALES_QTY': float(sales_qty),
+                'RETURNS_QTY': float(returns_qty),
+                'TOTAL_QTY': float(total_qty),
+                'NUM_INVOICES': int(num_invoices),
+                'QUANTITY_USD': float(usd_amount)
+            })
+        
+        # Get client names from SUB table (accounts dataframe)
+        client_names = {}
+        if 'accounts' in dataframes and dataframes['accounts'] is not None:
+            accounts_df = dataframes['accounts'].copy()
+            if 'SID' in accounts_df.columns and 'SNAME' in accounts_df.columns:
+                # Convert SID to string for matching
+                accounts_df['SID'] = accounts_df['SID'].astype(str)
+                # Get unique SID-SNAME mappings
+                sid_name_map = accounts_df[['SID', 'SNAME']].drop_duplicates()
+                client_names = dict(zip(sid_name_map['SID'], sid_name_map['SNAME']))
+                print(f"📍 Retrieved client names for {len(client_names)} clients from SUB table")
+        
+        # Add client names to result data
+        for row in result_data:
+            sid = row['SID']
+            row['CLIENT_NAME'] = client_names.get(sid, f"Client {sid}")
+        
+        # Get item information
+        item_name = f"Item {item_code}"
+        if 'inventory_items' in dataframes and dataframes['inventory_items'] is not None:
+            items_df = dataframes['inventory_items'][['ITEM', 'DESCR1']].drop_duplicates()
+            items_df['ITEM'] = items_df['ITEM'].astype(str)
+            item_info = items_df[items_df['ITEM'] == str(item_code)]
+            if not item_info.empty:
+                item_name = str(item_info.iloc[0]['DESCR1']) if pd.notna(item_info.iloc[0]['DESCR1']) else f"Item {item_code}"
+        
+        # Sort by total quantity descending
+        result_data.sort(key=lambda x: x['TOTAL_QTY'], reverse=True)
+        
+        # Calculate totals
+        total_sales = sum(row['SALES_QTY'] for row in result_data)
+        total_returns = sum(row['RETURNS_QTY'] for row in result_data)
+        total_net = sum(row['TOTAL_QTY'] for row in result_data)
+        total_invoices = sum(row['NUM_INVOICES'] for row in result_data)
+        total_usd = sum(row['QUANTITY_USD'] for row in result_data)
+        
+        return jsonify({
+            'data': result_data,
+            'metadata': {
+                'item_code': str(item_code),
+                'item_name': item_name,
+                'total_clients': len(result_data),
+                'from_date': from_date,
+                'to_date': to_date,
+                'total_sales_qty': float(total_sales),
+                'total_returns_qty': float(total_returns),
+                'total_net_qty': float(total_net),
+                'total_invoices': int(total_invoices),
+                'total_quantity_usd': float(total_usd),
+                'filter': f'Item: {item_code}, SID starting with 4112 (Office Clients)',
+                'data_source': 'ITEMS table (sales_details)',
+                'calculation_method': {
+                    'sales': 'SUM(QTY) where FTYPE = 1',
+                    'returns': 'SUM(QTY) where FTYPE = 2',
+                    'total': 'SALES_QTY - RETURNS_QTY',
+                    'num_invoices': 'COUNT(DISTINCT MID) per SID',
+                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(creditvatamount - debitvatamount) per SID (same as sales by item report)'
+                },
+                'columns_info': {
+                    'client_name': 'Client name from SUB.SNAME',
+                    'sales_qty': 'Total sales quantity (FTYPE = 1)',
+                    'returns_qty': 'Total returns quantity (FTYPE = 2)',
+                    'total_qty': 'Net quantity (Sales - Returns)',
+                    'num_invoices': 'Number of distinct invoices (MID) for this client',
+                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(creditvatamount-debitvatamount)'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in Kinshasa Bureau Item Clients: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

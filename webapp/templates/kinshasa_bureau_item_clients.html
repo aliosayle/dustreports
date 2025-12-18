@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Kinshasa Sales Bureau Top Items Report - DustReports{% endblock %}
+{% block title %}Kinshasa Bureau Item Clients - DustReports{% endblock %}
 
 {% block content %}
 <!-- Enhanced Hero Section with DustReports Branding -->
@@ -20,10 +20,10 @@
                         </div>
                         <div>
                             <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
-                                Kinshasa Sales Bureau Top Items Report
+                                Item Clients Report
                             </h1>
                             <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
-                                Top items by sales/returns for office clients (SID: 4112) powered by <strong>DustReports</strong>
+                                Clients who purchased <strong id="itemNameDisplay">this item</strong> powered by <strong>DustReports</strong>
                             </p>
                         </div>
                     </div>
@@ -31,12 +31,12 @@
                 <div class="col-md-4 text-end">
                     <div class="hero-stats d-flex flex-column align-items-end">
                         <div class="d-flex align-items-center mb-2" style="opacity: 0.9;">
-                            <i class="fas fa-boxes me-2" style="color: var(--dust-accent);"></i>
-                            <span class="fw-semibold">Top Items Analytics</span>
+                            <i class="fas fa-box me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold" id="itemCodeDisplay">Item Code</span>
                         </div>
                         <div class="d-flex align-items-center" style="opacity: 0.9;">
-                            <i class="fas fa-download me-2" style="color: var(--dust-accent);"></i>
-                            <span class="fw-semibold">Export Ready</span>
+                            <i class="fas fa-calendar me-2" style="color: var(--dust-accent);"></i>
+                            <span class="fw-semibold" id="periodDisplay">Period</span>
                         </div>
                     </div>
                 </div>
@@ -45,111 +45,46 @@
     </div>
 </div>
 
-<!-- Enhanced Professional Filters Section -->
+<!-- Item Information Card -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-lg" style="border-radius: 16px; background: var(--light-gradient);">
             <div class="card-header border-0 py-4" style="background: transparent;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <div class="filter-icon me-3" 
-                             style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
-                            <i class="fas fa-filter text-white"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
-                                Report Filters
-                            </h5>
-                            <p class="mb-0 small" style="color: #718096 !important;">Select date range and top N items for analysis</p>
-                        </div>
+                <div class="d-flex align-items-center">
+                    <div class="filter-icon me-3" 
+                         style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
+                        <i class="fas fa-info-circle text-white"></i>
                     </div>
-                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill shadow-sm" id="clearBtn" 
-                            style="font-weight: 600; border-width: 2px; transition: all 0.3s ease;">
-                        <i class="fas fa-times me-1"></i>
-                        Clear All
-                    </button>
+                    <div>
+                        <h5 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
+                            Item Information
+                        </h5>
+                        <p class="mb-0 small" style="color: #718096 !important;">Viewing clients for this specific item</p>
+                    </div>
                 </div>
             </div>
-            
             <div class="card-body pt-0">
-                <form id="bureauItemsForm">
-                    <div class="row g-4">
-                        <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
-                                <label for="fromDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
-                                    From Date
-                                </label>
-                                <div class="filter-input-wrapper position-relative">
-                                    <input type="date" class="form-control form-control-lg" id="fromDate" name="from_date" required
-                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                    <i class="fas fa-calendar position-absolute" 
-                                       style="right: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none;"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
-                                <label for="toDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-calendar-check me-2" style="color: var(--dust-secondary);"></i>
-                                    To Date
-                                </label>
-                                <div class="filter-input-wrapper position-relative">
-                                    <input type="date" class="form-control form-control-lg" id="toDate" name="to_date" required
-                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                    <i class="fas fa-calendar position-absolute" 
-                                       style="right: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none;"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
-                                <label for="topN" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-sort-numeric-down me-2" style="color: var(--dust-secondary);"></i>
-                                    Top N Items
-                                </label>
-                                <select class="form-select form-select-lg" id="topN" name="top_n"
-                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                    <option value="25">Top 25</option>
-                                    <option value="50" selected>Top 50</option>
-                                    <option value="100">Top 100</option>
-                                    <option value="200">Top 200</option>
-                                    <option value="0">All Items</option>
-                                </select>
-                            </div>
-                        </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Item Code:</strong> <span id="itemCodeInfo">-</span></p>
+                        <p class="mb-0"><strong>Item Name:</strong> <span id="itemNameInfo">-</span></p>
                     </div>
-                    
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-end gap-3">
-                                <button type="button" class="btn btn-outline-secondary btn-lg rounded-pill px-5" id="resetBtn"
-                                        style="font-weight: 600; border-width: 2px;">
-                                    <i class="fas fa-redo me-2"></i>
-                                    Reset
-                                </button>
-                                <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg" id="generateBtn"
-                                        style="font-weight: 600; background: var(--primary-gradient); border: none;">
-                                    <i class="fas fa-chart-bar me-2"></i>
-                                    Generate Report
-                                </button>
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Period:</strong> <span id="periodInfo">-</span></p>
+                        <p class="mb-0"><strong>Filter:</strong> Office Clients (SID: 4112)</p>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Loading Indicator -->
-<div id="loadingIndicator" class="text-center py-5" style="display: none;">
+<div id="loadingIndicator" class="text-center py-5">
     <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
         <span class="visually-hidden">Loading...</span>
     </div>
-    <p class="mt-3 text-muted">Generating report...</p>
+    <p class="mt-3 text-muted">Loading client data...</p>
 </div>
 
 <!-- Error Alert -->
@@ -168,11 +103,11 @@
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Total Items</h6>
-                            <h2 class="mb-0 fw-bold" id="totalItems">0</h2>
+                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Total Clients</h6>
+                            <h2 class="mb-0 fw-bold" id="totalClients">0</h2>
                         </div>
                         <div class="stat-icon" style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-boxes fa-2x"></i>
+                            <i class="fas fa-users fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -229,23 +164,24 @@
                 <div class="card-header border-0 py-4" style="background: var(--light-gradient);">
                     <h5 class="mb-0 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
                         <i class="fas fa-table me-2" style="color: var(--dust-secondary);"></i>
-                        Top Items Sales Details
+                        Client Sales Details
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="bureauItemsTable" class="table table-hover" style="width: 100%;">
+                        <table id="itemClientsTable" class="table table-hover" style="width: 100%;">
                             <thead style="background: var(--primary-gradient); color: white;">
                                 <tr>
-                                    <th style="border-radius: 8px 0 0 0;">Item Code</th>
-                                    <th>Item Name (DESCR1)</th>
-                                    <th>Category</th>
+                                    <th style="border-radius: 8px 0 0 0;">Client Name</th>
+                                    <th>Client ID (SID)</th>
+                                    <th>Number of Invoices</th>
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Total (Net)</th>
+                                    <th>Total (Net)</th>
+                                    <th style="border-radius: 0 8px 0 0;">Quantity in USD</th>
                                 </tr>
                             </thead>
-                            <tbody id="bureauItemsTableBody">
+                            <tbody id="itemClientsTableBody">
                                 <!-- Data will be populated here -->
                             </tbody>
                         </table>
@@ -263,73 +199,58 @@ $(document).ready(function() {
     let currentReportData = null;
     let currentFilters = null;
     
-    // Set default dates (last 30 days)
-    const today = new Date();
-    const lastMonth = new Date(today);
-    lastMonth.setDate(lastMonth.getDate() - 30);
+    // Get parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const itemCode = urlParams.get('item_code');
+    const itemName = urlParams.get('item_name') || 'Item';
+    const fromDate = urlParams.get('from_date');
+    const toDate = urlParams.get('to_date');
     
-    $('#toDate').val(today.toISOString().split('T')[0]);
-    $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
+    // Display item info
+    $('#itemNameDisplay').text(itemName);
+    $('#itemCodeDisplay').text(itemCode || '-');
+    $('#itemCodeInfo').text(itemCode || '-');
+    $('#itemNameInfo').text(itemName);
+    if (fromDate && toDate) {
+        $('#periodDisplay').text(`${fromDate} to ${toDate}`);
+        $('#periodInfo').text(`${fromDate} to ${toDate}`);
+    }
     
-    // Form submission
-    $('#bureauItemsForm').on('submit', function(e) {
-        e.preventDefault();
-        generateReport();
-    });
+    // Validate parameters
+    if (!itemCode || !fromDate || !toDate) {
+        $('#loadingIndicator').hide();
+        showError('Missing required parameters. Please go back and click on an item row.');
+        return;
+    }
     
-    // Clear button
-    $('#clearBtn, #resetBtn').on('click', function() {
-        $('#bureauItemsForm')[0].reset();
-        $('#resultsSection').hide();
-        $('#errorAlert').hide();
-        
-        // Reset to default dates
-        $('#toDate').val(today.toISOString().split('T')[0]);
-        $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
-        $('#topN').val('50');
-    });
+    currentFilters = {
+        item_code: itemCode,
+        from_date: fromDate,
+        to_date: toDate
+    };
+    
+    // Load item clients
+    loadItemClients(itemCode, fromDate, toDate);
     
     // Export button
     $('#exportBtn').on('click', function() {
         if (!currentReportData) {
-            showError('No data to export. Please generate a report first.');
+            showError('No data to export.');
             return;
         }
-        
         exportToExcel();
     });
     
-    function generateReport() {
-        const formData = {
-            from_date: $('#fromDate').val(),
-            to_date: $('#toDate').val(),
-            top_n: $('#topN').val() || 50
-        };
-        
-        // Validate dates
-        if (!formData.from_date || !formData.to_date) {
-            showError('Please select both from and to dates.');
-            return;
-        }
-        
-        if (new Date(formData.from_date) > new Date(formData.to_date)) {
-            showError('From date must be before or equal to to date.');
-            return;
-        }
-        
-        currentFilters = formData;
-        
-        $('#loadingIndicator').show();
-        $('#resultsSection').hide();
-        $('#summaryCards').hide();
-        $('#exportBtn').hide();
-        $('#errorAlert').hide();
-        
+    function loadItemClients(item_code, from_date, to_date) {
         $.ajax({
-            url: '/api/kinshasa-bureau-items-report',
+            url: '/api/kinshasa-bureau-item-clients',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify(formData)
+            data: JSON.stringify({
+                item_code: item_code,
+                from_date: from_date,
+                to_date: to_date
+            })
         })
         .done(function(response) {
             $('#loadingIndicator').hide();
@@ -344,7 +265,7 @@ $(document).ready(function() {
         })
         .fail(function(xhr, status, error) {
             $('#loadingIndicator').hide();
-            const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : `Error generating report: ${error}`;
+            const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : `Error loading clients: ${error}`;
             showError(errorMsg);
         });
     }
@@ -353,73 +274,80 @@ $(document).ready(function() {
         const data = response.data || [];
         const metadata = response.metadata || {};
         
+        // Update item name if available
+        if (metadata.item_name) {
+            $('#itemNameDisplay').text(metadata.item_name);
+            $('#itemNameInfo').text(metadata.item_name);
+        }
+        
         // Update summary cards
-        $('#totalItems').text(metadata.total_items || 0);
+        $('#totalClients').text(metadata.total_clients || 0);
         $('#totalSales').text(formatNumber(metadata.total_sales_qty || 0));
         $('#netTotal').text(formatNumber(metadata.total_net_qty || 0));
         
         // Populate table
-        const tbody = $('#bureauItemsTableBody');
+        const tbody = $('#itemClientsTableBody');
         tbody.empty();
         
         if (data.length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
+            tbody.append('<tr><td colspan="7" class="text-center text-muted py-4">No clients found for this item in the selected period.</td></tr>');
         } else {
             data.forEach(function(row) {
                 const tr = $('<tr>');
                 tr.css('cursor', 'pointer');
                 tr.addClass('clickable-row');
-                tr.attr('data-item-code', row.ITEM_CODE || '');
-                tr.attr('data-item-name', row.ITEM_NAME || 'Unknown');
-                tr.append($('<td>').text(row.ITEM_CODE || ''));
-                tr.append($('<td>').text(row.ITEM_NAME || 'Unknown'));
-                tr.append($('<td>').text(row.CATEGORY || 'Unknown Category'));
+                tr.attr('data-sid', row.SID || '');
+                tr.attr('data-client-name', row.CLIENT_NAME || 'Unknown');
+                tr.append($('<td>').text(row.CLIENT_NAME || 'Unknown'));
+                tr.append($('<td>').text(row.SID || ''));
+                tr.append($('<td>').text(formatNumber(row.NUM_INVOICES || 0)));
                 tr.append($('<td>').text(formatNumber(row.SALES_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.RETURNS_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.TOTAL_QTY || 0)));
+                tr.append($('<td>').text(formatCurrency(row.QUANTITY_USD || 0)));
                 tbody.append(tr);
             });
         }
         
-        // Initialize DataTable if not already initialized
-        if ($.fn.DataTable.isDataTable('#bureauItemsTable')) {
-            $('#bureauItemsTable').DataTable().destroy();
+        // Initialize DataTable
+        if ($.fn.DataTable.isDataTable('#itemClientsTable')) {
+            $('#itemClientsTable').DataTable().destroy();
         }
         
-        $('#bureauItemsTable').DataTable({
+        $('#itemClientsTable').DataTable({
             order: [[5, 'desc']], // Sort by Total descending
             pageLength: 25,
             language: {
-                search: "Search items:",
-                lengthMenu: "Show _MENU_ items per page",
-                info: "Showing _START_ to _END_ of _TOTAL_ items",
-                infoEmpty: "No items found",
-                infoFiltered: "(filtered from _MAX_ total items)"
+                search: "Search clients:",
+                lengthMenu: "Show _MENU_ clients per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ clients",
+                infoEmpty: "No clients found",
+                infoFiltered: "(filtered from _MAX_ total clients)"
             },
             dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
         });
         
-        // Make rows clickable
-        $(document).on('click', '#bureauItemsTable tbody tr.clickable-row', function() {
-            const itemCode = $(this).attr('data-item-code');
-            const itemName = $(this).attr('data-item-name');
-            if (itemCode && currentFilters) {
-                // Navigate to item clients page with parameters
+        // Make rows clickable to navigate to client items page
+        $(document).on('click', '#itemClientsTable tbody tr.clickable-row', function() {
+            const sid = $(this).attr('data-sid');
+            const clientName = $(this).attr('data-client-name');
+            if (sid && currentFilters) {
+                // Navigate to client items page with parameters
                 const params = new URLSearchParams({
-                    item_code: itemCode,
-                    item_name: itemName,
+                    sid: sid,
+                    client_name: clientName,
                     from_date: currentFilters.from_date,
                     to_date: currentFilters.to_date
                 });
-                window.location.href = '/kinshasa-bureau-item-clients?' + params.toString();
+                window.location.href = '/kinshasa-bureau-client-items?' + params.toString();
             }
         });
         
         // Add hover effect
-        $(document).on('mouseenter', '#bureauItemsTable tbody tr.clickable-row', function() {
+        $(document).on('mouseenter', '#itemClientsTable tbody tr.clickable-row', function() {
             $(this).css('background-color', '#f0f0f0');
         });
-        $(document).on('mouseleave', '#bureauItemsTable tbody tr.clickable-row', function() {
+        $(document).on('mouseleave', '#itemClientsTable tbody tr.clickable-row', function() {
             $(this).css('background-color', '');
         });
         
@@ -430,14 +358,14 @@ $(document).ready(function() {
     
     function exportToExcel() {
         if (!currentFilters) {
-            showError('No filters available. Please generate a report first.');
+            showError('No filters available.');
             return;
         }
         
         const exportData = {
+            item_code: currentFilters.item_code,
             from_date: currentFilters.from_date,
-            to_date: currentFilters.to_date,
-            top_n: currentFilters.top_n
+            to_date: currentFilters.to_date
         };
         
         // Show loading
@@ -446,7 +374,7 @@ $(document).ready(function() {
         exportBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Exporting...');
         
         $.ajax({
-            url: '/api/export-bureau-items-report',
+            url: '/api/export-item-clients-report',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(exportData),
@@ -459,7 +387,7 @@ $(document).ready(function() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `kinshasa_bureau_items_report_${currentFilters.from_date}_to_${currentFilters.to_date}_${new Date().getTime()}.xlsx`;
+            a.download = `item_clients_report_${currentFilters.item_code}_${currentFilters.from_date}_to_${currentFilters.to_date}_${new Date().getTime()}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -484,6 +412,15 @@ $(document).ready(function() {
     function formatNumber(num) {
         return new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(num);
+    }
+    
+    function formatCurrency(num) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
     }

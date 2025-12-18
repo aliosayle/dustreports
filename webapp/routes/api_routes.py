@@ -939,7 +939,7 @@ def api_sales_report():
 def api_sales_by_item_report():
     """
     Generate Sales by Item Report using original SQL query logic
-    Replicates: SUM(CREDITUS-DEBITUS) + SUM(creditvatamount-debitvatamount) as total sales
+    Replicates: SUM(CREDITUS-DEBITUS) + SUM(CREDITVATAMOUNT-DEBITVATAMOUNT) as total sales
     Joins ITEMS with INVOICE on MID=ID for discount calculation
     """
     try:
@@ -988,7 +988,7 @@ def api_sales_by_item_report():
             print(f"⚠️ Missing invoice fields: {missing_invoice_fields}")
         
         # Check for original query calculation fields
-        original_calc_fields = ['CREDITQTY', 'DEBITQTY', 'CREDITUS', 'DEBITUS', 'creditvatamount', 'debitvatamount', 'discount']
+        original_calc_fields = ['CREDITQTY', 'DEBITQTY', 'CREDITUS', 'DEBITUS', 'CREDITVATAMOUNT', 'DEBITVATAMOUNT', 'discount']
         available_calc_fields = [field for field in original_calc_fields if field in sales_df.columns]
         missing_calc_fields = [field for field in original_calc_fields if field not in sales_df.columns]
         
@@ -1059,7 +1059,7 @@ def api_sales_by_item_report():
             sales_with_invoice['SUBTOTAL'] = 1  # Avoid division by zero
         
         # Fill NaN values for calculations
-        numeric_fields = ['CREDITQTY', 'DEBITQTY', 'CREDITUS', 'DEBITUS', 'creditvatamount', 'debitvatamount', 'QTY']
+        numeric_fields = ['CREDITQTY', 'DEBITQTY', 'CREDITUS', 'DEBITUS', 'CREDITVATAMOUNT', 'DEBITVATAMOUNT', 'QTY']
         for field in numeric_fields:
             if field in sales_with_invoice.columns:
                 sales_with_invoice[field] = sales_with_invoice[field].fillna(0)
@@ -1366,10 +1366,10 @@ def api_kinshasa_bureau_client_report():
             sales_df['CREDITUS'] = sales_df['CREDITUS'].fillna(0)
         if 'DEBITUS' in sales_df.columns:
             sales_df['DEBITUS'] = sales_df['DEBITUS'].fillna(0)
-        if 'creditvatamount' in sales_df.columns:
-            sales_df['creditvatamount'] = sales_df['creditvatamount'].fillna(0)
-        if 'debitvatamount' in sales_df.columns:
-            sales_df['debitvatamount'] = sales_df['debitvatamount'].fillna(0)
+        if 'CREDITVATAMOUNT' in sales_df.columns:
+            sales_df['CREDITVATAMOUNT'] = sales_df['CREDITVATAMOUNT'].fillna(0)
+        if 'DEBITVATAMOUNT' in sales_df.columns:
+            sales_df['DEBITVATAMOUNT'] = sales_df['DEBITVATAMOUNT'].fillna(0)
         
         # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
         sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
@@ -1400,10 +1400,10 @@ def api_kinshasa_bureau_client_report():
             base_amounts = sales_df.groupby('SID')['BASE_AMOUNT'].sum().reset_index()
             base_amounts.columns = ['SID', 'BASE_AMOUNT']
             
-            # Calculate VAT amount if available: SUM(creditvatamount - debitvatamount) by SID
+            # Calculate VAT amount if available: SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) by SID
             vat_amounts = pd.Series(0, index=sales_df['SID'].unique())
-            if 'creditvatamount' in sales_df.columns and 'debitvatamount' in sales_df.columns:
-                sales_df['VAT_AMOUNT'] = sales_df['creditvatamount'] - sales_df['debitvatamount']
+            if 'CREDITVATAMOUNT' in sales_df.columns and 'DEBITVATAMOUNT' in sales_df.columns:
+                sales_df['VAT_AMOUNT'] = sales_df['CREDITVATAMOUNT'] - sales_df['DEBITVATAMOUNT']
                 vat_amounts_df = sales_df.groupby('SID')['VAT_AMOUNT'].sum().reset_index()
                 vat_amounts_df.columns = ['SID', 'VAT_AMOUNT']
                 vat_amounts = dict(zip(vat_amounts_df['SID'].astype(str), vat_amounts_df['VAT_AMOUNT']))
@@ -1504,7 +1504,7 @@ def api_kinshasa_bureau_client_report():
                     'returns': 'SUM(QTY) where FTYPE = 2',
                     'total': 'SALES_QTY - RETURNS_QTY',
                     'num_invoices': 'COUNT(DISTINCT MID) per SID',
-                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(creditvatamount - debitvatamount) per SID (same as sales by item report)'
+                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) per SID (same as sales by item report)'
                 },
                 'columns_info': {
                     'client_name': 'Client name from SUB.SNAME',
@@ -1512,7 +1512,7 @@ def api_kinshasa_bureau_client_report():
                     'returns_qty': 'Total returns quantity (FTYPE = 2)',
                     'total_qty': 'Net quantity (Sales - Returns)',
                     'num_invoices': 'Number of distinct invoices (MID) for this client',
-                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(creditvatamount-debitvatamount)'
+                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(CREDITVATAMOUNT-DEBITVATAMOUNT)'
                 }
             }
         })
@@ -1816,10 +1816,10 @@ def api_kinshasa_bureau_item_clients():
             sales_df['CREDITUS'] = sales_df['CREDITUS'].fillna(0)
         if 'DEBITUS' in sales_df.columns:
             sales_df['DEBITUS'] = sales_df['DEBITUS'].fillna(0)
-        if 'creditvatamount' in sales_df.columns:
-            sales_df['creditvatamount'] = sales_df['creditvatamount'].fillna(0)
-        if 'debitvatamount' in sales_df.columns:
-            sales_df['debitvatamount'] = sales_df['debitvatamount'].fillna(0)
+        if 'CREDITVATAMOUNT' in sales_df.columns:
+            sales_df['CREDITVATAMOUNT'] = sales_df['CREDITVATAMOUNT'].fillna(0)
+        if 'DEBITVATAMOUNT' in sales_df.columns:
+            sales_df['DEBITVATAMOUNT'] = sales_df['DEBITVATAMOUNT'].fillna(0)
         
         # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
         sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
@@ -1850,10 +1850,10 @@ def api_kinshasa_bureau_item_clients():
             base_amounts = sales_df.groupby('SID')['BASE_AMOUNT'].sum().reset_index()
             base_amounts.columns = ['SID', 'BASE_AMOUNT']
             
-            # Calculate VAT amount if available: SUM(creditvatamount - debitvatamount) by SID
+            # Calculate VAT amount if available: SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) by SID
             vat_amounts = pd.Series(0, index=sales_df['SID'].unique())
-            if 'creditvatamount' in sales_df.columns and 'debitvatamount' in sales_df.columns:
-                sales_df['VAT_AMOUNT'] = sales_df['creditvatamount'] - sales_df['debitvatamount']
+            if 'CREDITVATAMOUNT' in sales_df.columns and 'DEBITVATAMOUNT' in sales_df.columns:
+                sales_df['VAT_AMOUNT'] = sales_df['CREDITVATAMOUNT'] - sales_df['DEBITVATAMOUNT']
                 vat_amounts_df = sales_df.groupby('SID')['VAT_AMOUNT'].sum().reset_index()
                 vat_amounts_df.columns = ['SID', 'VAT_AMOUNT']
                 vat_amounts = dict(zip(vat_amounts_df['SID'].astype(str), vat_amounts_df['VAT_AMOUNT']))
@@ -1957,7 +1957,7 @@ def api_kinshasa_bureau_item_clients():
                     'returns': 'SUM(QTY) where FTYPE = 2',
                     'total': 'SALES_QTY - RETURNS_QTY',
                     'num_invoices': 'COUNT(DISTINCT MID) per SID',
-                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(creditvatamount - debitvatamount) per SID (same as sales by item report)'
+                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) per SID (same as sales by item report)'
                 },
                 'columns_info': {
                     'client_name': 'Client name from SUB.SNAME',
@@ -1965,7 +1965,7 @@ def api_kinshasa_bureau_item_clients():
                     'returns_qty': 'Total returns quantity (FTYPE = 2)',
                     'total_qty': 'Net quantity (Sales - Returns)',
                     'num_invoices': 'Number of distinct invoices (MID) for this client',
-                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(creditvatamount-debitvatamount)'
+                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(CREDITVATAMOUNT-DEBITVATAMOUNT)'
                 }
             }
         })

@@ -140,7 +140,8 @@
                                     <th>Category</th>
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Total (Net)</th>
+                                    <th>Total (Net)</th>
+                                    <th style="border-radius: 0 8px 0 0;">Weight</th>
                                 </tr>
                             </thead>
                             <tbody id="clientItemsTableBody">
@@ -239,7 +240,7 @@ $(document).ready(function() {
         tbody.empty();
         
         if (data.length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center text-muted py-4">No items found for this client in the selected period.</td></tr>');
+            tbody.append('<tr><td colspan="7" class="text-center text-muted py-4">No items found for this client in the selected period.</td></tr>');
         } else {
             data.forEach(function(row) {
                 const tr = $('<tr>');
@@ -249,6 +250,7 @@ $(document).ready(function() {
                 tr.append($('<td>').text(formatNumber(row.SALES_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.RETURNS_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.TOTAL_QTY || 0)));
+                tr.append($('<td>').text(formatNumber(row.WEIGHT || 0)));
                 tbody.append(tr);
             });
         }

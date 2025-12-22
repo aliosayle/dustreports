@@ -210,18 +210,6 @@
         </div>
     </div>
 
-    <!-- Export Button -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-success btn-lg rounded-pill px-4 shadow-sm" id="exportBtn">
-                    <i class="fas fa-file-excel me-2"></i>
-                    Export to Excel
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Data Table -->
     <div class="row">
         <div class="col-12">
@@ -242,7 +230,8 @@
                                     <th>Category</th>
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Total (Net)</th>
+                                    <th>Total (Net)</th>
+                                    <th style="border-radius: 0 8px 0 0;">Weight</th>
                                 </tr>
                             </thead>
                             <tbody id="bureauItemsTableBody">
@@ -289,16 +278,6 @@ $(document).ready(function() {
         $('#topN').val('50');
     });
     
-    // Export button
-    $('#exportBtn').on('click', function() {
-        if (!currentReportData) {
-            showError('No data to export. Please generate a report first.');
-            return;
-        }
-        
-        exportToExcel();
-    });
-    
     function generateReport() {
         const formData = {
             from_date: $('#fromDate').val(),
@@ -322,7 +301,6 @@ $(document).ready(function() {
         $('#loadingIndicator').show();
         $('#resultsSection').hide();
         $('#summaryCards').hide();
-        $('#exportBtn').hide();
         $('#errorAlert').hide();
         
         $.ajax({
@@ -377,6 +355,7 @@ $(document).ready(function() {
                 tr.append($('<td>').text(formatNumber(row.SALES_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.RETURNS_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.TOTAL_QTY || 0)));
+                tr.append($('<td>').text(formatNumber(row.WEIGHT || 0)));
                 tbody.append(tr);
             });
         }
@@ -396,7 +375,39 @@ $(document).ready(function() {
                 infoEmpty: "No items found",
                 infoFiltered: "(filtered from _MAX_ total items)"
             },
-            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+            dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                 '<"row mb-3"<"col-sm-12 text-center"B>>' +
+                 '<"row"<"col-sm-12"tr>>' +
+                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: '<i class="fas fa-file-excel me-2"></i>Export to Excel',
+                    className: 'btn btn-success btn-sm',
+                    filename: function() {
+                        let filename = 'kinshasa_bureau_items_report';
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            filename += '_' + currentFilters.from_date.replace(/-/g, '') + '_to_' + currentFilters.to_date.replace(/-/g, '');
+                        }
+                        if (currentFilters && currentFilters.top_n) {
+                            filename += '_top' + currentFilters.top_n;
+                        }
+                        filename += '_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
+                        return filename;
+                    },
+                    title: function() {
+                        let title = 'Kinshasa Sales Bureau Top Items Report';
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            title += ' - Period: ' + currentFilters.from_date + ' to ' + currentFilters.to_date;
+                        }
+                        if (currentFilters && currentFilters.top_n) {
+                            title += ' | Top ' + (currentFilters.top_n === '0' ? 'All' : currentFilters.top_n) + ' Items';
+                        }
+                        title += ' | Generated on ' + new Date().toLocaleDateString();
+                        return title;
+                    }
+                }
+            ]
         });
         
         // Make rows clickable
@@ -425,52 +436,6 @@ $(document).ready(function() {
         
         $('#resultsSection').show();
         $('#summaryCards').show();
-        $('#exportBtn').show();
-    }
-    
-    function exportToExcel() {
-        if (!currentFilters) {
-            showError('No filters available. Please generate a report first.');
-            return;
-        }
-        
-        const exportData = {
-            from_date: currentFilters.from_date,
-            to_date: currentFilters.to_date,
-            top_n: currentFilters.top_n
-        };
-        
-        // Show loading
-        const exportBtn = $('#exportBtn');
-        const originalHtml = exportBtn.html();
-        exportBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Exporting...');
-        
-        $.ajax({
-            url: '/api/export-bureau-items-report',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(exportData),
-            xhrFields: {
-                responseType: 'blob'
-            }
-        })
-        .done(function(blob) {
-            // Create download link
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `kinshasa_bureau_items_report_${currentFilters.from_date}_to_${currentFilters.to_date}_${new Date().getTime()}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            exportBtn.prop('disabled', false).html(originalHtml);
-        })
-        .fail(function(xhr, status, error) {
-            exportBtn.prop('disabled', false).html(originalHtml);
-            showError('Failed to export report: ' + error);
-        });
     }
     
     function showError(message) {

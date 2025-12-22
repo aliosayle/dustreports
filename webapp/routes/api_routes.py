@@ -1656,12 +1656,13 @@ def api_kinshasa_bureau_client_items():
         # Convert to DataFrame for easier processing
         result_df = pd.DataFrame(result_data)
         
-        # Get item information (names, categories) from inventory_items
+        # Get item information (names, categories, weight) from inventory_items
         if 'inventory_items' not in dataframes or dataframes['inventory_items'] is None:
             return jsonify({'error': 'Inventory items data not available'}), 400
         
-        items_df = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY']].drop_duplicates()
-        items_df.columns = ['ITEM_CODE', 'ITEM_NAME', 'CATEGORY_ID']
+        # Include NWEIGHT column for weight calculation
+        items_df = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY', 'NWEIGHT']].drop_duplicates()
+        items_df.columns = ['ITEM_CODE', 'ITEM_NAME', 'CATEGORY_ID', 'NWEIGHT']
         items_df['ITEM_CODE'] = items_df['ITEM_CODE'].astype(str)
         result_df['ITEM_CODE'] = result_df['ITEM_CODE'].astype(str)
         
@@ -1669,6 +1670,10 @@ def api_kinshasa_bureau_client_items():
         result_df = result_df.merge(items_df, on='ITEM_CODE', how='left')
         result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('Unknown Item')
         result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].fillna('')
+        
+        # Fill NaN values for NWEIGHT and calculate weight (NWEIGHT * TOTAL_QTY)
+        result_df['NWEIGHT'] = result_df['NWEIGHT'].fillna(0)
+        result_df['WEIGHT'] = result_df['NWEIGHT'] * result_df['TOTAL_QTY']
         
         # Get category names
         if 'categories' in dataframes and dataframes['categories'] is not None:
@@ -1707,7 +1712,8 @@ def api_kinshasa_bureau_client_items():
                 'CATEGORY': str(row['CATEGORY_NAME']),
                 'SALES_QTY': float(row['SALES_QTY']),
                 'RETURNS_QTY': float(row['RETURNS_QTY']),
-                'TOTAL_QTY': float(row['TOTAL_QTY'])
+                'TOTAL_QTY': float(row['TOTAL_QTY']),
+                'WEIGHT': float(row['WEIGHT'])
             }
             result_data.append(row_data)
         
@@ -1715,6 +1721,7 @@ def api_kinshasa_bureau_client_items():
         total_sales = result_df['SALES_QTY'].sum()
         total_returns = result_df['RETURNS_QTY'].sum()
         total_net = result_df['TOTAL_QTY'].sum()
+        total_weight = result_df['WEIGHT'].sum()
         
         return jsonify({
             'data': result_data,
@@ -1727,6 +1734,7 @@ def api_kinshasa_bureau_client_items():
                 'total_sales_qty': float(total_sales),
                 'total_returns_qty': float(total_returns),
                 'total_net_qty': float(total_net),
+                'total_weight': float(total_weight),
                 'filter': f'SID = {client_sid} (Office Client)',
                 'data_source': 'ITEMS table (sales_details)'
             }
@@ -2079,12 +2087,13 @@ def api_kinshasa_bureau_items_report():
         # Convert to DataFrame for easier processing
         result_df = pd.DataFrame(result_data)
         
-        # Get item information (names, categories) from inventory_items
+        # Get item information (names, categories, weight) from inventory_items
         if 'inventory_items' not in dataframes or dataframes['inventory_items'] is None:
             return jsonify({'error': 'Inventory items data not available'}), 400
         
-        items_df = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY']].drop_duplicates()
-        items_df.columns = ['ITEM_CODE', 'ITEM_NAME', 'CATEGORY_ID']
+        # Include NWEIGHT column for weight calculation
+        items_df = dataframes['inventory_items'][['ITEM', 'DESCR1', 'CATEGORY', 'NWEIGHT']].drop_duplicates()
+        items_df.columns = ['ITEM_CODE', 'ITEM_NAME', 'CATEGORY_ID', 'NWEIGHT']
         items_df['ITEM_CODE'] = items_df['ITEM_CODE'].astype(str)
         result_df['ITEM_CODE'] = result_df['ITEM_CODE'].astype(str)
         
@@ -2092,6 +2101,10 @@ def api_kinshasa_bureau_items_report():
         result_df = result_df.merge(items_df, on='ITEM_CODE', how='left')
         result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('Unknown Item')
         result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].fillna('')
+        
+        # Fill NaN values for NWEIGHT and calculate weight (NWEIGHT * TOTAL_QTY)
+        result_df['NWEIGHT'] = result_df['NWEIGHT'].fillna(0)
+        result_df['WEIGHT'] = result_df['NWEIGHT'] * result_df['TOTAL_QTY']
         
         # Get category names
         if 'categories' in dataframes and dataframes['categories'] is not None:
@@ -2124,7 +2137,8 @@ def api_kinshasa_bureau_items_report():
                 'CATEGORY': str(row['CATEGORY_NAME']),
                 'SALES_QTY': float(row['SALES_QTY']),
                 'RETURNS_QTY': float(row['RETURNS_QTY']),
-                'TOTAL_QTY': float(row['TOTAL_QTY'])
+                'TOTAL_QTY': float(row['TOTAL_QTY']),
+                'WEIGHT': float(row['WEIGHT'])
             }
             result_data.append(row_data)
         
@@ -2132,6 +2146,7 @@ def api_kinshasa_bureau_items_report():
         total_sales = result_df['SALES_QTY'].sum()
         total_returns = result_df['RETURNS_QTY'].sum()
         total_net = result_df['TOTAL_QTY'].sum()
+        total_weight = result_df['WEIGHT'].sum()
         
         return jsonify({
             'data': result_data,
@@ -2143,18 +2158,21 @@ def api_kinshasa_bureau_items_report():
                 'total_sales_qty': float(total_sales),
                 'total_returns_qty': float(total_returns),
                 'total_net_qty': float(total_net),
+                'total_weight': float(total_weight),
                 'filter': 'SID starting with 4112 (Office Clients)',
                 'data_source': 'ITEMS table (sales_details)',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',
                     'returns': 'SUM(QTY) where FTYPE = 2',
                     'total': 'SALES_QTY - RETURNS_QTY',
+                    'weight': 'NWEIGHT (from STOCK table) × TOTAL_QTY',
                     'sorting': 'Sorted by TOTAL_QTY descending (top items)'
                 },
                 'columns_info': {
                     'item_code': 'Item code',
                     'item_name': 'Item description (DESCR1)',
                     'category': 'Category name from categories.DESCR',
+                    'weight': 'Total weight = NWEIGHT × TOTAL_QTY (from STOCK.NWEIGHT)',
                     'sales_qty': 'Total sales quantity (FTYPE = 1)',
                     'returns_qty': 'Total returns quantity (FTYPE = 2)',
                     'total_qty': 'Net quantity (Sales - Returns)'

@@ -1262,7 +1262,7 @@ def api_sales_by_item_report():
 def api_kinshasa_bureau_client_report():
     """
     Generate Kinshasa Sales Bureau Client Report
-    Shows sales and returns for office clients (SID starting with 4112)
+    Shows sales and returns for office clients (SID starting with 411)
     """
     try:
         data = request.get_json()
@@ -1285,10 +1285,10 @@ def api_kinshasa_bureau_client_report():
         sales_df = dataframes['sales_details'].copy()
         print(f"📊 Working with {len(sales_df)} sales detail records")
         
-        # Filter for SID starting with "4112" (office clients)
+        # Filter for SID starting with "411" (office clients)
         if 'SID' in sales_df.columns:
-            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('4112')]
-            print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('411')]
+            print(f"📊 After SID starts with '411' filter: {len(sales_df)} records")
         else:
             return jsonify({'error': 'SID column not found in sales details'}), 400
         
@@ -1497,7 +1497,7 @@ def api_kinshasa_bureau_client_report():
                         '3700003': 'Interieur'
                     }.get(str(s), f'SIDNO {s}') for s in (site_sidno if isinstance(site_sidno, list) else [site_sidno])
                 ] if site_sidno else None,
-                'filter': f'SID starting with 4112 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else ''),
+                'filter': f'SID starting with 411 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else ''),
                 'data_source': 'ITEMS table (sales_details) joined with ALLSTOCK table (sites) for SIDNO filtering',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',
@@ -1671,9 +1671,9 @@ def api_kinshasa_bureau_client_items():
         result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('Unknown Item')
         result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].fillna('')
         
-        # Fill NaN values for NWEIGHT and calculate weight (NWEIGHT * TOTAL_QTY)
+        # Fill NaN values for NWEIGHT and calculate weight (NWEIGHT * TOTAL_QTY), then convert to tons (divide by 1000)
         result_df['NWEIGHT'] = result_df['NWEIGHT'].fillna(0)
-        result_df['WEIGHT'] = result_df['NWEIGHT'] * result_df['TOTAL_QTY']
+        result_df['WEIGHT'] = (result_df['NWEIGHT'] * result_df['TOTAL_QTY']) / 1000  # Convert to tons
         
         # Get category names
         if 'categories' in dataframes and dataframes['categories'] is not None:
@@ -1776,10 +1776,10 @@ def api_kinshasa_bureau_item_clients():
         sales_df = dataframes['sales_details'].copy()
         print(f"📊 Working with {len(sales_df)} sales detail records")
         
-        # Filter for SID starting with "4112" (office clients)
+        # Filter for SID starting with "411" (office clients)
         if 'SID' in sales_df.columns:
-            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('4112')]
-            print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('411')]
+            print(f"📊 After SID starts with '411' filter: {len(sales_df)} records")
         else:
             return jsonify({'error': 'SID column not found in sales details'}), 400
         
@@ -1958,7 +1958,7 @@ def api_kinshasa_bureau_item_clients():
                 'total_net_qty': float(total_net),
                 'total_invoices': int(total_invoices),
                 'total_quantity_usd': float(total_usd),
-                'filter': f'Item: {item_code}, SID starting with 4112 (Office Clients)',
+                'filter': f'Item: {item_code}, SID starting with 411 (Office Clients)',
                 'data_source': 'ITEMS table (sales_details)',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',
@@ -1988,13 +1988,14 @@ def api_kinshasa_bureau_item_clients():
 def api_kinshasa_bureau_items_report():
     """
     Generate Kinshasa Sales Bureau Top Items Report
-    Shows top items by sales/returns for office clients (SID starting with 4112)
+    Shows top items by sales/returns for office clients (SID starting with 411)
     """
     try:
         data = request.get_json()
         from_date = data.get('from_date')
         to_date = data.get('to_date')
         top_n = data.get('top_n', 50)  # Default to top 50 items
+        site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
         
         # Convert top_n to int if it's a string
         try:
@@ -2017,12 +2018,52 @@ def api_kinshasa_bureau_items_report():
         sales_df = dataframes['sales_details'].copy()
         print(f"📊 Working with {len(sales_df)} sales detail records")
         
-        # Filter for SID starting with "4112" (office clients)
+        # Filter for SID starting with "411" (office clients)
         if 'SID' in sales_df.columns:
-            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('4112')]
-            print(f"📊 After SID starts with '4112' filter: {len(sales_df)} records")
+            sales_df = sales_df[sales_df['SID'].astype(str).str.startswith('411')]
+            print(f"📊 After SID starts with '411' filter: {len(sales_df)} records")
         else:
             return jsonify({'error': 'SID column not found in sales details'}), 400
+        
+        # Filter by SIDNO from ALLSTOCK table if site_sidno is provided
+        # Join: ITEMS.SITE = ALLSTOCK.ID, then filter by ALLSTOCK.SIDNO
+        # site_sidno can be a single value or an array
+        if site_sidno:
+            if 'sites' not in dataframes or dataframes['sites'] is None:
+                return jsonify({'error': 'Sites data (ALLSTOCK) not available'}), 400
+            
+            sites_df = dataframes['sites'].copy()
+            
+            # Check if SIDNO column exists
+            if 'SIDNO' not in sites_df.columns:
+                return jsonify({'error': 'SIDNO column not found in sites (ALLSTOCK) table'}), 400
+            
+            # Convert site_sidno to list if it's a single value
+            if not isinstance(site_sidno, list):
+                site_sidno = [site_sidno]
+            
+            # Convert all to strings for comparison
+            site_sidno_str = [str(s) for s in site_sidno]
+            
+            # Filter sites by SIDNO (multiple values)
+            filtered_sites = sites_df[sites_df['SIDNO'].astype(str).isin(site_sidno_str)]
+            
+            if filtered_sites.empty:
+                return jsonify({'error': f'No sites found with SIDNO in {site_sidno_str}'}), 404
+            
+            # Get site IDs (ALLSTOCK.ID) that match any of the SIDNO values
+            site_ids = filtered_sites['ID'].unique().tolist()
+            print(f"📍 Found {len(site_ids)} sites with SIDNO in {site_sidno_str}")
+            
+            # Filter sales_df by SITE (ITEMS.SITE = ALLSTOCK.ID)
+            if 'SITE' in sales_df.columns:
+                # Convert both to string for proper matching
+                sales_df['SITE'] = sales_df['SITE'].astype(str)
+                site_ids_str = [str(sid) for sid in site_ids]
+                sales_df = sales_df[sales_df['SITE'].isin(site_ids_str)]
+                print(f"📊 After SIDNO filter ({site_sidno_str}): {len(sales_df)} records")
+            else:
+                return jsonify({'error': 'SITE column not found in sales details'}), 400
         
         # Filter by date range
         if 'FDATE' in sales_df.columns:
@@ -2102,9 +2143,9 @@ def api_kinshasa_bureau_items_report():
         result_df['ITEM_NAME'] = result_df['ITEM_NAME'].fillna('Unknown Item')
         result_df['CATEGORY_ID'] = result_df['CATEGORY_ID'].fillna('')
         
-        # Fill NaN values for NWEIGHT and calculate weight (NWEIGHT * TOTAL_QTY)
+        # Fill NaN values for NWEIGHT and calculate weight (NWEIGHT * TOTAL_QTY), then convert to tons (divide by 1000)
         result_df['NWEIGHT'] = result_df['NWEIGHT'].fillna(0)
-        result_df['WEIGHT'] = result_df['NWEIGHT'] * result_df['TOTAL_QTY']
+        result_df['WEIGHT'] = (result_df['NWEIGHT'] * result_df['TOTAL_QTY']) / 1000  # Convert to tons
         
         # Get category names
         if 'categories' in dataframes and dataframes['categories'] is not None:
@@ -2159,20 +2200,21 @@ def api_kinshasa_bureau_items_report():
                 'total_returns_qty': float(total_returns),
                 'total_net_qty': float(total_net),
                 'total_weight': float(total_weight),
-                'filter': 'SID starting with 4112 (Office Clients)',
+                'site_sidno': site_sidno,
+                'filter': 'SID starting with 411 (Office Clients)',
                 'data_source': 'ITEMS table (sales_details)',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',
                     'returns': 'SUM(QTY) where FTYPE = 2',
                     'total': 'SALES_QTY - RETURNS_QTY',
-                    'weight': 'NWEIGHT (from STOCK table) × TOTAL_QTY',
+                    'weight': 'NWEIGHT (from STOCK table) × TOTAL_QTY / 1000 (in tons)',
                     'sorting': 'Sorted by TOTAL_QTY descending (top items)'
                 },
                 'columns_info': {
                     'item_code': 'Item code',
                     'item_name': 'Item description (DESCR1)',
                     'category': 'Category name from categories.DESCR',
-                    'weight': 'Total weight = NWEIGHT × TOTAL_QTY (from STOCK.NWEIGHT)',
+                    'weight': 'Total weight in tons = (NWEIGHT × TOTAL_QTY) / 1000 (from STOCK.NWEIGHT)',
                     'sales_qty': 'Total sales quantity (FTYPE = 1)',
                     'returns_qty': 'Total returns quantity (FTYPE = 2)',
                     'total_qty': 'Net quantity (Sales - Returns)'

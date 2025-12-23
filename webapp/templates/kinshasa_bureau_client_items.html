@@ -141,7 +141,7 @@
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
                                     <th>Total (Net)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Weight</th>
+                                    <th style="border-radius: 0 8px 0 0;">Weight (Tons)</th>
                                 </tr>
                             </thead>
                             <tbody id="clientItemsTableBody">
@@ -168,6 +168,15 @@ $(document).ready(function() {
     
     // Get site_sidno from URL (can be multiple)
     const siteSidno = urlParams.getAll('site_sidno');
+    
+    // Store current filters for export
+    let currentFilters = {
+        client_sid: clientSid,
+        client_name: clientName,
+        from_date: fromDate,
+        to_date: toDate,
+        site_sidno: siteSidno.length > 0 ? siteSidno : null
+    };
     
     // Display client info
     $('#clientNameDisplay').text(clientName);
@@ -270,7 +279,64 @@ $(document).ready(function() {
                 infoEmpty: "No items found",
                 infoFiltered: "(filtered from _MAX_ total items)"
             },
-            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+            dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                 '<"row mb-3"<"col-sm-12 text-center"B>>' +
+                 '<"row"<"col-sm-12"tr>>' +
+                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: '<i class="fas fa-file-excel me-2"></i>Export to Excel',
+                    className: 'btn btn-success btn-sm',
+                    filename: function() {
+                        let filename = 'kinshasa_bureau_client_items';
+                        if (currentFilters && currentFilters.client_sid) {
+                            filename += '_client_' + currentFilters.client_sid;
+                        }
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            filename += '_' + currentFilters.from_date.replace(/-/g, '') + '_to_' + currentFilters.to_date.replace(/-/g, '');
+                        }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'DepotKinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteParts = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `sidno_${sidno}`;
+                            });
+                            filename += '_' + siteParts.join('_');
+                        }
+                        filename += '_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
+                        return filename;
+                    },
+                    title: function() {
+                        let title = 'Kinshasa Bureau Client Items Report';
+                        if (currentFilters && currentFilters.client_name) {
+                            title += ' - Client: ' + currentFilters.client_name;
+                        }
+                        if (currentFilters && currentFilters.client_sid) {
+                            title += ' (SID: ' + currentFilters.client_sid + ')';
+                        }
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            title += ' - Period: ' + currentFilters.from_date + ' to ' + currentFilters.to_date;
+                        }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'Depot Kinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteLabels = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `SIDNO ${sidno}`;
+                            });
+                            title += ' | Sites: ' + siteLabels.join(', ');
+                        }
+                        title += ' | Generated on ' + new Date().toLocaleDateString();
+                        return title;
+                    }
+                }
+            ]
         });
         
         $('#resultsSection').show();

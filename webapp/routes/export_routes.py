@@ -659,7 +659,7 @@ def api_export_bureau_client_report():
         row += 1
         ws[f'A{row}'] = f"Total Clients: {len(report_data)}"
         row += 1
-        filter_text = "SID starting with 4112 (Office Clients)"
+        filter_text = "SID starting with 411 (Office Clients)"
         if site_sidno:
             site_names = {
                 '3700002': 'Kinshasa',
@@ -852,7 +852,7 @@ def api_export_bureau_items_report():
         row += 1
         ws[f'A{row}'] = f"Top N: {top_n if top_n != '0' else 'All Items'}"
         row += 1
-        ws[f'A{row}'] = f"Filter: SID starting with 4112 (Office Clients)"
+        ws[f'A{row}'] = f"Filter: SID starting with 411 (Office Clients)"
         row += 1
         ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
         row += 1
@@ -1020,7 +1020,7 @@ def api_export_item_clients_report():
         row += 1
         ws[f'A{row}'] = f"Total Clients: {len(report_data)}"
         row += 1
-        ws[f'A{row}'] = f"Filter: SID starting with 4112 (Office Clients)"
+        ws[f'A{row}'] = f"Filter: SID starting with 411 (Office Clients)"
         row += 1
         ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
         row += 1

@@ -71,7 +71,7 @@
                     </div>
                     <div class="col-md-6">
                         <p class="mb-2"><strong>Period:</strong> <span id="periodInfo">-</span></p>
-                        <p class="mb-0"><strong>Filter:</strong> Office Clients (SID: 4112)</p>
+                        <p class="mb-0"><strong>Filter:</strong> Office Clients (SID: 411)</p>
                     </div>
                 </div>
             </div>
@@ -223,34 +223,37 @@ $(document).ready(function() {
         return;
     }
     
+    // Get site_sidno from URL (can be multiple)
+    const siteSidno = urlParams.getAll('site_sidno');
+    
     currentFilters = {
         item_code: itemCode,
+        item_name: itemName,
         from_date: fromDate,
-        to_date: toDate
+        to_date: toDate,
+        site_sidno: siteSidno.length > 0 ? siteSidno : null
     };
     
     // Load item clients
-    loadItemClients(itemCode, fromDate, toDate);
+    loadItemClients(itemCode, fromDate, toDate, siteSidno.length > 0 ? siteSidno : null);
     
-    // Export button
-    $('#exportBtn').on('click', function() {
-        if (!currentReportData) {
-            showError('No data to export.');
-            return;
-        }
-        exportToExcel();
-    });
-    
-    function loadItemClients(item_code, from_date, to_date) {
+    function loadItemClients(item_code, from_date, to_date, site_sidno) {
         $.ajax({
             url: '/api/kinshasa-bureau-item-clients',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({
-                item_code: item_code,
-                from_date: from_date,
-                to_date: to_date
-            })
+            data: JSON.stringify((function() {
+                const requestData = {
+                    item_code: item_code,
+                    from_date: from_date,
+                    to_date: to_date
+                };
+                // Add site filter if present
+                if (site_sidno && site_sidno.length > 0) {
+                    requestData.site_sidno = site_sidno;
+                }
+                return requestData;
+            })())
         })
         .done(function(response) {
             $('#loadingIndicator').hide();
@@ -324,7 +327,64 @@ $(document).ready(function() {
                 infoEmpty: "No clients found",
                 infoFiltered: "(filtered from _MAX_ total clients)"
             },
-            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+            dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                 '<"row mb-3"<"col-sm-12 text-center"B>>' +
+                 '<"row"<"col-sm-12"tr>>' +
+                 '<"row mt-3"<"col-sm-12 col-md-6 text-center text-md-start"i><"col-sm-12 col-md-6 text-center text-md-end"p>>',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: '<i class="fas fa-file-excel me-2"></i>Export to Excel',
+                    className: 'btn btn-success btn-sm',
+                    filename: function() {
+                        let filename = 'kinshasa_bureau_item_clients';
+                        if (currentFilters && currentFilters.item_code) {
+                            filename += '_item_' + currentFilters.item_code;
+                        }
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            filename += '_' + currentFilters.from_date.replace(/-/g, '') + '_to_' + currentFilters.to_date.replace(/-/g, '');
+                        }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'DepotKinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteParts = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `sidno_${sidno}`;
+                            });
+                            filename += '_' + siteParts.join('_');
+                        }
+                        filename += '_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
+                        return filename;
+                    },
+                    title: function() {
+                        let title = 'Kinshasa Bureau Item Clients Report';
+                        if (currentFilters && currentFilters.item_name) {
+                            title += ' - Item: ' + currentFilters.item_name;
+                        }
+                        if (currentFilters && currentFilters.item_code) {
+                            title += ' (Code: ' + currentFilters.item_code + ')';
+                        }
+                        if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
+                            title += ' - Period: ' + currentFilters.from_date + ' to ' + currentFilters.to_date;
+                        }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'Depot Kinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteLabels = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `SIDNO ${sidno}`;
+                            });
+                            title += ' | Sites: ' + siteLabels.join(', ');
+                        }
+                        title += ' | Generated on ' + new Date().toLocaleDateString();
+                        return title;
+                    }
+                }
+            ]
         });
         
         // Make rows clickable to navigate to client items page
@@ -353,7 +413,8 @@ $(document).ready(function() {
         
         $('#resultsSection').show();
         $('#summaryCards').show();
-        $('#exportBtn').show();
+        // Hide custom export button since we're using DataTables export
+        $('#exportBtn').hide();
     }
     
     function exportToExcel() {

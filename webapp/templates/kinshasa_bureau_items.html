@@ -23,7 +23,7 @@
                                 Kinshasa Sales Bureau Top Items Report
                             </h1>
                             <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
-                                Top items by sales/returns for office clients (SID: 4112) powered by <strong>DustReports</strong>
+                                Top items by sales/returns for office clients (SID: 411) powered by <strong>DustReports</strong>
                             </p>
                         </div>
                     </div>
@@ -118,6 +118,25 @@
                                     <option value="200">Top 200</option>
                                     <option value="0">All Items</option>
                                 </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4 col-md-6">
+                            <div class="filter-group">
+                                <label for="siteFilter" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
+                                    Site Filter (SIDNO) - Multiple Selection
+                                </label>
+                                <select class="form-select form-select-lg" id="siteFilter" name="site_sidno" multiple
+                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease; min-height: 120px;">
+                                    <option value="3700002">3700002 - Kinshasa</option>
+                                    <option value="3700004">3700004 - Depot Kinshasa</option>
+                                    <option value="3700003">3700003 - Interieur</option>
+                                </select>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Hold Ctrl (Windows) or Cmd (Mac) to select multiple sites
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -231,7 +250,7 @@
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
                                     <th>Total (Net)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Weight</th>
+                                    <th style="border-radius: 0 8px 0 0;">Weight (Tons)</th>
                                 </tr>
                             </thead>
                             <tbody id="bureauItemsTableBody">
@@ -266,23 +285,28 @@ $(document).ready(function() {
         generateReport();
     });
     
-    // Clear button
-    $('#clearBtn, #resetBtn').on('click', function() {
-        $('#bureauItemsForm')[0].reset();
-        $('#resultsSection').hide();
-        $('#errorAlert').hide();
-        
-        // Reset to default dates
-        $('#toDate').val(today.toISOString().split('T')[0]);
-        $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
-        $('#topN').val('50');
-    });
+        // Clear button
+        $('#clearBtn, #resetBtn').on('click', function() {
+            $('#bureauItemsForm')[0].reset();
+            $('#resultsSection').hide();
+            $('#errorAlert').hide();
+            
+            // Reset to default dates
+            $('#toDate').val(today.toISOString().split('T')[0]);
+            $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
+            $('#topN').val('50');
+            $('#siteFilter').val(null).trigger('change');
+        });
     
     function generateReport() {
+        // Get selected site SIDNO values (array)
+        const selectedSites = $('#siteFilter').val() || [];
+        
         const formData = {
             from_date: $('#fromDate').val(),
             to_date: $('#toDate').val(),
-            top_n: $('#topN').val() || 50
+            top_n: $('#topN').val() || 50,
+            site_sidno: selectedSites.length > 0 ? selectedSites : null
         };
         
         // Validate dates
@@ -392,6 +416,17 @@ $(document).ready(function() {
                         if (currentFilters && currentFilters.top_n) {
                             filename += '_top' + currentFilters.top_n;
                         }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'DepotKinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteParts = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `sidno_${sidno}`;
+                            });
+                            filename += '_' + siteParts.join('_');
+                        }
                         filename += '_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
                         return filename;
                     },
@@ -402,6 +437,17 @@ $(document).ready(function() {
                         }
                         if (currentFilters && currentFilters.top_n) {
                             title += ' | Top ' + (currentFilters.top_n === '0' ? 'All' : currentFilters.top_n) + ' Items';
+                        }
+                        if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                            const siteNames = {
+                                '3700002': 'Kinshasa',
+                                '3700004': 'Depot Kinshasa',
+                                '3700003': 'Interieur'
+                            };
+                            const siteLabels = currentFilters.site_sidno.map(function(sidno) {
+                                return siteNames[sidno] || `SIDNO ${sidno}`;
+                            });
+                            title += ' | Sites: ' + siteLabels.join(', ');
                         }
                         title += ' | Generated on ' + new Date().toLocaleDateString();
                         return title;
@@ -422,6 +468,14 @@ $(document).ready(function() {
                     from_date: currentFilters.from_date,
                     to_date: currentFilters.to_date
                 });
+                
+                // Add site filter if present
+                if (currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
+                    currentFilters.site_sidno.forEach(function(sidno) {
+                        params.append('site_sidno', sidno);
+                    });
+                }
+                
                 window.location.href = '/kinshasa-bureau-item-clients?' + params.toString();
             }
         });

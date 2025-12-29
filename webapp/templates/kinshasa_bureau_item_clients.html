@@ -225,19 +225,22 @@ $(document).ready(function() {
     
     // Get site_sidno from URL (can be multiple)
     const siteSidno = urlParams.getAll('site_sidno');
+    // Get contact from URL (can be multiple)
+    const contact = urlParams.getAll('contact');
     
     currentFilters = {
         item_code: itemCode,
         item_name: itemName,
         from_date: fromDate,
         to_date: toDate,
-        site_sidno: siteSidno.length > 0 ? siteSidno : null
+        site_sidno: siteSidno.length > 0 ? siteSidno : null,
+        contact: contact.length > 0 ? contact : null
     };
     
     // Load item clients
-    loadItemClients(itemCode, fromDate, toDate, siteSidno.length > 0 ? siteSidno : null);
+    loadItemClients(itemCode, fromDate, toDate, siteSidno.length > 0 ? siteSidno : null, contact.length > 0 ? contact : null);
     
-    function loadItemClients(item_code, from_date, to_date, site_sidno) {
+    function loadItemClients(item_code, from_date, to_date, site_sidno, contact) {
         $.ajax({
             url: '/api/kinshasa-bureau-item-clients',
             method: 'POST',
@@ -251,6 +254,10 @@ $(document).ready(function() {
                 // Add site filter if present
                 if (site_sidno && site_sidno.length > 0) {
                     requestData.site_sidno = site_sidno;
+                }
+                // Add contact filter if present
+                if (contact && contact.length > 0) {
+                    requestData.contact = contact;
                 }
                 return requestData;
             })())

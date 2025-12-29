@@ -588,6 +588,7 @@ def api_export_bureau_client_report():
         from_date = data.get('from_date')
         to_date = data.get('to_date')
         site_sidno = data.get('site_sidno')
+        contact = data.get('contact')
         
         dataframes = get_dataframes()
         if not dataframes:
@@ -648,7 +649,7 @@ def api_export_bureau_client_report():
             title += f" - {site_name}"
         
         # Write title
-        ws.merge_cells('A1:G1')
+        ws.merge_cells('A1:H1')
         ws['A1'] = title
         ws['A1'].font = Font(bold=True, size=16)
         ws['A1'].alignment = Alignment(horizontal="center")
@@ -666,8 +667,17 @@ def api_export_bureau_client_report():
                 '3700004': 'Depot Kinshasa',
                 '3700003': 'Interieur'
             }
-            site_name = site_names.get(str(site_sidno), f'SIDNO {site_sidno}')
-            filter_text += f", SIDNO = {site_sidno} ({site_name})"
+            if isinstance(site_sidno, list):
+                site_labels = [site_names.get(str(s), f'SIDNO {s}') for s in site_sidno]
+                filter_text += f", SIDNO in {site_sidno} ({', '.join(site_labels)})"
+            else:
+                site_name = site_names.get(str(site_sidno), f'SIDNO {site_sidno}')
+                filter_text += f", SIDNO = {site_sidno} ({site_name})"
+        if contact:
+            if isinstance(contact, list):
+                filter_text += f", CONTACT in {contact}"
+            else:
+                filter_text += f", CONTACT = {contact}"
         ws[f'A{row}'] = f"Filter: {filter_text}"
         row += 1
         ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details) joined with ALLSTOCK table (sites) for SIDNO filtering"
@@ -689,6 +699,7 @@ def api_export_bureau_client_report():
         headers = [
             'Client Name',
             'Client ID (SID)',
+            'Contact ID',
             'Number of Invoices',
             'Sales Qty (FTYPE=1)',
             'Returns Qty (FTYPE=2)',
@@ -708,27 +719,29 @@ def api_export_bureau_client_report():
         for row_idx, client_data in enumerate(report_data, row + 1):
             ws.cell(row=row_idx, column=1, value=client_data.get('CLIENT_NAME', 'Unknown')).border = border
             ws.cell(row=row_idx, column=2, value=client_data.get('SID', '')).border = border
-            ws.cell(row=row_idx, column=3, value=client_data.get('NUM_INVOICES', 0)).border = border
-            ws.cell(row=row_idx, column=4, value=client_data.get('SALES_QTY', 0)).border = border
-            ws.cell(row=row_idx, column=5, value=client_data.get('RETURNS_QTY', 0)).border = border
-            ws.cell(row=row_idx, column=6, value=client_data.get('TOTAL_QTY', 0)).border = border
-            ws.cell(row=row_idx, column=7, value=client_data.get('QUANTITY_USD', 0)).border = border
+            ws.cell(row=row_idx, column=3, value=client_data.get('CONTACT', 'N/A')).border = border
+            ws.cell(row=row_idx, column=4, value=client_data.get('NUM_INVOICES', 0)).border = border
+            ws.cell(row=row_idx, column=5, value=client_data.get('SALES_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=6, value=client_data.get('RETURNS_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=7, value=client_data.get('TOTAL_QTY', 0)).border = border
+            ws.cell(row=row_idx, column=8, value=client_data.get('QUANTITY_USD', 0)).border = border
         
         # Add totals row
         totals_row = row + len(report_data) + 1
         ws.cell(row=totals_row, column=1, value="TOTALS").font = Font(bold=True)
         ws.cell(row=totals_row, column=1).border = border
         ws.cell(row=totals_row, column=2, value="").border = border
-        ws.cell(row=totals_row, column=3, value=metadata.get('total_invoices', 0)).font = Font(bold=True)
-        ws.cell(row=totals_row, column=3).border = border
-        ws.cell(row=totals_row, column=4, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=3, value="").border = border
+        ws.cell(row=totals_row, column=4, value=metadata.get('total_invoices', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=4).border = border
-        ws.cell(row=totals_row, column=5, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=5, value=metadata.get('total_sales_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=5).border = border
-        ws.cell(row=totals_row, column=6, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=6, value=metadata.get('total_returns_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=6).border = border
-        ws.cell(row=totals_row, column=7, value=metadata.get('total_quantity_usd', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=7, value=metadata.get('total_net_qty', 0)).font = Font(bold=True)
         ws.cell(row=totals_row, column=7).border = border
+        ws.cell(row=totals_row, column=8, value=metadata.get('total_quantity_usd', 0)).font = Font(bold=True)
+        ws.cell(row=totals_row, column=8).border = border
         
         # Auto-adjust column widths
         for column in ws.columns:
@@ -787,6 +800,8 @@ def api_export_bureau_items_report():
         from_date = data.get('from_date')
         to_date = data.get('to_date')
         top_n = data.get('top_n', 50)
+        site_sidno = data.get('site_sidno')
+        contact = data.get('contact')
         
         dataframes = get_dataframes()
         if not dataframes:
@@ -852,7 +867,25 @@ def api_export_bureau_items_report():
         row += 1
         ws[f'A{row}'] = f"Top N: {top_n if top_n != '0' else 'All Items'}"
         row += 1
-        ws[f'A{row}'] = f"Filter: SID starting with 411 (Office Clients)"
+        filter_text = "SID starting with 411 (Office Clients)"
+        if site_sidno:
+            site_names = {
+                '3700002': 'Kinshasa',
+                '3700004': 'Depot Kinshasa',
+                '3700003': 'Interieur'
+            }
+            if isinstance(site_sidno, list):
+                site_labels = [site_names.get(str(s), f'SIDNO {s}') for s in site_sidno]
+                filter_text += f", SIDNO in {site_sidno} ({', '.join(site_labels)})"
+            else:
+                site_name = site_names.get(str(site_sidno), f'SIDNO {site_sidno}')
+                filter_text += f", SIDNO = {site_sidno} ({site_name})"
+        if contact:
+            if isinstance(contact, list):
+                filter_text += f", CONTACT in {contact}"
+            else:
+                filter_text += f", CONTACT = {contact}"
+        ws[f'A{row}'] = f"Filter: {filter_text}"
         row += 1
         ws[f'A{row}'] = f"Data Source: ITEMS table (sales_details)"
         row += 1

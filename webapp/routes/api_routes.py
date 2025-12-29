@@ -1269,6 +1269,9 @@ def api_kinshasa_bureau_client_report():
         from_date = data.get('from_date')
         to_date = data.get('to_date')
         site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
+        contact = data.get('contact')  # Optional: filter by CONTACT (can be array or single value)
+        
+        print(f"🔍 Report 7 - Received contact filter: {contact} (type: {type(contact)})")
         
         # Validate dates
         if not from_date or not to_date:
@@ -1345,6 +1348,74 @@ def api_kinshasa_bureau_client_report():
             print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
         else:
             return jsonify({'error': 'FDATE column not found in sales details'}), 400
+        
+        # Filter by CONTACT if provided (via SUB table)
+        if contact:
+            if 'accounts' not in dataframes or dataframes['accounts'] is None:
+                return jsonify({'error': 'Accounts data (SUB table) not available for CONTACT filtering'}), 400
+            
+            accounts_df = dataframes['accounts'].copy()
+            
+            # Check if CONTACT column exists in SUB table (case-insensitive)
+            contact_col = None
+            for col in accounts_df.columns:
+                if col.upper() == 'CONTACT':
+                    contact_col = col
+                    break
+            
+            if not contact_col:
+                return jsonify({'error': 'CONTACT column not found in SUB table (accounts)'}), 400
+            
+            # Convert contact to list if it's a single value
+            if not isinstance(contact, list):
+                contact = [contact]
+            
+            # Filter SUB table by SID starting with '411' first
+            accounts_df = accounts_df[accounts_df['SID'].astype(str).str.startswith('411')]
+            print(f"📊 Accounts with SID starting with 411: {len(accounts_df)}")
+            
+            # Try multiple matching strategies
+            filtered_accounts = None
+            
+            # Strategy 1: Try numeric matching (CONTACT might be float/int)
+            try:
+                contact_values = [float(c) for c in contact]
+                # Handle NaN values in CONTACT column
+                accounts_df_clean = accounts_df[accounts_df[contact_col].notna()]
+                filtered_accounts = accounts_df_clean[accounts_df_clean[contact_col].isin(contact_values)]
+                if not filtered_accounts.empty:
+                    print(f"📊 Matched {len(filtered_accounts)} accounts using numeric matching")
+            except (ValueError, TypeError) as e:
+                print(f"⚠️ Numeric matching failed: {e}")
+            
+            # Strategy 2: If numeric failed or returned empty, try string matching
+            if filtered_accounts is None or filtered_accounts.empty:
+                try:
+                    contact_str = [str(c).strip() for c in contact]
+                    accounts_df_clean = accounts_df[accounts_df[contact_col].notna()]
+                    accounts_df_clean[contact_col] = accounts_df_clean[contact_col].astype(str).str.strip()
+                    filtered_accounts = accounts_df_clean[accounts_df_clean[contact_col].isin(contact_str)]
+                    if not filtered_accounts.empty:
+                        print(f"📊 Matched {len(filtered_accounts)} accounts using string matching")
+                except Exception as e:
+                    print(f"⚠️ String matching failed: {e}")
+            
+            if filtered_accounts is None or filtered_accounts.empty:
+                # Debug: show some sample CONTACT values
+                sample_contacts = accounts_df[contact_col].dropna().unique()[:10]
+                print(f"⚠️ No matches found. Sample CONTACT values in SUB table: {sample_contacts}")
+                print(f"⚠️ Looking for CONTACT values: {contact}")
+                return jsonify({'error': f'No clients found with CONTACT in {contact}. Please check the contact values.'}), 404
+            
+            # Get SIDs from filtered accounts
+            filtered_sids = filtered_accounts['SID'].astype(str).unique().tolist()
+            print(f"📊 Found {len(filtered_sids)} unique clients with CONTACT in {contact}")
+            print(f"📊 Sample SIDs: {filtered_sids[:5] if len(filtered_sids) > 5 else filtered_sids}")
+            
+            # Filter sales_df by these SIDs
+            sales_df_before = len(sales_df)
+            sales_df = sales_df[sales_df['SID'].astype(str).isin(filtered_sids)]
+            print(f"📊 After CONTACT filter ({contact}): {len(sales_df)} records (was {sales_df_before})")
         
         if sales_df.empty:
             return jsonify({'error': 'No sales found for the specified criteria'}), 404
@@ -1451,22 +1522,75 @@ def api_kinshasa_bureau_client_report():
                 'QUANTITY_USD': float(usd_amount)
             })
         
-        # Get client names from SUB table (accounts dataframe)
+        # Get client names and CONTACT from SUB table (accounts dataframe)
+        # Get data from FULL accounts_df to ensure we get correct CONTACT values
+        result_sids = [row['SID'] for row in result_data]
         client_names = {}
+        client_contacts = {}
+        
         if 'accounts' in dataframes and dataframes['accounts'] is not None:
+            # Use FULL accounts_df to get correct CONTACT values for each SID
             accounts_df = dataframes['accounts'].copy()
-            if 'SID' in accounts_df.columns and 'SNAME' in accounts_df.columns:
-                # Convert SID to string for matching
-                accounts_df['SID'] = accounts_df['SID'].astype(str)
-                # Get unique SID-SNAME mappings
-                sid_name_map = accounts_df[['SID', 'SNAME']].drop_duplicates()
+            accounts_df['SID'] = accounts_df['SID'].astype(str)
+            
+            # Filter accounts_df to only include SIDs in the result (for efficiency)
+            accounts_df_filtered = accounts_df[accounts_df['SID'].isin(result_sids)]
+            
+            if 'SNAME' in accounts_df_filtered.columns:
+                # Get unique SID-SNAME mappings (take first if duplicates)
+                sid_name_map = accounts_df_filtered[['SID', 'SNAME']].drop_duplicates(subset=['SID'], keep='first')
                 client_names = dict(zip(sid_name_map['SID'], sid_name_map['SNAME']))
                 print(f"📍 Retrieved client names for {len(client_names)} clients from SUB table")
+            
+            # Get CONTACT values from SUB table - use FULL accounts_df to ensure correct values
+            contact_col = None
+            for col in accounts_df.columns:
+                if col.upper() == 'CONTACT':
+                    contact_col = col
+                    break
+            
+            if contact_col:
+                # Get CONTACT values from FULL accounts_df, but only for SIDs in result
+                # This ensures we get the correct CONTACT value for each SID
+                accounts_df_for_contact = accounts_df[accounts_df['SID'].isin(result_sids)]
+                
+                # Get unique SID-CONTACT mappings (take first if duplicates exist)
+                sid_contact_map = accounts_df_for_contact[['SID', contact_col]].drop_duplicates(subset=['SID'], keep='first')
+                
+                # Don't filter out NaN - we want to see if there are missing values
+                # But convert to dict, handling NaN properly
+                client_contacts = {}
+                for _, row in sid_contact_map.iterrows():
+                    sid = str(row['SID'])
+                    contact_val = row[contact_col]
+                    if pd.notna(contact_val):
+                        client_contacts[sid] = contact_val
+                
+                print(f"📍 Retrieved CONTACT values for {len(client_contacts)} clients from SUB table")
+                print(f"📍 Sample CONTACT values: {list(client_contacts.items())[:5]}")
+                print(f"📍 Result SIDs count: {len(result_sids)}, CONTACT values count: {len(client_contacts)}")
         
-        # Add client names to result data
+        # Add client names and CONTACT to result data
         for row in result_data:
             sid = row['SID']
             row['CLIENT_NAME'] = client_names.get(sid, f"Client {sid}")
+            # Convert CONTACT to string or None for JSON serialization
+            contact_val = client_contacts.get(sid, None)
+            if contact_val is not None and pd.notna(contact_val):
+                # Convert to string, handling both numeric and string types
+                if isinstance(contact_val, (int, float)):
+                    # If it's a whole number, convert to int then string to avoid .0
+                    if isinstance(contact_val, float) and contact_val == int(contact_val):
+                        row['CONTACT'] = str(int(contact_val))
+                    else:
+                        row['CONTACT'] = str(contact_val)
+                else:
+                    row['CONTACT'] = str(contact_val)
+            else:
+                row['CONTACT'] = 'N/A'  # Changed from None to 'N/A' for visibility
+            # Debug: log first few rows
+            if len([r for r in result_data if 'CONTACT' in r]) <= 5:
+                print(f"📊 Row SID: {sid}, CONTACT: {row.get('CONTACT', 'N/A')}")
         
         # Sort by total quantity descending
         result_data.sort(key=lambda x: x['TOTAL_QTY'], reverse=True)
@@ -1497,7 +1621,8 @@ def api_kinshasa_bureau_client_report():
                         '3700003': 'Interieur'
                     }.get(str(s), f'SIDNO {s}') for s in (site_sidno if isinstance(site_sidno, list) else [site_sidno])
                 ] if site_sidno else None,
-                'filter': f'SID starting with 411 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else ''),
+                'contact': contact if contact else None,
+                'filter': f'SID starting with 411 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else '') + (f', CONTACT in {contact if isinstance(contact, list) else [contact]}' if contact else ''),
                 'data_source': 'ITEMS table (sales_details) joined with ALLSTOCK table (sites) for SIDNO filtering',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',
@@ -1519,6 +1644,65 @@ def api_kinshasa_bureau_client_report():
         
     except Exception as e:
         print(f"Error in Kinshasa Bureau Client report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/unique-contacts', methods=['GET'])
+def api_unique_contacts():
+    """
+    Get unique CONTACT values from SUB table (accounts dataframe)
+    Used for populating CONTACT filter dropdown
+    Filters for clients with SID starting with 411 (office clients)
+    """
+    try:
+        dataframes = get_dataframes()
+        if not dataframes:
+            return jsonify({'error': 'No data loaded. Please load dataframes first.'}), 400
+        
+        # Get accounts data (SUB table)
+        if 'accounts' not in dataframes or dataframes['accounts'] is None:
+            return jsonify({'error': 'Accounts data (SUB table) not available'}), 400
+        
+        accounts_df = dataframes['accounts'].copy()
+        
+        # Check if CONTACT column exists (case-insensitive)
+        contact_col = None
+        for col in accounts_df.columns:
+            if col.upper() == 'CONTACT':
+                contact_col = col
+                break
+        
+        if not contact_col:
+            return jsonify({'error': 'CONTACT column not found in SUB table (accounts)'}), 400
+        
+        # Filter for SID starting with "411" (office clients) to match report scope
+        # SUB table uses SID as the client identifier
+        if 'SID' not in accounts_df.columns:
+            return jsonify({'error': 'SID column not found in SUB table (accounts)'}), 400
+        
+        accounts_df = accounts_df[accounts_df['SID'].astype(str).str.startswith('411')]
+        
+        # Get unique non-null CONTACT values
+        unique_contacts = accounts_df[contact_col].dropna().unique()
+        
+        # Convert to list and sort (handle both numeric and string types)
+        try:
+            # Try to convert to numeric and sort
+            unique_contacts = sorted([float(x) for x in unique_contacts if pd.notna(x)])
+            # Convert back to string for JSON serialization
+            unique_contacts = [str(int(x)) if x == int(x) else str(x) for x in unique_contacts]
+        except (ValueError, TypeError):
+            # If not numeric, sort as strings
+            unique_contacts = sorted([str(x) for x in unique_contacts if pd.notna(x)])
+        
+        return jsonify({
+            'contacts': unique_contacts,
+            'count': len(unique_contacts)
+        })
+        
+    except Exception as e:
+        print(f"Error in unique contacts: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -1758,6 +1942,10 @@ def api_kinshasa_bureau_item_clients():
         item_code = data.get('item_code')
         from_date = data.get('from_date')
         to_date = data.get('to_date')
+        site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
+        contact = data.get('contact')  # Optional: filter by CONTACT (can be array or single value)
+        
+        print(f"🔍 Item Clients Report - Received contact filter: {contact} (type: {type(contact)})")
         
         # Validate inputs
         if not item_code:
@@ -1803,6 +1991,112 @@ def api_kinshasa_bureau_item_clients():
             print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
         else:
             return jsonify({'error': 'FDATE column not found in sales details'}), 400
+        
+        # Filter by SIDNO from ALLSTOCK table if site_sidno is provided
+        if site_sidno:
+            if 'sites' not in dataframes or dataframes['sites'] is None:
+                return jsonify({'error': 'Sites data (ALLSTOCK) not available'}), 400
+            
+            sites_df = dataframes['sites'].copy()
+            
+            # Check if SIDNO column exists
+            if 'SIDNO' not in sites_df.columns:
+                return jsonify({'error': 'SIDNO column not found in sites (ALLSTOCK) table'}), 400
+            
+            # Convert site_sidno to list if it's a single value
+            if not isinstance(site_sidno, list):
+                site_sidno = [site_sidno]
+            
+            # Convert all to strings for comparison
+            site_sidno_str = [str(s) for s in site_sidno]
+            
+            # Filter sites by SIDNO (multiple values)
+            filtered_sites = sites_df[sites_df['SIDNO'].astype(str).isin(site_sidno_str)]
+            
+            if filtered_sites.empty:
+                return jsonify({'error': f'No sites found with SIDNO in {site_sidno_str}'}), 404
+            
+            # Get site IDs (ALLSTOCK.ID) that match any of the SIDNO values
+            site_ids = filtered_sites['ID'].unique().tolist()
+            print(f"📍 Found {len(site_ids)} sites with SIDNO in {site_sidno_str}")
+            
+            # Filter sales_df by SITE (ITEMS.SITE = ALLSTOCK.ID)
+            if 'SITE' in sales_df.columns:
+                # Convert both to string for proper matching
+                sales_df['SITE'] = sales_df['SITE'].astype(str)
+                site_ids_str = [str(sid) for sid in site_ids]
+                sales_df = sales_df[sales_df['SITE'].isin(site_ids_str)]
+                print(f"📊 After SIDNO filter ({site_sidno_str}): {len(sales_df)} records")
+            else:
+                return jsonify({'error': 'SITE column not found in sales details'}), 400
+        
+        # Filter by CONTACT if provided (via SUB table)
+        if contact:
+            if 'accounts' not in dataframes or dataframes['accounts'] is None:
+                return jsonify({'error': 'Accounts data (SUB table) not available for CONTACT filtering'}), 400
+            
+            accounts_df = dataframes['accounts'].copy()
+            
+            # Check if CONTACT column exists in SUB table (case-insensitive)
+            contact_col = None
+            for col in accounts_df.columns:
+                if col.upper() == 'CONTACT':
+                    contact_col = col
+                    break
+            
+            if not contact_col:
+                return jsonify({'error': 'CONTACT column not found in SUB table (accounts)'}), 400
+            
+            # Convert contact to list if it's a single value
+            if not isinstance(contact, list):
+                contact = [contact]
+            
+            # Filter SUB table by SID starting with '411' first
+            accounts_df = accounts_df[accounts_df['SID'].astype(str).str.startswith('411')]
+            print(f"📊 Accounts with SID starting with 411: {len(accounts_df)}")
+            
+            # Try multiple matching strategies
+            filtered_accounts = None
+            
+            # Strategy 1: Try numeric matching (CONTACT might be float/int)
+            try:
+                contact_values = [float(c) for c in contact]
+                # Handle NaN values in CONTACT column
+                accounts_df_clean = accounts_df[accounts_df[contact_col].notna()]
+                filtered_accounts = accounts_df_clean[accounts_df_clean[contact_col].isin(contact_values)]
+                if not filtered_accounts.empty:
+                    print(f"📊 Matched {len(filtered_accounts)} accounts using numeric matching")
+            except (ValueError, TypeError) as e:
+                print(f"⚠️ Numeric matching failed: {e}")
+            
+            # Strategy 2: If numeric failed or returned empty, try string matching
+            if filtered_accounts is None or filtered_accounts.empty:
+                try:
+                    contact_str = [str(c).strip() for c in contact]
+                    accounts_df_clean = accounts_df[accounts_df[contact_col].notna()]
+                    accounts_df_clean[contact_col] = accounts_df_clean[contact_col].astype(str).str.strip()
+                    filtered_accounts = accounts_df_clean[accounts_df_clean[contact_col].isin(contact_str)]
+                    if not filtered_accounts.empty:
+                        print(f"📊 Matched {len(filtered_accounts)} accounts using string matching")
+                except Exception as e:
+                    print(f"⚠️ String matching failed: {e}")
+            
+            if filtered_accounts is None or filtered_accounts.empty:
+                # Debug: show some sample CONTACT values
+                sample_contacts = accounts_df[contact_col].dropna().unique()[:10]
+                print(f"⚠️ No matches found. Sample CONTACT values in SUB table: {sample_contacts}")
+                print(f"⚠️ Looking for CONTACT values: {contact}")
+                return jsonify({'error': f'No clients found with CONTACT in {contact}. Please check the contact values.'}), 404
+            
+            # Get SIDs from filtered accounts
+            filtered_sids = filtered_accounts['SID'].astype(str).unique().tolist()
+            print(f"📊 Found {len(filtered_sids)} unique clients with CONTACT in {contact}")
+            print(f"📊 Sample SIDs: {filtered_sids[:5] if len(filtered_sids) > 5 else filtered_sids}")
+            
+            # Filter sales_df by these SIDs
+            sales_df_before = len(sales_df)
+            sales_df = sales_df[sales_df['SID'].astype(str).isin(filtered_sids)]
+            print(f"📊 After CONTACT filter ({contact}): {len(sales_df)} records (was {sales_df_before})")
         
         if sales_df.empty:
             return jsonify({'error': 'No sales found for this item in the specified period'}), 404
@@ -1996,6 +2290,7 @@ def api_kinshasa_bureau_items_report():
         to_date = data.get('to_date')
         top_n = data.get('top_n', 50)  # Default to top 50 items
         site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
+        contact = data.get('contact')  # Optional: filter by CONTACT (can be array or single value)
         
         # Convert top_n to int if it's a string
         try:
@@ -2078,6 +2373,74 @@ def api_kinshasa_bureau_items_report():
             print(f"📊 After date filter ({from_date} to {to_date}): {len(sales_df)} records")
         else:
             return jsonify({'error': 'FDATE column not found in sales details'}), 400
+        
+        # Filter by CONTACT if provided (via SUB table)
+        if contact:
+            if 'accounts' not in dataframes or dataframes['accounts'] is None:
+                return jsonify({'error': 'Accounts data (SUB table) not available for CONTACT filtering'}), 400
+            
+            accounts_df = dataframes['accounts'].copy()
+            
+            # Check if CONTACT column exists in SUB table (case-insensitive)
+            contact_col = None
+            for col in accounts_df.columns:
+                if col.upper() == 'CONTACT':
+                    contact_col = col
+                    break
+            
+            if not contact_col:
+                return jsonify({'error': 'CONTACT column not found in SUB table (accounts)'}), 400
+            
+            # Convert contact to list if it's a single value
+            if not isinstance(contact, list):
+                contact = [contact]
+            
+            # Filter SUB table by SID starting with '411' first
+            accounts_df = accounts_df[accounts_df['SID'].astype(str).str.startswith('411')]
+            print(f"📊 Accounts with SID starting with 411: {len(accounts_df)}")
+            
+            # Try multiple matching strategies
+            filtered_accounts = None
+            
+            # Strategy 1: Try numeric matching (CONTACT might be float/int)
+            try:
+                contact_values = [float(c) for c in contact]
+                # Handle NaN values in CONTACT column
+                accounts_df_clean = accounts_df[accounts_df[contact_col].notna()]
+                filtered_accounts = accounts_df_clean[accounts_df_clean[contact_col].isin(contact_values)]
+                if not filtered_accounts.empty:
+                    print(f"📊 Matched {len(filtered_accounts)} accounts using numeric matching")
+            except (ValueError, TypeError) as e:
+                print(f"⚠️ Numeric matching failed: {e}")
+            
+            # Strategy 2: If numeric failed or returned empty, try string matching
+            if filtered_accounts is None or filtered_accounts.empty:
+                try:
+                    contact_str = [str(c).strip() for c in contact]
+                    accounts_df_clean = accounts_df[accounts_df[contact_col].notna()]
+                    accounts_df_clean[contact_col] = accounts_df_clean[contact_col].astype(str).str.strip()
+                    filtered_accounts = accounts_df_clean[accounts_df_clean[contact_col].isin(contact_str)]
+                    if not filtered_accounts.empty:
+                        print(f"📊 Matched {len(filtered_accounts)} accounts using string matching")
+                except Exception as e:
+                    print(f"⚠️ String matching failed: {e}")
+            
+            if filtered_accounts is None or filtered_accounts.empty:
+                # Debug: show some sample CONTACT values
+                sample_contacts = accounts_df[contact_col].dropna().unique()[:10]
+                print(f"⚠️ No matches found. Sample CONTACT values in SUB table: {sample_contacts}")
+                print(f"⚠️ Looking for CONTACT values: {contact}")
+                return jsonify({'error': f'No clients found with CONTACT in {contact}. Please check the contact values.'}), 404
+            
+            # Get SIDs from filtered accounts
+            filtered_sids = filtered_accounts['SID'].astype(str).unique().tolist()
+            print(f"📊 Found {len(filtered_sids)} unique clients with CONTACT in {contact}")
+            print(f"📊 Sample SIDs: {filtered_sids[:5] if len(filtered_sids) > 5 else filtered_sids}")
+            
+            # Filter sales_df by these SIDs
+            sales_df_before = len(sales_df)
+            sales_df = sales_df[sales_df['SID'].astype(str).isin(filtered_sids)]
+            print(f"📊 After CONTACT filter ({contact}): {len(sales_df)} records (was {sales_df_before})")
         
         if sales_df.empty:
             return jsonify({'error': 'No sales found for the specified criteria'}), 404
@@ -2201,7 +2564,8 @@ def api_kinshasa_bureau_items_report():
                 'total_net_qty': float(total_net),
                 'total_weight': float(total_weight),
                 'site_sidno': site_sidno,
-                'filter': 'SID starting with 411 (Office Clients)',
+                'contact': contact if contact else None,
+                'filter': 'SID starting with 411 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else '') + (f', CONTACT in {contact if isinstance(contact, list) else [contact]}' if contact else ''),
                 'data_source': 'ITEMS table (sales_details)',
                 'calculation_method': {
                     'sales': 'SUM(QTY) where FTYPE = 1',

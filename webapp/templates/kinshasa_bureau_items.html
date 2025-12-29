@@ -139,6 +139,23 @@
                                 </small>
                             </div>
                         </div>
+                        
+                        <div class="col-lg-4 col-md-6">
+                            <div class="filter-group">
+                                <label for="contactFilter" class="form-label fw-semibold" style="color: #2d3748 !important;">
+                                    <i class="fas fa-user-tag me-2" style="color: var(--dust-secondary);"></i>
+                                    Contact Filter - Multiple Selection
+                                </label>
+                                <select class="form-select form-select-lg" id="contactFilter" name="contact" multiple
+                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease; min-height: 120px;">
+                                    <option value="" disabled>Loading contacts...</option>
+                                </select>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Hold Ctrl (Windows) or Cmd (Mac) to select multiple contacts
+                                </small>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="row mt-4">
@@ -202,7 +219,8 @@
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Total Sales</h6>
+                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Total Sales Qty</h6>
+                            <h6 class="text-white-50 mb-1" style="font-size: 0.75rem; opacity: 0.8;">(FTYPE=1)</h6>
                             <h2 class="mb-0 fw-bold" id="totalSales">0</h2>
                         </div>
                         <div class="stat-icon" style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -217,7 +235,8 @@
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Net Total</h6>
+                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Net Total Qty</h6>
+                            <h6 class="text-white-50 mb-1" style="font-size: 0.75rem; opacity: 0.8;">(Sales - Returns)</h6>
                             <h2 class="mb-0 fw-bold" id="netTotal">0</h2>
                         </div>
                         <div class="stat-icon" style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -279,6 +298,40 @@ $(document).ready(function() {
     $('#toDate').val(today.toISOString().split('T')[0]);
     $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
     
+    // Load unique CONTACT values
+    loadContactOptions();
+    
+    function loadContactOptions() {
+        $.ajax({
+            url: '/api/unique-contacts',
+            method: 'GET',
+            dataType: 'json'
+        })
+        .done(function(response) {
+            const contactSelect = $('#contactFilter');
+            contactSelect.empty();
+            
+            if (response.contacts && response.contacts.length > 0) {
+                response.contacts.forEach(function(contact) {
+                    contactSelect.append($('<option>', {
+                        value: contact,
+                        text: contact
+                    }));
+                });
+            } else {
+                contactSelect.append($('<option>', {
+                    value: '',
+                    text: 'No contacts available',
+                    disabled: true
+                }));
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Failed to load contacts:', error);
+            $('#contactFilter').html('<option value="" disabled>Error loading contacts</option>');
+        });
+    }
+    
     // Form submission
     $('#bureauItemsForm').on('submit', function(e) {
         e.preventDefault();
@@ -296,18 +349,45 @@ $(document).ready(function() {
             $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
             $('#topN').val('50');
             $('#siteFilter').val(null).trigger('change');
+            $('#contactFilter').val(null).trigger('change');
         });
     
     function generateReport() {
         // Get selected site SIDNO values (array)
         const selectedSites = $('#siteFilter').val() || [];
         
+        // Get selected CONTACT values (array) - use multiple methods to ensure we get fresh values
+        let selectedContacts = [];
+        const contactSelect = $('#contactFilter')[0]; // Get native DOM element
+        if (contactSelect) {
+            // Method 1: Use native selectedOptions (most reliable)
+            selectedContacts = Array.from(contactSelect.selectedOptions).map(option => option.value);
+            // Method 2: Fallback to jQuery if native method returns empty
+            if (selectedContacts.length === 0) {
+                selectedContacts = $('#contactFilter').val() || [];
+            }
+        } else {
+            selectedContacts = $('#contactFilter').val() || [];
+        }
+        
+        // Filter out empty strings
+        selectedContacts = selectedContacts.filter(c => c && c !== '');
+        
+        // Debug: log the selected contacts
+        console.log('Selected contacts:', selectedContacts);
+        console.log('Contact filter element value (jQuery):', $('#contactFilter').val());
+        console.log('Contact filter native selectedOptions:', contactSelect ? Array.from(contactSelect.selectedOptions).map(o => o.value) : 'N/A');
+        
         const formData = {
             from_date: $('#fromDate').val(),
             to_date: $('#toDate').val(),
             top_n: $('#topN').val() || 50,
-            site_sidno: selectedSites.length > 0 ? selectedSites : null
+            site_sidno: selectedSites.length > 0 ? selectedSites : null,
+            contact: selectedContacts.length > 0 ? selectedContacts : null
         };
+        
+        // Debug: log the form data being sent
+        console.log('Form data being sent:', JSON.stringify(formData, null, 2));
         
         // Validate dates
         if (!formData.from_date || !formData.to_date) {
@@ -327,11 +407,25 @@ $(document).ready(function() {
         $('#summaryCards').hide();
         $('#errorAlert').hide();
         
+        // Clear any existing DataTable
+        if ($.fn.DataTable.isDataTable('#bureauItemsTable')) {
+            $('#bureauItemsTable').DataTable().clear().destroy();
+        }
+        
+        // Clear table body
+        $('#bureauItemsTableBody').empty();
+        
         $.ajax({
             url: '/api/kinshasa-bureau-items-report',
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify(formData)
+            cache: false, // Disable caching
+            data: JSON.stringify(formData),
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         })
         .done(function(response) {
             $('#loadingIndicator').hide();
@@ -360,9 +454,13 @@ $(document).ready(function() {
         $('#totalSales').text(formatNumber(metadata.total_sales_qty || 0));
         $('#netTotal').text(formatNumber(metadata.total_net_qty || 0));
         
-        // Populate table
+        // Populate table - ensure it's completely empty first
         const tbody = $('#bureauItemsTableBody');
         tbody.empty();
+        
+        // Debug: log the data being displayed
+        console.log('Displaying data:', data.length, 'rows');
+        console.log('Metadata filter:', metadata.filter);
         
         if (data.length === 0) {
             tbody.append('<tr><td colspan="6" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
@@ -473,6 +571,13 @@ $(document).ready(function() {
                 if (currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
                     currentFilters.site_sidno.forEach(function(sidno) {
                         params.append('site_sidno', sidno);
+                    });
+                }
+                
+                // Add contact filter if present
+                if (currentFilters.contact && currentFilters.contact.length > 0) {
+                    currentFilters.contact.forEach(function(contact) {
+                        params.append('contact', contact);
                     });
                 }
                 

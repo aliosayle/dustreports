@@ -110,14 +110,17 @@
                                     <i class="fas fa-sort-numeric-down me-2" style="color: var(--dust-secondary);"></i>
                                     Top N Items
                                 </label>
-                                <select class="form-select form-select-lg" id="topN" name="top_n"
-                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                    <option value="25">Top 25</option>
-                                    <option value="50" selected>Top 50</option>
-                                    <option value="100">Top 100</option>
-                                    <option value="200">Top 200</option>
-                                    <option value="0">All Items</option>
-                                </select>
+                                <div class="filter-input-wrapper position-relative">
+                                    <input type="number" class="form-control form-control-lg" id="topN" name="top_n" 
+                                           min="0" value="50" placeholder="Enter number of top items"
+                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                                    <i class="fas fa-hashtag position-absolute" 
+                                       style="right: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none;"></i>
+                                </div>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Enter 0 to show all items, or any positive number for top N items
+                                </small>
                             </div>
                         </div>
                         
@@ -255,7 +258,7 @@
                 <div class="card-header border-0 py-4" style="background: var(--light-gradient);">
                     <h5 class="mb-0 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
                         <i class="fas fa-table me-2" style="color: var(--dust-secondary);"></i>
-                        Top Items Sales Details
+                        Item-Client Sales Details
                     </h5>
                 </div>
                 <div class="card-body">
@@ -266,6 +269,8 @@
                                     <th style="border-radius: 8px 0 0 0;">Item Code</th>
                                     <th>Item Name (DESCR1)</th>
                                     <th>Category</th>
+                                    <th>Client SID</th>
+                                    <th>Client Name</th>
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
                                     <th>Total (Net)</th>
@@ -347,7 +352,7 @@ $(document).ready(function() {
             // Reset to default dates
             $('#toDate').val(today.toISOString().split('T')[0]);
             $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
-            $('#topN').val('50');
+            $('#topN').val(50);
             $('#siteFilter').val(null).trigger('change');
             $('#contactFilter').val(null).trigger('change');
         });
@@ -378,10 +383,16 @@ $(document).ready(function() {
         console.log('Contact filter element value (jQuery):', $('#contactFilter').val());
         console.log('Contact filter native selectedOptions:', contactSelect ? Array.from(contactSelect.selectedOptions).map(o => o.value) : 'N/A');
         
+        // Get top_n value and parse as integer (0 means all items)
+        let topNValue = parseInt($('#topN').val()) || 50;
+        if (isNaN(topNValue) || topNValue < 0) {
+            topNValue = 50; // Default to 50 if invalid
+        }
+        
         const formData = {
             from_date: $('#fromDate').val(),
             to_date: $('#toDate').val(),
-            top_n: $('#topN').val() || 50,
+            top_n: topNValue,
             site_sidno: selectedSites.length > 0 ? selectedSites : null,
             contact: selectedContacts.length > 0 ? selectedContacts : null
         };
@@ -463,17 +474,15 @@ $(document).ready(function() {
         console.log('Metadata filter:', metadata.filter);
         
         if (data.length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
+            tbody.append('<tr><td colspan="9" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
         } else {
             data.forEach(function(row) {
                 const tr = $('<tr>');
-                tr.css('cursor', 'pointer');
-                tr.addClass('clickable-row');
-                tr.attr('data-item-code', row.ITEM_CODE || '');
-                tr.attr('data-item-name', row.ITEM_NAME || 'Unknown');
                 tr.append($('<td>').text(row.ITEM_CODE || ''));
                 tr.append($('<td>').text(row.ITEM_NAME || 'Unknown'));
                 tr.append($('<td>').text(row.CATEGORY || 'Unknown Category'));
+                tr.append($('<td>').text(row.SID || ''));
+                tr.append($('<td>').text(row.CLIENT_NAME || 'Unknown'));
                 tr.append($('<td>').text(formatNumber(row.SALES_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.RETURNS_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.TOTAL_QTY || 0)));
@@ -488,14 +497,14 @@ $(document).ready(function() {
         }
         
         $('#bureauItemsTable').DataTable({
-            order: [[5, 'desc']], // Sort by Total descending
+            order: [[7, 'desc']], // Sort by Total (Net) descending (column index 7)
             pageLength: 25,
             language: {
-                search: "Search items:",
-                lengthMenu: "Show _MENU_ items per page",
-                info: "Showing _START_ to _END_ of _TOTAL_ items",
-                infoEmpty: "No items found",
-                infoFiltered: "(filtered from _MAX_ total items)"
+                search: "Search item-client combinations:",
+                lengthMenu: "Show _MENU_ rows per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ item-client combinations",
+                infoEmpty: "No item-client combinations found",
+                infoFiltered: "(filtered from _MAX_ total item-client combinations)"
             },
             dom: '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
                  '<"row mb-3"<"col-sm-12 text-center"B>>' +
@@ -555,44 +564,6 @@ $(document).ready(function() {
         });
         
         // Make rows clickable
-        $(document).on('click', '#bureauItemsTable tbody tr.clickable-row', function() {
-            const itemCode = $(this).attr('data-item-code');
-            const itemName = $(this).attr('data-item-name');
-            if (itemCode && currentFilters) {
-                // Navigate to item clients page with parameters
-                const params = new URLSearchParams({
-                    item_code: itemCode,
-                    item_name: itemName,
-                    from_date: currentFilters.from_date,
-                    to_date: currentFilters.to_date
-                });
-                
-                // Add site filter if present
-                if (currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
-                    currentFilters.site_sidno.forEach(function(sidno) {
-                        params.append('site_sidno', sidno);
-                    });
-                }
-                
-                // Add contact filter if present
-                if (currentFilters.contact && currentFilters.contact.length > 0) {
-                    currentFilters.contact.forEach(function(contact) {
-                        params.append('contact', contact);
-                    });
-                }
-                
-                window.location.href = '/kinshasa-bureau-item-clients?' + params.toString();
-            }
-        });
-        
-        // Add hover effect
-        $(document).on('mouseenter', '#bureauItemsTable tbody tr.clickable-row', function() {
-            $(this).css('background-color', '#f0f0f0');
-        });
-        $(document).on('mouseleave', '#bureauItemsTable tbody tr.clickable-row', function() {
-            $(this).css('background-color', '');
-        });
-        
         $('#resultsSection').show();
         $('#summaryCards').show();
     }

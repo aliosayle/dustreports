@@ -2460,33 +2460,41 @@ def api_kinshasa_bureau_items_report():
         # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
         sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
         
-        # Calculate sales (FTYPE = 1) and returns (FTYPE = 2) by ITEM
-        sales_by_item = sales_df.groupby(['ITEM', 'FTYPE'])[qty_col].sum().reset_index()
+        # Calculate sales (FTYPE = 1) and returns (FTYPE = 2) by ITEM and SID (client)
+        sales_by_item_client = sales_df.groupby(['ITEM', 'SID', 'FTYPE'])[qty_col].sum().reset_index()
         
         # Separate sales and returns
-        sales_only = sales_by_item[sales_by_item['FTYPE'] == 1].copy()
-        returns_only = sales_by_item[sales_by_item['FTYPE'] == 2].copy()
+        sales_only = sales_by_item_client[sales_by_item_client['FTYPE'] == 1].copy()
+        returns_only = sales_by_item_client[sales_by_item_client['FTYPE'] == 2].copy()
+        
+        # Get all unique item-client combinations
+        all_combinations = sales_df[['ITEM', 'SID']].drop_duplicates()
         
         # Create result dataframe
-        all_items = sales_df['ITEM'].unique()
         result_data = []
         
-        for item_code in all_items:
-            # Get sales quantity (FTYPE = 1)
-            sales_qty = sales_only[sales_only['ITEM'] == item_code][qty_col].sum() if not sales_only[sales_only['ITEM'] == item_code].empty else 0
+        for _, combo in all_combinations.iterrows():
+            item_code = combo['ITEM']
+            sid = combo['SID']
             
-            # Get returns quantity (FTYPE = 2)
-            returns_qty = returns_only[returns_only['ITEM'] == item_code][qty_col].sum() if not returns_only[returns_only['ITEM'] == item_code].empty else 0
+            # Get sales quantity (FTYPE = 1) for this item-client combination
+            sales_qty = sales_only[(sales_only['ITEM'] == item_code) & (sales_only['SID'] == sid)][qty_col].sum() if not sales_only[(sales_only['ITEM'] == item_code) & (sales_only['SID'] == sid)].empty else 0
+            
+            # Get returns quantity (FTYPE = 2) for this item-client combination
+            returns_qty = returns_only[(returns_only['ITEM'] == item_code) & (returns_only['SID'] == sid)][qty_col].sum() if not returns_only[(returns_only['ITEM'] == item_code) & (returns_only['SID'] == sid)].empty else 0
             
             # Calculate total (sales - returns)
             total_qty = sales_qty - returns_qty
             
-            result_data.append({
-                'ITEM_CODE': str(item_code),
-                'SALES_QTY': float(sales_qty),
-                'RETURNS_QTY': float(returns_qty),
-                'TOTAL_QTY': float(total_qty)
-            })
+            # Only include if there's actual sales/returns activity
+            if sales_qty != 0 or returns_qty != 0:
+                result_data.append({
+                    'ITEM_CODE': str(item_code),
+                    'SID': str(sid),
+                    'SALES_QTY': float(sales_qty),
+                    'RETURNS_QTY': float(returns_qty),
+                    'TOTAL_QTY': float(total_qty)
+                })
         
         # Convert to DataFrame for easier processing
         result_df = pd.DataFrame(result_data)
@@ -2522,13 +2530,30 @@ def api_kinshasa_bureau_items_report():
         else:
             result_df['CATEGORY_NAME'] = 'Unknown Category'
         
-        # Filter out items with no sales
+        # Get client names from SUB table (accounts dataframe)
+        if 'accounts' in dataframes and dataframes['accounts'] is not None:
+            accounts_df = dataframes['accounts'].copy()
+            if 'SID' in accounts_df.columns and 'SNAME' in accounts_df.columns:
+                # Convert SID to string for matching
+                accounts_df['SID'] = accounts_df['SID'].astype(str)
+                result_df['SID'] = result_df['SID'].astype(str)
+                # Get unique SID-SNAME mappings
+                sid_name_map = accounts_df[['SID', 'SNAME']].drop_duplicates()
+                result_df = result_df.merge(sid_name_map, on='SID', how='left')
+                result_df['CLIENT_NAME'] = result_df['SNAME'].fillna(result_df['SID'])
+                print(f"📍 Retrieved client names for {len(sid_name_map)} clients from SUB table")
+            else:
+                result_df['CLIENT_NAME'] = result_df['SID']
+        else:
+            result_df['CLIENT_NAME'] = result_df['SID']
+        
+        # Filter out rows with no sales
         result_df = result_df[result_df['TOTAL_QTY'] != 0]
         
-        # Sort by total quantity descending to get top items
+        # Sort by total quantity descending to get top item-client combinations
         result_df = result_df.sort_values('TOTAL_QTY', ascending=False)
         
-        # Limit to top N items (top_n is already converted to int at the beginning)
+        # Limit to top N item-client combinations (top_n is already converted to int at the beginning)
         if top_n > 0:
             result_df = result_df.head(top_n)
         
@@ -2539,6 +2564,8 @@ def api_kinshasa_bureau_items_report():
                 'ITEM_CODE': str(row['ITEM_CODE']),
                 'ITEM_NAME': str(row['ITEM_NAME']),
                 'CATEGORY': str(row['CATEGORY_NAME']),
+                'SID': str(row['SID']),
+                'CLIENT_NAME': str(row['CLIENT_NAME']),
                 'SALES_QTY': float(row['SALES_QTY']),
                 'RETURNS_QTY': float(row['RETURNS_QTY']),
                 'TOTAL_QTY': float(row['TOTAL_QTY']),
@@ -2572,16 +2599,18 @@ def api_kinshasa_bureau_items_report():
                     'returns': 'SUM(QTY) where FTYPE = 2',
                     'total': 'SALES_QTY - RETURNS_QTY',
                     'weight': 'NWEIGHT (from STOCK table) × TOTAL_QTY / 1000 (in tons)',
-                    'sorting': 'Sorted by TOTAL_QTY descending (top items)'
+                    'sorting': 'Sorted by TOTAL_QTY descending (top item-client combinations)'
                 },
                 'columns_info': {
                     'item_code': 'Item code',
                     'item_name': 'Item description (DESCR1)',
                     'category': 'Category name from categories.DESCR',
+                    'sid': 'Client SID (from ITEMS.SID)',
+                    'client_name': 'Client name from SUB.SNAME',
                     'weight': 'Total weight in tons = (NWEIGHT × TOTAL_QTY) / 1000 (from STOCK.NWEIGHT)',
-                    'sales_qty': 'Total sales quantity (FTYPE = 1)',
-                    'returns_qty': 'Total returns quantity (FTYPE = 2)',
-                    'total_qty': 'Net quantity (Sales - Returns)'
+                    'sales_qty': 'Total sales quantity (FTYPE = 1) for this item-client combination',
+                    'returns_qty': 'Total returns quantity (FTYPE = 2) for this item-client combination',
+                    'total_qty': 'Net quantity (Sales - Returns) for this item-client combination'
                 }
             }
         })

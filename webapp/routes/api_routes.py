@@ -2457,11 +2457,49 @@ def api_kinshasa_bureau_items_report():
         # Fill NaN values
         sales_df[qty_col] = sales_df[qty_col].fillna(0)
         
+        # Fill NaN values for USD calculation fields
+        if 'CREDITUS' in sales_df.columns:
+            sales_df['CREDITUS'] = sales_df['CREDITUS'].fillna(0)
+        if 'DEBITUS' in sales_df.columns:
+            sales_df['DEBITUS'] = sales_df['DEBITUS'].fillna(0)
+        if 'CREDITVATAMOUNT' in sales_df.columns:
+            sales_df['CREDITVATAMOUNT'] = sales_df['CREDITVATAMOUNT'].fillna(0)
+        if 'DEBITVATAMOUNT' in sales_df.columns:
+            sales_df['DEBITVATAMOUNT'] = sales_df['DEBITVATAMOUNT'].fillna(0)
+        
         # Filter for FTYPE 1 (sales) and FTYPE 2 (returns)
         sales_df = sales_df[sales_df['FTYPE'].isin([1, 2])]
         
         # Calculate sales (FTYPE = 1) and returns (FTYPE = 2) by ITEM and SID (client)
         sales_by_item_client = sales_df.groupby(['ITEM', 'SID', 'FTYPE'])[qty_col].sum().reset_index()
+        
+        # Calculate USD amounts per item-client combination using CREDITUS-DEBITUS formula (same as Report 7)
+        usd_amounts = {}
+        if 'CREDITUS' in sales_df.columns and 'DEBITUS' in sales_df.columns:
+            # Calculate base amount: SUM(CREDITUS - DEBITUS) by ITEM and SID
+            sales_df['BASE_AMOUNT'] = sales_df['CREDITUS'] - sales_df['DEBITUS']
+            base_amounts = sales_df.groupby(['ITEM', 'SID'])['BASE_AMOUNT'].sum().reset_index()
+            base_amounts['KEY'] = base_amounts['ITEM'].astype(str) + '_' + base_amounts['SID'].astype(str)
+            
+            # Calculate VAT amount if available: SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) by ITEM and SID
+            vat_amounts = {}
+            if 'CREDITVATAMOUNT' in sales_df.columns and 'DEBITVATAMOUNT' in sales_df.columns:
+                sales_df['VAT_AMOUNT'] = sales_df['CREDITVATAMOUNT'] - sales_df['DEBITVATAMOUNT']
+                vat_amounts_df = sales_df.groupby(['ITEM', 'SID'])['VAT_AMOUNT'].sum().reset_index()
+                vat_amounts_df['KEY'] = vat_amounts_df['ITEM'].astype(str) + '_' + vat_amounts_df['SID'].astype(str)
+                vat_amounts = dict(zip(vat_amounts_df['KEY'], vat_amounts_df['VAT_AMOUNT']))
+            
+            # Merge base amounts with VAT amounts
+            for _, row in base_amounts.iterrows():
+                key = row['KEY']
+                base_amount = float(row['BASE_AMOUNT'])
+                vat_amount = float(vat_amounts.get(key, 0))
+                # Final USD amount = BASE_AMOUNT + VAT_AMOUNT (same as Report 7)
+                usd_amounts[key] = base_amount + vat_amount
+            
+            print(f"📊 Calculated USD amounts for {len(usd_amounts)} item-client combinations using CREDITUS-DEBITUS formula")
+        else:
+            print("⚠️ CREDITUS/DEBITUS columns not found - USD amounts will be 0")
         
         # Separate sales and returns
         sales_only = sales_by_item_client[sales_by_item_client['FTYPE'] == 1].copy()
@@ -2488,12 +2526,17 @@ def api_kinshasa_bureau_items_report():
             
             # Only include if there's actual sales/returns activity
             if sales_qty != 0 or returns_qty != 0:
+                # Get USD amount for this item-client combination
+                key = f"{item_code}_{sid}"
+                usd_amount = usd_amounts.get(key, 0.0)
+                
                 result_data.append({
                     'ITEM_CODE': str(item_code),
                     'SID': str(sid),
                     'SALES_QTY': float(sales_qty),
                     'RETURNS_QTY': float(returns_qty),
-                    'TOTAL_QTY': float(total_qty)
+                    'TOTAL_QTY': float(total_qty),
+                    'QUANTITY_USD': float(usd_amount)
                 })
         
         # Convert to DataFrame for easier processing
@@ -2547,6 +2590,11 @@ def api_kinshasa_bureau_items_report():
         else:
             result_df['CLIENT_NAME'] = result_df['SID']
         
+        # Add QUANTITY_USD to result_df by merging with usd_amounts
+        result_df['KEY'] = result_df['ITEM_CODE'].astype(str) + '_' + result_df['SID'].astype(str)
+        result_df['QUANTITY_USD'] = result_df['KEY'].map(usd_amounts).fillna(0)
+        result_df = result_df.drop('KEY', axis=1)  # Remove temporary key column
+        
         # Filter out rows with no sales
         result_df = result_df[result_df['TOTAL_QTY'] != 0]
         
@@ -2569,7 +2617,8 @@ def api_kinshasa_bureau_items_report():
                 'SALES_QTY': float(row['SALES_QTY']),
                 'RETURNS_QTY': float(row['RETURNS_QTY']),
                 'TOTAL_QTY': float(row['TOTAL_QTY']),
-                'WEIGHT': float(row['WEIGHT'])
+                'WEIGHT': float(row['WEIGHT']),
+                'QUANTITY_USD': float(row['QUANTITY_USD'])
             }
             result_data.append(row_data)
         
@@ -2578,6 +2627,7 @@ def api_kinshasa_bureau_items_report():
         total_returns = result_df['RETURNS_QTY'].sum()
         total_net = result_df['TOTAL_QTY'].sum()
         total_weight = result_df['WEIGHT'].sum()
+        total_usd = result_df['QUANTITY_USD'].sum()
         
         return jsonify({
             'data': result_data,
@@ -2590,6 +2640,7 @@ def api_kinshasa_bureau_items_report():
                 'total_returns_qty': float(total_returns),
                 'total_net_qty': float(total_net),
                 'total_weight': float(total_weight),
+                'total_quantity_usd': float(total_usd),
                 'site_sidno': site_sidno,
                 'contact': contact if contact else None,
                 'filter': 'SID starting with 411 (Office Clients)' + (f', SIDNO in {site_sidno if isinstance(site_sidno, list) else [site_sidno]}' if site_sidno else '') + (f', CONTACT in {contact if isinstance(contact, list) else [contact]}' if contact else ''),
@@ -2599,6 +2650,7 @@ def api_kinshasa_bureau_items_report():
                     'returns': 'SUM(QTY) where FTYPE = 2',
                     'total': 'SALES_QTY - RETURNS_QTY',
                     'weight': 'NWEIGHT (from STOCK table) × TOTAL_QTY / 1000 (in tons)',
+                    'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) per item-client combination (same as Report 7)',
                     'sorting': 'Sorted by TOTAL_QTY descending (top item-client combinations)'
                 },
                 'columns_info': {
@@ -2610,7 +2662,8 @@ def api_kinshasa_bureau_items_report():
                     'weight': 'Total weight in tons = (NWEIGHT × TOTAL_QTY) / 1000 (from STOCK.NWEIGHT)',
                     'sales_qty': 'Total sales quantity (FTYPE = 1) for this item-client combination',
                     'returns_qty': 'Total returns quantity (FTYPE = 2) for this item-client combination',
-                    'total_qty': 'Net quantity (Sales - Returns) for this item-client combination'
+                    'total_qty': 'Net quantity (Sales - Returns) for this item-client combination',
+                    'quantity_usd': 'Total amount in USD: SUM(CREDITUS-DEBITUS) + SUM(CREDITVATAMOUNT-DEBITVATAMOUNT) for this item-client combination'
                 }
             }
         })

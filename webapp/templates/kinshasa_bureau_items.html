@@ -202,7 +202,7 @@
 <div id="resultsSection" style="display: none;">
     <!-- Summary Cards -->
     <div class="row mb-4" id="summaryCards">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
@@ -217,7 +217,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
@@ -233,7 +233,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                 <div class="card-body text-white">
                     <div class="d-flex justify-content-between align-items-center">
@@ -244,6 +244,22 @@
                         </div>
                         <div class="stat-icon" style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-calculator fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="card-body text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2" style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Total Amount</h6>
+                            <h6 class="text-white-50 mb-1" style="font-size: 0.75rem; opacity: 0.8;">(USD)</h6>
+                            <h2 class="mb-0 fw-bold" id="totalUSD">$0</h2>
+                        </div>
+                        <div class="stat-icon" style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-dollar-sign fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -274,7 +290,8 @@
                                     <th>Sales Qty (FTYPE=1)</th>
                                     <th>Returns Qty (FTYPE=2)</th>
                                     <th>Total (Net)</th>
-                                    <th style="border-radius: 0 8px 0 0;">Weight (Tons)</th>
+                                    <th>Weight (Tons)</th>
+                                    <th style="border-radius: 0 8px 0 0;">Amount in USD</th>
                                 </tr>
                             </thead>
                             <tbody id="bureauItemsTableBody">
@@ -464,6 +481,7 @@ $(document).ready(function() {
         $('#totalItems').text(metadata.total_items || 0);
         $('#totalSales').text(formatNumber(metadata.total_sales_qty || 0));
         $('#netTotal').text(formatNumber(metadata.total_net_qty || 0));
+        $('#totalUSD').text(formatCurrency(metadata.total_quantity_usd || 0));
         
         // Populate table - ensure it's completely empty first
         const tbody = $('#bureauItemsTableBody');
@@ -474,7 +492,7 @@ $(document).ready(function() {
         console.log('Metadata filter:', metadata.filter);
         
         if (data.length === 0) {
-            tbody.append('<tr><td colspan="9" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
+            tbody.append('<tr><td colspan="10" class="text-center text-muted py-4">No data found for the selected criteria.</td></tr>');
         } else {
             data.forEach(function(row) {
                 const tr = $('<tr>');
@@ -487,6 +505,7 @@ $(document).ready(function() {
                 tr.append($('<td>').text(formatNumber(row.RETURNS_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.TOTAL_QTY || 0)));
                 tr.append($('<td>').text(formatNumber(row.WEIGHT || 0)));
+                tr.append($('<td>').text(formatCurrency(row.QUANTITY_USD || 0)));
                 tbody.append(tr);
             });
         }
@@ -579,6 +598,15 @@ $(document).ready(function() {
     function formatNumber(num) {
         return new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(num);
+    }
+    
+    function formatCurrency(num) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(num);
     }

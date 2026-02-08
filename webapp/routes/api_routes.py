@@ -4,7 +4,9 @@ from flask import Blueprint, request, jsonify
 import pandas as pd
 from services.database_service import (
     load_dataframes, get_dataframes, is_cache_loading, get_cache_lock,
-    get_cache_timestamp, get_cache_age_seconds
+    get_cache_timestamp, get_cache_age_seconds,
+    start_scheduled_reload, stop_scheduled_reload, is_scheduled_reload_enabled,
+    get_scheduled_reload_times
 )
 from models.stock_analysis import StockAnalyzer
 
@@ -12,15 +14,20 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 @api_bp.route('/load-dataframes', methods=['POST'])
 def api_load_dataframes():
-    """Load dataframes from database"""
+    """Load dataframes from database
+    
+    Thread-safe: Uses lock to prevent concurrent loads.
+    If another load is in progress, returns immediately.
+    """
     try:
         print(f"📡 API load-dataframes called. Current cache_loading: {is_cache_loading()}")
         
-        with get_cache_lock():
-            if is_cache_loading():
-                print("⏳ Cache loading already in progress")
-                return jsonify({'status': 'loading', 'message': 'Cache loading already in progress'})
+        # Check if already loading (quick check without lock first)
+        if is_cache_loading():
+            print("⏳ Cache loading already in progress")
+            return jsonify({'status': 'loading', 'message': 'Cache loading already in progress'})
         
+        # load_dataframes() will acquire lock internally and check again
         print("🚀 Starting dataframes loading...")
         result = load_dataframes()
         
@@ -60,7 +67,10 @@ def api_cache_status():
 
 @api_bp.route('/auto-refresh-cache', methods=['POST'])
 def api_auto_refresh_cache():
-    """Auto-refresh cache if older than specified threshold"""
+    """Auto-refresh cache if older than specified threshold
+    
+    Thread-safe: Uses lock to prevent concurrent loads.
+    """
     try:
         data = request.get_json() or {}
         max_age_hours = data.get('max_age_hours', 1)  # Default 1 hour
@@ -71,10 +81,11 @@ def api_auto_refresh_cache():
         if cache_age is None or cache_age > max_age_seconds:
             print(f"🔄 Auto-refresh triggered: cache age {cache_age}s > {max_age_seconds}s threshold")
             
-            with get_cache_lock():
-                if is_cache_loading():
-                    return jsonify({'status': 'loading', 'message': 'Cache refresh already in progress'})
+            # Quick check without lock first
+            if is_cache_loading():
+                return jsonify({'status': 'loading', 'message': 'Cache refresh already in progress'})
             
+            # load_dataframes() will acquire lock internally and check again
             result = load_dataframes()
             
             if result and len(result) > 0:
@@ -95,6 +106,55 @@ def api_auto_refresh_cache():
             
     except Exception as e:
         print(f"❌ Error in auto-refresh: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@api_bp.route('/scheduled-reload-status')
+def api_scheduled_reload_status():
+    """Get scheduled reload status"""
+    return jsonify({
+        'enabled': is_scheduled_reload_enabled(),
+        'reload_times': get_scheduled_reload_times()
+    })
+
+@api_bp.route('/scheduled-reload-control', methods=['POST'])
+def api_scheduled_reload_control():
+    """Control scheduled reload (start/stop)
+    
+    Settings are automatically saved to JSON file for persistence.
+    """
+    try:
+        data = request.get_json() or {}
+        action = data.get('action')  # 'start' or 'stop'
+        reload_times = data.get('reload_times')  # Optional list of times
+        
+        if action == 'start':
+            if reload_times:
+                # Convert string times to time objects
+                from datetime import time
+                times = []
+                for t_str in reload_times:
+                    hour, minute = map(int, t_str.split(':'))
+                    times.append(time(hour, minute))
+                start_scheduled_reload(times)
+                # Config is automatically saved by start_scheduled_reload()
+            else:
+                start_scheduled_reload()
+                # Config is automatically saved by start_scheduled_reload()
+            return jsonify({
+                'status': 'success', 
+                'message': 'Scheduled reload started and saved',
+                'reload_times': reload_times if reload_times else get_scheduled_reload_times()
+            })
+        
+        elif action == 'stop':
+            stop_scheduled_reload()
+            # Config is automatically saved by stop_scheduled_reload()
+            return jsonify({'status': 'success', 'message': 'Scheduled reload stopped and saved'})
+        
+        else:
+            return jsonify({'status': 'error', 'message': 'Invalid action. Use "start" or "stop"'}), 400
+            
+    except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @api_bp.route('/sites')

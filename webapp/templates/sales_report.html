@@ -3,101 +3,51 @@
 {% block title %}Sales Report - DustReports{% endblock %}
 
 {% block content %}
-<!-- Enhanced Hero Section with DustReports Branding -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="hero-section p-4 rounded-4 text-white position-relative overflow-hidden" 
-             style="background: var(--primary-gradient); min-height: 200px;">
-            <!-- Dust particle background - simplified -->
-            <div class="position-absolute top-0 start-0 w-100 h-100 dust-particles"></div>
-            
-            <div class="row align-items-center position-relative">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="dust-logo me-3" style="width: 64px; height: 64px;">
-                            <div class="position-absolute" style="width: 32px; height: 32px; background: white; border-radius: 50%; opacity: 0.9;"></div>
-                            <div class="position-absolute" style="width: 16px; height: 16px; background: var(--dust-primary); border-radius: 50%; top: 24px; left: 24px;"></div>
-                        </div>
-                        <div>
-                            <h1 class="hero-title mb-2" style="font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2.2rem;">
-                                Sales Report
-                            </h1>
-                            <p class="hero-subtitle mb-0" style="opacity: 0.9; font-size: 1.1rem;">
-                                Site-wise sales analysis for INT and Kinshasa locations powered by <strong>DustReports</strong>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="hero-stats d-flex flex-column align-items-end">
-                        <div class="d-flex align-items-center mb-2" style="opacity: 0.9;">
-                            <i class="fas fa-chart-line me-2" style="color: var(--dust-accent);"></i>
-                            <span class="fw-semibold">Sales Analytics</span>
-                        </div>
-                        <div class="d-flex align-items-center" style="opacity: 0.9;">
-                            <i class="fas fa-download me-2" style="color: var(--dust-accent);"></i>
-                            <span class="fw-semibold">Export Ready</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- Professional Page Header -->
+<div class="page-header">
+    <div class="container-fluid">
+        <h1 class="page-title">Sales Report</h1>
+        <p class="page-subtitle">Site-wise sales analysis for INT and Kinshasa locations</p>
     </div>
 </div>
 
-<!-- Enhanced Professional Filters Section -->
+<!-- Professional Filters Section -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card border-0 shadow-lg" style="border-radius: 16px; background: var(--light-gradient);">
-            <div class="card-header border-0 py-4" style="background: transparent;">
+        <div class="card">
+            <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <div class="filter-icon me-3" 
-                             style="width: 48px; height: 48px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md);">
-                            <i class="fas fa-filter text-white"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1 fw-bold" style="color: #2d3748 !important; font-family: 'Poppins', sans-serif;">
-                                Report Filters
-                            </h5>
-                            <p class="mb-0 small" style="color: #718096 !important;">Configure your sales analysis parameters</p>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill shadow-sm" id="clearBtn" 
-                            style="font-weight: 600; border-width: 2px; transition: all 0.3s ease;">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Report Filters
+                    </h5>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="clearBtn">
                         <i class="fas fa-times me-1"></i>
                         Clear All
                     </button>
                 </div>
             </div>
-            
-            <div class="card-body pt-0">
+            <div class="card-body">
                 <form id="salesForm">
-                    <div class="row g-4">
+                    <div class="row g-3">
                         <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
-                                <label for="siteType" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
-                                    Site Type
-                                </label>
-                                <select class="form-select form-select-lg" id="siteType" name="site_type" required
-                                        style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                    <option value="">Select Site Type</option>
-                                    <option value="kinshasa">Kinshasa Sites</option>
-                                    <option value="int">INT Sites</option>
-                                </select>
-                            </div>
+                            <label for="siteType" class="form-label">
+                                <i class="fas fa-building me-2" style="color: var(--primary-blue);"></i>
+                                Site Type
+                            </label>
+                            <select class="form-select" id="siteType" name="site_type" required>
+                                <option value="">Select Site Type</option>
+                                <option value="kinshasa">Kinshasa Sites</option>
+                                <option value="int">INT Sites</option>
+                            </select>
                         </div>
                         
                         <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
-                                <label for="reportDate" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-calendar-alt me-2" style="color: var(--dust-secondary);"></i>
-                                    Report Date
-                                </label>
-                                <div class="filter-input-wrapper position-relative">
-                                    <input type="date" class="form-control form-control-lg" id="reportDate" name="report_date"
-                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
+                            <label for="reportDate" class="form-label">
+                                <i class="fas fa-calendar-alt me-2" style="color: var(--primary-blue);"></i>
+                                Report Date
+                            </label>
+                            <input type="date" class="form-control" id="reportDate" name="report_date">
                                 </div>
                             </div>
                         </div>

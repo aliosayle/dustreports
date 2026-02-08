@@ -55,6 +55,11 @@ def kinshasa_bureau_item_clients():
     """Render the Kinshasa Bureau Item Clients page"""
     return render_template('kinshasa_bureau_item_clients.html')
 
+@main_bp.route('/settings')
+def settings():
+    """Render the Settings page"""
+    return render_template('settings.html')
+
 @main_bp.route('/favicon.ico')
 def favicon():
     # Redirect to static favicon file

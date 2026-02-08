@@ -3,58 +3,44 @@
 {% block title %}Dashboard - DustReports Professional Analytics{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="row mb-5">
+<!-- Professional Page Header -->
+<div class="page-header">
+    <div class="container-fluid">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Inventory Management & Analytics Platform</p>
+    </div>
+</div>
+
+<!-- Welcome Section -->
+<div class="row mb-4">
     <div class="col-12">
-        <div class="hero-section p-5 rounded-4 text-white position-relative overflow-hidden" 
-             style="background: var(--primary-gradient); min-height: 400px;">            <!-- Background Pattern -->
-            <div class="position-absolute top-0 start-0 w-100 h-100 dust-particles"></div>
-            
-            <div class="row align-items-center position-relative">
-                <div class="col-lg-8">
-                    <div class="hero-content">
-                        <h1 class="display-4 fw-bold mb-4" style="font-family: 'Poppins', sans-serif;">
-                            <i class="fas fa-chart-line me-3" style="color: var(--dust-accent);"></i>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <h2 class="mb-3" style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary);">
                             Welcome to DustReports
-                        </h1>
-                        <p class="lead mb-4" style="font-size: 1.3rem; opacity: 0.95;">
-                            Advanced Inventory Management & Analytics Platform
-                        </p>
-                        <div class="hero-divider mb-4" 
-                             style="width: 100px; height: 4px; background: var(--dust-accent); border-radius: 2px;"></div>
-                        <p class="mb-4" style="font-size: 1.1rem; opacity: 0.9; line-height: 1.7;">
+                        </h2>
+                        <p class="mb-3" style="color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.6;">
                             Transform your inventory data into actionable insights with real-time analytics, 
                             comprehensive reporting, and intelligent forecasting for enterprise-level decision making.
                         </p>
-                        <div class="hero-actions">
-                            <a href="{{ url_for('main.autonomy') }}" class="btn btn-warning btn-lg me-3 px-4 py-3" 
-                               style="border-radius: 12px; font-weight: 600; box-shadow: var(--shadow-lg);">
-                                <i class="fas fa-rocket me-2"></i>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('main.autonomy') }}" class="btn btn-primary">
+                                <i class="fas fa-chart-line me-2"></i>
                                 Start Analytics
                             </a>
-                            <button class="btn btn-outline-light btn-lg px-4 py-3" 
-                                    style="border-radius: 12px; font-weight: 500; border-width: 2px;"
-                                    onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">
+                            <button class="btn btn-outline-primary" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">
                                 <i class="fas fa-info-circle me-2"></i>
                                 Learn More
                             </button>
                         </div>
                     </div>
-                </div>
-                <div class="col-lg-4 text-center">
-                    <div class="hero-illustration position-relative">
-                        <div class="floating-icon" style="animation: dustFloat 4s ease-in-out infinite;">
-                            <i class="fas fa-warehouse" style="font-size: 8rem; opacity: 0.2;"></i>
-                        </div>
-                        <!-- Floating dust particles -->
-                        <div class="position-absolute" style="top: 20%; left: 10%; animation: dustFloat 3s ease-in-out infinite 0.5s;">
-                            <i class="fas fa-cube" style="font-size: 1.5rem; color: var(--dust-accent); opacity: 0.6;"></i>
-                        </div>
-                        <div class="position-absolute" style="top: 60%; right: 20%; animation: dustFloat 3.5s ease-in-out infinite 1s;">
-                            <i class="fas fa-boxes" style="font-size: 2rem; color: var(--dust-accent); opacity: 0.4;"></i>
-                        </div>
-                        <div class="position-absolute" style="top: 40%; right: 10%; animation: dustFloat 2.5s ease-in-out infinite 1.5s;">
-                            <i class="fas fa-chart-bar" style="font-size: 1.2rem; color: var(--dust-accent); opacity: 0.5;"></i>
+                    <div class="col-lg-4 text-end">
+                        <div class="d-flex justify-content-end">
+                            <div style="width: 120px; height: 120px; background-color: var(--bg-tertiary); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-chart-bar" style="font-size: 3rem; color: var(--primary-blue); opacity: 0.3;"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -64,26 +50,28 @@
 </div>
 
 <!-- Feature Cards -->
-<div class="row g-4">
+<div id="features" class="row g-4 mb-4">
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center">
-                <i class="fas fa-warehouse fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">1. Stock Autonomy Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Stock Autonomy Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Analyze current stock levels and calculate autonomy (days of stock remaining) based on historical sales patterns and trends.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Real-time stock levels</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Advanced sales analytics</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Autonomy calculations</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Excel export functionality</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Real-time stock levels</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Advanced sales analytics</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Autonomy calculations</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Excel export functionality</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.autonomy') }}" class="btn btn-primary btn-lg w-100">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.autonomy') }}" class="btn btn-primary w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Generate Report
                 </a>
@@ -92,24 +80,26 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: var(--info-gradient); color: white;">
-                <i class="fas fa-building fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">2. Stock by Site Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-building me-2"></i>
+                    Stock by Site Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Comprehensive site-wise inventory analysis showing stock levels, transactions, and depot quantities across all locations.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Multi-site inventory view</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Stock level filtering</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Site-wise breakdown</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Export capabilities</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Multi-site inventory view</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Stock level filtering</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Site-wise breakdown</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Export capabilities</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.stock_by_site') }}" class="btn btn-info btn-lg w-100" style="color: white;">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.stock_by_site') }}" class="btn btn-info w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     View Sites
                 </a>
@@ -118,24 +108,26 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: var(--warning-gradient); color: white;">
-                <i class="fas fa-industry fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">3. Ciment Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cubes me-2"></i>
+                    Ciment Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Specialized ciment category sales analysis for Kinshasa sites with dynamic item detection and financial metrics.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Dynamic ciment detection</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Sales amount calculations</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Kinshasa sites focus</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Excel export with pricing</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Dynamic ciment detection</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sales amount calculations</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Kinshasa sites focus</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Excel export with pricing</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.ciment_report') }}" class="btn btn-warning btn-lg w-100" style="color: white;">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.ciment_report') }}" class="btn btn-warning w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Generate Report
                 </a>
@@ -144,24 +136,26 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: var(--secondary-gradient); color: white;">
-                <i class="fas fa-chart-line fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">4. Custom Reports</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-table me-2"></i>
+                    Custom Reports
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Build custom reports with flexible data selection, filtering, and analysis options for specialized business needs.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Flexible data selection</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Custom filtering options</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Multiple export formats</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Advanced analytics</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Flexible data selection</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Custom filtering options</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Multiple export formats</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Advanced analytics</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.custom_reports') }}" class="btn btn-secondary btn-lg w-100" style="color: white;">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.custom_reports') }}" class="btn btn-secondary w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Create Custom Report
                 </a>
@@ -170,24 +164,26 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: var(--success-gradient);">
-                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">5. Sales Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-dollar-sign me-2"></i>
+                    Sales Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Detailed sales analysis by site (Kinshasa/INT) with sales amounts in USD and cumulative totals for SIDNO 530 transactions.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Site-wise filtering (Kinshasa/INT)</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Sales amounts in USD</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Cumulative sales tracking</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Excel export with formatting</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Site-wise filtering (Kinshasa/INT)</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sales amounts in USD</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Cumulative sales tracking</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Excel export with formatting</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.sales_report') }}" class="btn btn-success btn-lg w-100">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.sales_report') }}" class="btn btn-success w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Generate Sales Report
                 </a>
@@ -196,24 +192,26 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); color: white;">
-                <i class="fas fa-chart-line fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">6. Sales by Item Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Sales by Item Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Item-level sales analysis with quantities, prices, discounts, and total sales amounts for detailed inventory performance tracking.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Item-wise breakdown</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Quantity and price analysis</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Category filtering</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Discount calculations</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Item-wise breakdown</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Quantity and price analysis</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Category filtering</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Discount calculations</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.sales_by_item') }}" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); color: white; border: none;">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.sales_by_item') }}" class="btn btn-primary w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Generate Sales by Item Report
                 </a>
@@ -222,24 +220,26 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); color: white;">
-                <i class="fas fa-user-tie fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">7. Kinshasa Bureau Client Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-tie me-2"></i>
+                    Kinshasa Bureau Client Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Office client sales and returns analysis for Kinshasa bureau clients (SID: 411) with detailed quantity tracking.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Office client filtering (SID: 411)</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Sales vs returns analysis</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Date range filtering</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Excel export with totals</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Office client filtering (SID: 411)</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sales vs returns analysis</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Date range filtering</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Excel export with totals</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.kinshasa_bureau_client') }}" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); color: white; border: none;">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.kinshasa_bureau_client') }}" class="btn btn-info w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Generate Bureau Client Report
                 </a>
@@ -248,61 +248,37 @@
     </div>
     
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); color: white;">
-                <i class="fas fa-boxes fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">8. Kinshasa Bureau Top Items Report</h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-boxes me-2"></i>
+                    Kinshasa Bureau Top Items Report
+                </h5>
             </div>
             <div class="card-body">
-                <p class="card-text">
+                <p class="card-text" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                     Top items by sales/returns for Kinshasa office clients (SID: 411) with category information and item descriptions.
                 </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Top N items selection</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Category and item name display</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Sales vs returns analysis</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Excel export with formatting</li>
+                <ul class="list-unstyled mb-0" style="font-size: 0.8125rem;">
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Top N items selection</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Category and item name display</li>
+                    <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sales vs returns analysis</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Excel export with formatting</li>
                 </ul>
             </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <a href="{{ url_for('main.kinshasa_bureau_items') }}" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); color: white; border: none;">
+            <div class="card-footer bg-transparent border-top">
+                <a href="{{ url_for('main.kinshasa_bureau_items') }}" class="btn btn-primary w-100">
                     <i class="fas fa-arrow-right me-2"></i>
                     Generate Top Items Report
                 </a>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 feature-card">
-            <div class="card-header text-center" style="background: var(--info-gradient); color: #333;">
-                <i class="fas fa-cogs fa-2x mb-2"></i>
-                <h5 class="card-title mb-0">9. System Management</h5>
-            </div>
-            <div class="card-body">
-                <p class="card-text">
-                    Manage data sources, configure settings, and monitor system performance with administrative tools.
-                </p>
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Data source management</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Performance monitoring</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>User access control</li>
-                    <li><i class="fas fa-check-circle text-success me-2"></i>Backup & recovery</li>
-                </ul>
-            </div>
-            <div class="card-footer bg-transparent border-0 text-center">
-                <button class="btn btn-info btn-lg w-100" disabled style="color: #333;">
-                    <i class="fas fa-lock me-2"></i>
-                    Admin Only
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Data Management Section -->
-<div class="row mt-5">
-    <div class="col-md-12">
+<div class="row mb-4">
+    <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
@@ -313,34 +289,34 @@
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h6 class="fw-bold mb-2">
-                            <i class="fas fa-sync-alt me-2 text-primary"></i>
+                        <h6 class="fw-semibold mb-2" style="color: var(--text-primary); font-size: 0.9375rem;">
+                            <i class="fas fa-sync-alt me-2" style="color: var(--primary-blue);"></i>
                             Refresh Database Cache
                         </h6>
-                        <p class="text-muted mb-2">
+                        <p class="mb-3" style="color: var(--text-secondary); font-size: 0.875rem;">
                             Load fresh data from the database to ensure reports reflect the latest inventory and sales information.
                         </p>
-                        <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
+                        <div class="alert alert-warning d-flex align-items-start mb-3" role="alert" style="font-size: 0.8125rem;">
+                            <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
                             <div>
                                 <strong>Loading Time Notice:</strong> Data refresh takes approximately <strong>2 minutes</strong> 
                                 to complete as it loads all inventory and sales data from the database.
                             </div>
                         </div>
-                        <div id="dataStatus" class="mb-3">
+                        <div id="dataStatus" class="mb-0">
                             <span class="badge bg-secondary">
                                 <i class="fas fa-question-circle me-1"></i>
                                 Data Status: Checking...
                             </span>
                         </div>
                     </div>
-                    <div class="col-md-4 text-center">
-                        <button type="button" class="btn btn-primary btn-lg" id="reloadDataBtn">
+                    <div class="col-md-4 text-md-end text-center">
+                        <button type="button" class="btn btn-primary" id="reloadDataBtn">
                             <i class="fas fa-database me-2"></i>
                             Reload Data
                         </button>
                         <div class="mt-2">
-                            <small class="text-muted">Last updated: <span id="lastUpdated">Never</span></small>
+                            <small class="text-muted" style="font-size: 0.75rem;">Last updated: <span id="lastUpdated">Never</span></small>
                         </div>
                     </div>
                 </div>
@@ -349,49 +325,50 @@
     </div>
 </div>
 
-<!-- Quick Stats -->
-<div class="row mt-5">
-    <div class="col-md-12">
+<!-- System Overview -->
+<div class="row mb-4">
+    <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-tachometer-alt me-2"></i>
+                    <i class="fas fa-chart-pie me-2"></i>
                     System Overview
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-md-3">
+                    <div class="col-md-3 mb-3 mb-md-0">
                         <div class="p-3">
-                            <i class="fas fa-database fa-2x text-primary mb-2"></i>
-                            <h4 class="fw-bold text-primary">8</h4>
-                            <small class="text-muted">Database Tables</small>
+                            <i class="fas fa-database mb-2" style="font-size: 1.75rem; color: var(--primary-blue);"></i>
+                            <h4 class="fw-semibold mb-1" style="font-size: 1.5rem; color: var(--text-primary);">8</h4>
+                            <small class="text-muted" style="font-size: 0.8125rem;">Database Tables</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <div class="p-3">
+                            <i class="fas fa-building mb-2" style="font-size: 1.75rem; color: var(--success-green);"></i>
+                            <h4 class="fw-semibold mb-1" style="font-size: 1.5rem; color: var(--text-primary);">Multiple</h4>
+                            <small class="text-muted" style="font-size: 0.8125rem;">Sites Supported</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <div class="p-3">
+                            <i class="fas fa-boxes mb-2" style="font-size: 1.75rem; color: var(--info-blue);"></i>
+                            <h4 class="fw-semibold mb-1" style="font-size: 1.5rem; color: var(--text-primary);">1000+</h4>
+                            <small class="text-muted" style="font-size: 0.8125rem;">Items Tracked</small>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="p-3">
-                            <i class="fas fa-building fa-2x text-success mb-2"></i>
-                            <h4 class="fw-bold text-success">Multiple</h4>
-                            <small class="text-muted">Sites Supported</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3">
-                            <i class="fas fa-boxes fa-2x text-info mb-2"></i>
-                            <h4 class="fw-bold text-info">1000+</h4>
-                            <small class="text-muted">Items Tracked</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3">
-                            <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                            <h4 class="fw-bold text-warning">Real-time</h4>
-                            <small class="text-muted">Data Updates</small>
+                            <i class="fas fa-clock mb-2" style="font-size: 1.75rem; color: var(--warning-amber);"></i>
+                            <h4 class="fw-semibold mb-1" style="font-size: 1.5rem; color: var(--text-primary);">Real-time</h4>
+                            <small class="text-muted" style="font-size: 0.8125rem;">Data Updates</small>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>    </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

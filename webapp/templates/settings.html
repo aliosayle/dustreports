@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - DustReports{% endblock %}
+
+{% block content %}
+<!-- Professional Page Header -->
+<div class="page-header">
+    <div class="container-fluid">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Configure system settings and auto-reload schedules</p>
+    </div>
+</div>
+
+<!-- Auto-Reload Settings -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Scheduled Auto-Reload Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-4" style="color: var(--text-secondary); font-size: 0.875rem;">
+                    Configure automatic data reload times. The system will automatically refresh the database cache at the specified times daily.
+                </p>
+                
+                <!-- Current Status -->
+                <div class="mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <label class="form-label mb-0 me-3" style="font-weight: 600;">Status:</label>
+                        <span id="reloadStatus" class="badge bg-secondary">
+                            <i class="fas fa-spinner fa-spin me-1"></i>
+                            Checking...
+                        </span>
+                    </div>
+                    <div id="currentTimes" class="text-muted" style="font-size: 0.875rem;">
+                        Loading current schedule...
+                    </div>
+                </div>
+                
+                <!-- Time Selection -->
+                <div class="mb-4">
+                    <label class="form-label mb-3" style="font-weight: 600;">
+                        <i class="fas fa-calendar-alt me-2" style="color: var(--primary-blue);"></i>
+                        Select Reload Times (24-hour format)
+                    </label>
+                    
+                    <div id="timeSlots" class="mb-3">
+                        <!-- Time slots will be dynamically added here -->
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="addTimeSlot">
+                        <i class="fas fa-plus me-1"></i>
+                        Add Another Time
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="removeTimeSlot" style="display: none;">
+                        <i class="fas fa-minus me-1"></i>
+                        Remove Last Time
+                    </button>
+                </div>
+                
+                <!-- Quick Presets -->
+                <div class="mb-4">
+                    <label class="form-label mb-2" style="font-weight: 600;">Quick Presets:</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm preset-btn" data-preset="business">
+                            <i class="fas fa-briefcase me-1"></i>
+                            Business Hours (8 AM, 12 PM, 5 PM)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm preset-btn" data-preset="morning">
+                            <i class="fas fa-sun me-1"></i>
+                            Morning Only (6 AM)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm preset-btn" data-preset="default">
+                            <i class="fas fa-clock me-1"></i>
+                            Default (6 AM, 12 PM, 6 PM)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm preset-btn" data-preset="hourly">
+                            <i class="fas fa-hourglass-half me-1"></i>
+                            Every 4 Hours (4 AM, 8 AM, 12 PM, 4 PM, 8 PM)
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="saveSchedule">
+                        <i class="fas fa-save me-2"></i>
+                        Save Schedule
+                    </button>
+                    <button type="button" class="btn btn-success" id="startSchedule" style="display: none;">
+                        <i class="fas fa-play me-2"></i>
+                        Start Scheduled Reload
+                    </button>
+                    <button type="button" class="btn btn-danger" id="stopSchedule" style="display: none;">
+                        <i class="fas fa-stop me-2"></i>
+                        Stop Scheduled Reload
+                    </button>
+                </div>
+                
+                <!-- Status Messages -->
+                <div id="statusMessage" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cache Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-database me-2"></i>
+                    Cache Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label mb-1" style="font-weight: 500; font-size: 0.875rem;">Cache Status:</label>
+                            <div id="cacheStatusBadge">
+                                <span class="badge bg-secondary">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label mb-1" style="font-weight: 500; font-size: 0.875rem;">Last Updated:</label>
+                            <div id="lastCacheUpdate" class="text-muted" style="font-size: 0.875rem;">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label mb-1" style="font-weight: 500; font-size: 0.875rem;">Tables Loaded:</label>
+                            <div id="tablesCount" class="text-muted" style="font-size: 0.875rem;">Loading...</div>
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary btn-sm" id="refreshCacheStatus">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Refresh Status
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let timeSlotCount = 0;
+    const maxTimeSlots = 10;
+    
+    // Initialize with default times
+    function initializeTimeSlots() {
+        // Start with 3 default time slots
+        addTimeSlot('06', '00');
+        addTimeSlot('12', '00');
+        addTimeSlot('18', '00');
+    }
+    
+    // Add a time slot
+    function addTimeSlot(hour = '', minute = '') {
+        if (timeSlotCount >= maxTimeSlots) {
+            showMessage('Maximum ' + maxTimeSlots + ' time slots allowed', 'warning');
+            return;
+        }
+        
+        timeSlotCount++;
+        const slotId = 'timeSlot' + timeSlotCount;
+        
+        const timeSlotHtml = `
+            <div class="time-slot mb-2" data-slot-id="${slotId}">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <label class="form-label mb-0" style="font-size: 0.875rem;">Time ${timeSlotCount}:</label>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm hour-select" style="width: 80px;">
+                            <option value="">Hour</option>
+                            ${Array.from({length: 24}, (_, i) => 
+                                `<option value="${String(i).padStart(2, '0')}" ${hour === String(i).padStart(2, '0') ? 'selected' : ''}>${String(i).padStart(2, '0')}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <span style="font-weight: 600;">:</span>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm minute-select" style="width: 80px;">
+                            <option value="">Min</option>
+                            ${Array.from({length: 60}, (_, i) => 
+                                `<option value="${String(i).padStart(2, '0')}" ${minute === String(i).padStart(2, '0') ? 'selected' : ''}>${String(i).padStart(2, '0')}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('#timeSlots').append(timeSlotHtml);
+        updateRemoveButton();
+    }
+    
+    // Remove last time slot
+    function removeTimeSlot() {
+        if (timeSlotCount > 0) {
+            $('.time-slot').last().remove();
+            timeSlotCount--;
+            updateRemoveButton();
+        }
+    }
+    
+    // Update remove button visibility
+    function updateRemoveButton() {
+        if (timeSlotCount > 1) {
+            $('#removeTimeSlot').show();
+        } else {
+            $('#removeTimeSlot').hide();
+        }
+    }
+    
+    // Get all selected times
+    function getSelectedTimes() {
+        const times = [];
+        $('.time-slot').each(function() {
+            const hour = $(this).find('.hour-select').val();
+            const minute = $(this).find('.minute-select').val();
+            if (hour && minute) {
+                times.push(hour + ':' + minute);
+            }
+        });
+        return times;
+    }
+    
+    // Load current schedule status
+    function loadScheduleStatus() {
+        $.get('/api/scheduled-reload-status')
+            .done(function(data) {
+                if (data.enabled) {
+                    $('#reloadStatus').removeClass('bg-secondary bg-danger').addClass('bg-success')
+                        .html('<i class="fas fa-check-circle me-1"></i>Enabled');
+                    $('#startSchedule').hide();
+                    $('#stopSchedule').show();
+                    
+                    if (data.reload_times && data.reload_times.length > 0) {
+                        $('#currentTimes').html('Current schedule: ' + data.reload_times.join(', '));
+                        
+                        // Load times into slots
+                        $('#timeSlots').empty();
+                        timeSlotCount = 0;
+                        data.reload_times.forEach(function(time) {
+                            const [hour, minute] = time.split(':');
+                            addTimeSlot(hour, minute);
+                        });
+                    }
+                } else {
+                    $('#reloadStatus').removeClass('bg-secondary bg-success').addClass('bg-danger')
+                        .html('<i class="fas fa-times-circle me-1"></i>Disabled');
+                    $('#startSchedule').show();
+                    $('#stopSchedule').hide();
+                    $('#currentTimes').html('Scheduled reload is currently disabled.');
+                }
+            })
+            .fail(function() {
+                $('#reloadStatus').removeClass('bg-secondary bg-success').addClass('bg-danger')
+                    .html('<i class="fas fa-exclamation-triangle me-1"></i>Error');
+                $('#currentTimes').html('Failed to load schedule status.');
+            });
+    }
+    
+    // Load cache status
+    function loadCacheStatus() {
+        $.get('/api/cache-status')
+            .done(function(data) {
+                if (data.cached) {
+                    $('#cacheStatusBadge').html('<span class="badge bg-success">Loaded</span>');
+                    $('#tablesCount').text(data.table_count + ' tables');
+                    
+                    if (data.cache_timestamp) {
+                        const timestamp = new Date(data.cache_timestamp);
+                        $('#lastCacheUpdate').text(timestamp.toLocaleString());
+                    } else {
+                        $('#lastCacheUpdate').text('Unknown');
+                    }
+                } else {
+                    $('#cacheStatusBadge').html('<span class="badge bg-warning">Not Loaded</span>');
+                    $('#tablesCount').text('0 tables');
+                    $('#lastCacheUpdate').text('Never');
+                }
+            })
+            .fail(function() {
+                $('#cacheStatusBadge').html('<span class="badge bg-danger">Error</span>');
+            });
+    }
+    
+    // Show status message
+    function showMessage(message, type = 'info') {
+        const alertClass = type === 'success' ? 'alert-success' : 
+                          type === 'warning' ? 'alert-warning' : 
+                          type === 'danger' ? 'alert-danger' : 'alert-info';
+        
+        $('#statusMessage').html(
+            '<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert">' +
+            '<i class="fas fa-info-circle me-2"></i>' + message +
+            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+            '</div>'
+        ).show();
+        
+        // Auto-hide after 5 seconds
+        setTimeout(function() {
+            $('#statusMessage').fadeOut();
+        }, 5000);
+    }
+    
+    // Save schedule
+    $('#saveSchedule').click(function() {
+        const times = getSelectedTimes();
+        
+        if (times.length === 0) {
+            showMessage('Please select at least one time slot', 'warning');
+            return;
+        }
+        
+        // Validate all slots are filled
+        let hasEmpty = false;
+        $('.time-slot').each(function() {
+            const hour = $(this).find('.hour-select').val();
+            const minute = $(this).find('.minute-select').val();
+            if ((hour && !minute) || (!hour && minute)) {
+                hasEmpty = true;
+                return false;
+            }
+        });
+        
+        if (hasEmpty) {
+            showMessage('Please complete all time slots (both hour and minute)', 'warning');
+            return;
+        }
+        
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+        
+        $.ajax({
+            url: '/api/scheduled-reload-control',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                action: 'start',
+                reload_times: times
+            })
+        })
+        .done(function(data) {
+            if (data.status === 'success') {
+                showMessage('Schedule saved successfully! Reload will occur at: ' + times.join(', '), 'success');
+                loadScheduleStatus();
+            } else {
+                showMessage('Failed to save schedule: ' + (data.message || 'Unknown error'), 'danger');
+            }
+        })
+        .fail(function(xhr) {
+            const errorMsg = xhr.responseJSON ? xhr.responseJSON.message : 'Failed to save schedule';
+            showMessage(errorMsg, 'danger');
+        })
+        .always(function() {
+            btn.prop('disabled', false).html('<i class="fas fa-save me-2"></i>Save Schedule');
+        });
+    });
+    
+    // Start schedule
+    $('#startSchedule').click(function() {
+        const times = getSelectedTimes();
+        if (times.length === 0) {
+            showMessage('Please configure at least one time slot first', 'warning');
+            return;
+        }
+        $('#saveSchedule').click();
+    });
+    
+    // Stop schedule
+    $('#stopSchedule').click(function() {
+        if (!confirm('Are you sure you want to stop scheduled auto-reload?')) {
+            return;
+        }
+        
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Stopping...');
+        
+        $.ajax({
+            url: '/api/scheduled-reload-control',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                action: 'stop'
+            })
+        })
+        .done(function(data) {
+            if (data.status === 'success') {
+                showMessage('Scheduled reload stopped successfully', 'success');
+                loadScheduleStatus();
+            } else {
+                showMessage('Failed to stop schedule: ' + (data.message || 'Unknown error'), 'danger');
+            }
+        })
+        .fail(function(xhr) {
+            const errorMsg = xhr.responseJSON ? xhr.responseJSON.message : 'Failed to stop schedule';
+            showMessage(errorMsg, 'danger');
+        })
+        .always(function() {
+            btn.prop('disabled', false).html('<i class="fas fa-stop me-2"></i>Stop Scheduled Reload');
+        });
+    });
+    
+    // Preset buttons
+    $('.preset-btn').click(function() {
+        const preset = $(this).data('preset');
+        let times = [];
+        
+        switch(preset) {
+            case 'business':
+                times = ['08:00', '12:00', '17:00'];
+                break;
+            case 'morning':
+                times = ['06:00'];
+                break;
+            case 'default':
+                times = ['06:00', '12:00', '18:00'];
+                break;
+            case 'hourly':
+                times = ['04:00', '08:00', '12:00', '16:00', '20:00'];
+                break;
+        }
+        
+        // Clear existing slots
+        $('#timeSlots').empty();
+        timeSlotCount = 0;
+        
+        // Add preset times
+        times.forEach(function(time) {
+            const [hour, minute] = time.split(':');
+            addTimeSlot(hour, minute);
+        });
+        
+        showMessage('Preset applied: ' + preset, 'info');
+    });
+    
+    // Add/Remove time slot buttons
+    $('#addTimeSlot').click(function() {
+        addTimeSlot();
+    });
+    
+    $('#removeTimeSlot').click(function() {
+        removeTimeSlot();
+    });
+    
+    // Refresh cache status button
+    $('#refreshCacheStatus').click(function() {
+        loadCacheStatus();
+    });
+    
+    // Initialize
+    loadScheduleStatus();
+    loadCacheStatus();
+    
+    // Refresh cache status every 30 seconds
+    setInterval(loadCacheStatus, 30000);
+});
+</script>
+{% endblock %}

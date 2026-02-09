@@ -30,20 +30,21 @@ def create_app(config_name='default'):
 app = create_app(os.getenv('FLASK_CONFIG', 'default'))
 
 if __name__ == '__main__':
+    import os
     print("🚀 Starting DustReports Flask Application...")
     print("📊 Modular architecture loaded successfully")
     print("🔗 Available endpoints:")
     print("   📋 Main pages: /, /autonomy, /stock-by-site, /custom-reports, /ciment-report, /sales-report, /sales-by-item")
     print("   🔌 API endpoints: /api/...")
     print("   📤 Export endpoints: /api/export-...")
-    
+
     # Start scheduled auto-reload (loads saved config or uses defaults)
     try:
         from services.database_service import load_scheduled_reload_config
-        
+
         # Try to load saved config first
         config_loaded = load_scheduled_reload_config()
-        
+
         if config_loaded:
             # Start with loaded config
             start_scheduled_reload()
@@ -56,5 +57,16 @@ if __name__ == '__main__':
             print("✅ Scheduled auto-reload enabled with default times (6 AM, 12 PM, 6 PM daily)")
     except Exception as e:
         print(f"⚠️ Failed to start scheduled reload: {e}")
-    
-    app.run(debug=True, host='0.0.0.0', port=5000)
+
+    # Production: use Waitress (faster, multi-threaded). Dev: use Flask built-in.
+    use_waitress = os.getenv('USE_WAITRESS', '1').strip().lower() in ('1', 'true', 'yes')
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', '5000'))
+
+    if use_waitress:
+        print("🟢 Running with Waitress (production server, multi-threaded)")
+        from waitress import serve
+        serve(app, host=host, port=port, threads=8)
+    else:
+        print("🔧 Running with Flask development server")
+        app.run(debug=True, host=host, port=port)

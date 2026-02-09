@@ -135,7 +135,11 @@ class StockAnalyzer:
         
         # Drop the temporary columns
         stock_summary = stock_summary[['SITE', 'ITEM', 'CURRENT_STOCK', 'TOTAL_IN', 'TOTAL_OUT']]
-        
+
+        # Exclude rows with missing or empty ITEM (avoids "ghost" rows and JSON/merge issues)
+        item_ok = stock_summary['ITEM'].notna() & (stock_summary['ITEM'].astype(str).str.strip() != '')
+        stock_summary = stock_summary.loc[item_ok].reset_index(drop=True)
+
         print(f"   📊 Stock summary: {len(stock_summary)} unique item/site combinations")
         print(f"   📊 Sample stock calculations:")
         for idx, row in stock_summary.head(3).iterrows():

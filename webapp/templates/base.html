@@ -31,6 +31,16 @@
             --warning-amber: #d97706;
             --danger-red: #dc2626;
             --info-blue: #0284c7;
+
+            /* DustReports report hero/sections (so hero text is visible on gradient) */
+            --dust-primary: #1a237e;
+            --dust-secondary: #3949ab;
+            --dust-accent: #ff6f00;
+            --dust-light: #e8eaf6;
+            --dust-dark: #0d1b69;
+            --primary-gradient: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
+            --light-gradient: linear-gradient(135deg, #ffffff 0%, #e8eaf6 100%);
+            --accent-gradient: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
             
             /* Neutral Colors */
             --bg-primary: #ffffff;
@@ -65,6 +75,19 @@
             font-size: 14px;
         }
         
+        /* Report hero sections: ensure text is visible on gradient background */
+        .hero-section,
+        .hero-section .hero-title,
+        .hero-section .hero-subtitle,
+        .hero-section .fw-semibold,
+        .hero-section p,
+        .hero-section h1, .hero-section h2, .hero-section h3 {
+            color: #ffffff !important;
+        }
+        .hero-section a:not(.btn) {
+            color: rgba(255, 255, 255, 0.95) !important;
+        }
+
         /* Professional Navigation */
         .navbar {
             background-color: var(--primary-blue-dark) !important;
@@ -499,21 +522,9 @@
             padding: 0 !important;
         }
         
-        /* DataTables Professional Styling */
+        /* DataTables - Using default Bootstrap 5 theme, minimal overrides only */
         .dataTables_wrapper {
-            font-size: 0.875rem;
-        }
-        
-        .dataTables_wrapper .dataTables_filter input {
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.5rem 0.75rem;
-        }
-        
-        .dataTables_wrapper .dataTables_length select {
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.5rem 0.75rem;
+            width: 100%;
         }
         
         /* Ensure table takes full width */
@@ -681,6 +692,185 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>    <!-- DataTables SearchBuilder -->
     <script src="https://cdn.datatables.net/searchbuilder/1.6.0/js/dataTables.searchBuilder.min.js"></script>
     <script src="https://cdn.datatables.net/searchbuilder/1.6.0/js/searchBuilder.bootstrap5.min.js"></script>
+    
+    <!-- Standardized Professional DataTables Configuration -->
+    <script>
+    /**
+     * Creates a professional DataTables configuration with all advanced features
+     * @param {Object} options - Configuration options
+     * @param {string} options.tableId - ID of the table element
+     * @param {Array} options.columns - Column definitions
+     * @param {Array} options.data - Table data
+     * @param {Object} options.exportOptions - Export configuration (title, filename generator)
+     * @param {Array} options.defaultOrder - Default sort order [columnIndex, 'asc'|'desc']
+     * @param {number} options.pageLength - Default page length
+     * @param {boolean} options.searchBuilder - Enable SearchBuilder (default: true)
+     * @param {boolean} options.responsive - Enable responsive mode (default: true)
+     * @returns {Object} DataTables instance
+     */
+    function createProfessionalDataTable(options) {
+        const defaults = {
+            tableId: '#resultsTable',
+            columns: [],
+            data: [],
+            exportOptions: {
+                title: 'Report',
+                filenameGenerator: function() { return 'report_' + new Date().toISOString().slice(0,10); }
+            },
+            defaultOrder: [[0, 'asc']],
+            pageLength: 25,
+            searchBuilder: true,
+            responsive: true
+        };
+        
+        const config = Object.assign({}, defaults, options);
+        
+        // Destroy existing table if it exists
+        if ($.fn.DataTable.isDataTable(config.tableId)) {
+            $(config.tableId).DataTable().destroy();
+        }
+        
+        // Build DOM layout
+        let domLayout = '<"row mb-3"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>';
+        
+        if (config.searchBuilder) {
+            domLayout += '<"row mb-3"<"col-sm-12"Q>>';
+        }
+        
+        domLayout += '<"row mb-3"<"col-sm-12 text-center"B>>';
+        domLayout += '<"row"<"col-sm-12"tr>>';
+        domLayout += '<"row mt-3"<"col-sm-12 col-md-5 text-center text-md-start"i><"col-sm-12 col-md-7 text-center text-md-end"p>>';
+        
+        // Build buttons configuration
+        const buttons = [
+            {
+                extend: 'excel',
+                text: '<i class="fas fa-file-excel me-2"></i>Excel',
+                className: 'btn btn-success btn-sm',
+                title: config.exportOptions.title,
+                filename: config.exportOptions.filenameGenerator,
+                exportOptions: {
+                    format: {
+                        body: function(data, row, column, node) {
+                            // Clean HTML from cells for export
+                            if (typeof data === 'string') {
+                                return data.replace(/<[^>]*>/g, '').trim();
+                            }
+                            return data;
+                        }
+                    }
+                }
+            },
+            {
+                extend: 'csv',
+                text: '<i class="fas fa-file-csv me-2"></i>CSV',
+                className: 'btn btn-info btn-sm',
+                title: config.exportOptions.title,
+                filename: config.exportOptions.filenameGenerator,
+                exportOptions: {
+                    format: {
+                        body: function(data, row, column, node) {
+                            if (typeof data === 'string') {
+                                return data.replace(/<[^>]*>/g, '').trim();
+                            }
+                            return data;
+                        }
+                    }
+                }
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fas fa-file-pdf me-2"></i>PDF',
+                className: 'btn btn-danger btn-sm',
+                title: config.exportOptions.title,
+                filename: config.exportOptions.filenameGenerator,
+                orientation: 'landscape',
+                pageSize: 'A4',
+                exportOptions: {
+                    format: {
+                        body: function(data, row, column, node) {
+                            if (typeof data === 'string') {
+                                return data.replace(/<[^>]*>/g, '').trim();
+                            }
+                            return data;
+                        }
+                    }
+                },
+                customize: function(doc) {
+                    doc.defaultStyle.fontSize = 8;
+                    doc.styles.tableHeader.fontSize = 9;
+                    doc.styles.tableHeader.fillColor = '#1a237e';
+                    doc.styles.tableHeader.color = '#ffffff';
+                    doc.styles.tableHeader.alignment = 'center';
+                }
+            },
+            {
+                extend: 'print',
+                text: '<i class="fas fa-print me-2"></i>Print',
+                className: 'btn btn-secondary btn-sm',
+                title: config.exportOptions.title,
+                exportOptions: {
+                    format: {
+                        body: function(data, row, column, node) {
+                            if (typeof data === 'string') {
+                                return data.replace(/<[^>]*>/g, '').trim();
+                            }
+                            return data;
+                        }
+                    }
+                }
+            }
+        ];
+        
+        // Build DataTable configuration
+        const dtConfig = {
+            data: config.data,
+            columns: config.columns,
+            order: config.defaultOrder,
+            pageLength: config.pageLength,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            responsive: config.responsive,
+            searchHighlight: true,
+            dom: domLayout,
+            buttons: buttons,
+            language: {
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                },
+                zeroRecords: "No matching records found",
+                emptyTable: "No data available in table"
+            },
+            stateSave: true,
+            stateDuration: 60 * 60 * 24, // 24 hours
+            scrollX: true,
+            autoWidth: false
+        };
+        
+        // Add SearchBuilder if enabled
+        if (config.searchBuilder) {
+            dtConfig.searchBuilder = {
+                logic: 'OR',
+                buttons: {
+                    clearAll: {
+                        text: 'Clear All'
+                    }
+                }
+            };
+        }
+        
+        // Initialize and return DataTable instance
+        return $(config.tableId).DataTable(dtConfig);
+    }
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

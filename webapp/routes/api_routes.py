@@ -2,6 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 import pandas as pd
+import numpy as np
 from services.database_service import (
     load_dataframes, get_dataframes, is_cache_loading, get_cache_lock,
     get_cache_timestamp, get_cache_age_seconds,
@@ -11,6 +12,27 @@ from services.database_service import (
 from models.stock_analysis import StockAnalyzer
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+
+def _sanitize_for_json(obj):
+    """Convert list of dicts from DataFrame to JSON-serializable form (no NaN, no numpy types)."""
+    if isinstance(obj, list):
+        return [_sanitize_for_json(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if pd.isna(obj):
+        return None
+    if isinstance(obj, (np.integer, np.int32, np.int64)):
+        return int(obj)
+    if isinstance(obj, (np.floating, np.float32, np.float64)):
+        f = float(obj)
+        return None if (f != f) else f  # NaN -> None
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, (pd.Timestamp, pd.Timedelta)):
+        return str(obj)
+    return obj
+
 
 @api_bp.route('/load-dataframes', methods=['POST'])
 def api_load_dataframes():
@@ -256,8 +278,8 @@ def api_autonomy_report():
         else:
             period_days = result_df['SALES_PERIOD_DAYS'].iloc[0] if not result_df.empty and 'SALES_PERIOD_DAYS' in result_df.columns else 0
         
-        # Convert to JSON
-        result_json = result_df.to_dict('records')
+        # Convert to JSON (sanitize NaN/numpy so jsonify never fails)
+        result_json = _sanitize_for_json(result_df.to_dict('records'))
         
         return jsonify({
             'data': result_json,
@@ -2345,18 +2367,12 @@ def api_kinshasa_bureau_items_report():
     Shows top items by sales/returns for office clients (SID starting with 411)
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         from_date = data.get('from_date')
         to_date = data.get('to_date')
-        top_n = data.get('top_n', 50)  # Default to top 50 items
         site_sidno = data.get('site_sidno')  # Optional: filter by SIDNO from ALLSTOCK table (can be array or single value)
         contact = data.get('contact')  # Optional: filter by CONTACT (can be array or single value)
-        
-        # Convert top_n to int if it's a string
-        try:
-            top_n = int(top_n) if top_n else 0
-        except (ValueError, TypeError):
-            top_n = 50  # Default to 50 if conversion fails
+        # top_n is intentionally ignored - report returns ALL item-client combinations (no limit)
         
         # Validate dates
         if not from_date or not to_date:
@@ -2658,14 +2674,10 @@ def api_kinshasa_bureau_items_report():
         # Filter out rows with no sales
         result_df = result_df[result_df['TOTAL_QTY'] != 0]
         
-        # Sort by total quantity descending to get top item-client combinations
+        # Sort by total quantity descending. Return ALL rows - no limit (top_n removed).
         result_df = result_df.sort_values('TOTAL_QTY', ascending=False)
         
-        # Limit to top N item-client combinations (top_n is already converted to int at the beginning)
-        if top_n > 0:
-            result_df = result_df.head(top_n)
-        
-        # Convert to list of dictionaries for JSON response
+        # Convert to list of dictionaries for JSON response (full result, never truncated)
         result_data = []
         for _, row in result_df.iterrows():
             row_data = {
@@ -2689,11 +2701,12 @@ def api_kinshasa_bureau_items_report():
         total_weight = result_df['WEIGHT'].sum()
         total_usd = result_df['QUANTITY_USD'].sum()
         
+        print(f"📊 Kinshasa Bureau Items report returning {len(result_data)} item-client combinations (no limit applied)")
+        
         return jsonify({
             'data': result_data,
             'metadata': {
                 'total_items': len(result_data),
-                'top_n': int(top_n) if top_n and str(top_n) != '0' else 'all',
                 'from_date': from_date,
                 'to_date': to_date,
                 'total_sales_qty': float(total_sales),
@@ -2711,7 +2724,7 @@ def api_kinshasa_bureau_items_report():
                     'total': 'SALES_QTY - RETURNS_QTY',
                     'weight': 'NWEIGHT (from STOCK table) × TOTAL_QTY / 1000 (in tons)',
                     'quantity_usd': 'SUM(CREDITUS - DEBITUS) + SUM(CREDITVATAMOUNT - DEBITVATAMOUNT) per item-client combination (same as Report 7)',
-                    'sorting': 'Sorted by TOTAL_QTY descending (top item-client combinations)'
+                    'sorting': 'Sorted by TOTAL_QTY descending (all item-client combinations included, no limit)'
                 },
                 'columns_info': {
                     'item_code': 'Item code',

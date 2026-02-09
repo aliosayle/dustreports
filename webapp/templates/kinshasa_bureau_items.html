@@ -106,26 +106,6 @@
                         
                         <div class="col-lg-4 col-md-6">
                             <div class="filter-group">
-                                <label for="topN" class="form-label fw-semibold" style="color: #2d3748 !important;">
-                                    <i class="fas fa-sort-numeric-down me-2" style="color: var(--dust-secondary);"></i>
-                                    Top N Items
-                                </label>
-                                <div class="filter-input-wrapper position-relative">
-                                    <input type="number" class="form-control form-control-lg" id="topN" name="top_n" 
-                                           min="0" value="50" placeholder="Enter number of top items"
-                                           style="border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px 16px; transition: all 0.3s ease;">
-                                    <i class="fas fa-hashtag position-absolute" 
-                                       style="right: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none;"></i>
-                                </div>
-                                <small class="text-muted mt-1 d-block">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Enter 0 to show all items, or any positive number for top N items
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <div class="col-lg-4 col-md-6">
-                            <div class="filter-group">
                                 <label for="siteFilter" class="form-label fw-semibold" style="color: #2d3748 !important;">
                                     <i class="fas fa-building me-2" style="color: var(--dust-secondary);"></i>
                                     Site Filter (SIDNO) - Multiple Selection
@@ -369,7 +349,6 @@ $(document).ready(function() {
             // Reset to default dates
             $('#toDate').val(today.toISOString().split('T')[0]);
             $('#fromDate').val(lastMonth.toISOString().split('T')[0]);
-            $('#topN').val(50);
             $('#siteFilter').val(null).trigger('change');
             $('#contactFilter').val(null).trigger('change');
         });
@@ -400,16 +379,9 @@ $(document).ready(function() {
         console.log('Contact filter element value (jQuery):', $('#contactFilter').val());
         console.log('Contact filter native selectedOptions:', contactSelect ? Array.from(contactSelect.selectedOptions).map(o => o.value) : 'N/A');
         
-        // Get top_n value and parse as integer (0 means all items)
-        let topNValue = parseInt($('#topN').val()) || 50;
-        if (isNaN(topNValue) || topNValue < 0) {
-            topNValue = 50; // Default to 50 if invalid
-        }
-        
         const formData = {
             from_date: $('#fromDate').val(),
             to_date: $('#toDate').val(),
-            top_n: topNValue,
             site_sidno: selectedSites.length > 0 ? selectedSites : null,
             contact: selectedContacts.length > 0 ? selectedContacts : null
         };
@@ -517,7 +489,8 @@ $(document).ready(function() {
         
         $('#bureauItemsTable').DataTable({
             order: [[7, 'desc']], // Sort by Total (Net) descending (column index 7)
-            pageLength: 25,
+            pageLength: -1,        // Show all rows by default (no pagination limit)
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
             language: {
                 search: "Search item-client combinations:",
                 lengthMenu: "Show _MENU_ rows per page",
@@ -539,9 +512,6 @@ $(document).ready(function() {
                         if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
                             filename += '_' + currentFilters.from_date.replace(/-/g, '') + '_to_' + currentFilters.to_date.replace(/-/g, '');
                         }
-                        if (currentFilters && currentFilters.top_n) {
-                            filename += '_top' + currentFilters.top_n;
-                        }
                         if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
                             const siteNames = {
                                 '3700002': 'Kinshasa',
@@ -560,9 +530,6 @@ $(document).ready(function() {
                         let title = 'Kinshasa Sales Bureau Top Items Report';
                         if (currentFilters && currentFilters.from_date && currentFilters.to_date) {
                             title += ' - Period: ' + currentFilters.from_date + ' to ' + currentFilters.to_date;
-                        }
-                        if (currentFilters && currentFilters.top_n) {
-                            title += ' | Top ' + (currentFilters.top_n === '0' ? 'All' : currentFilters.top_n) + ' Items';
                         }
                         if (currentFilters && currentFilters.site_sidno && currentFilters.site_sidno.length > 0) {
                             const siteNames = {

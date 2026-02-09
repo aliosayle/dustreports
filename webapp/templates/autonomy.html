@@ -35,9 +35,11 @@
                                 <i class="fas fa-building me-2" style="color: var(--primary-blue);"></i>
                                 Site Location
                             </label>
-                            <select class="form-select" id="siteSelect" name="site_code">
-                                <option value="">All Sites</option>
-                            </select>
+                            <div class="filter-input-wrapper position-relative">
+                                <select class="form-select" id="siteSelect" name="site_code">
+                                    <option value="">All Sites</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <div class="col-lg-3 col-md-6">
@@ -45,9 +47,11 @@
                                 <i class="fas fa-box me-2" style="color: var(--primary-blue);"></i>
                                 Product Item
                             </label>
-                            <select class="form-select" id="itemSelect" name="item_code">
-                                <option value="">All Items</option>
-                            </select>
+                            <div class="filter-input-wrapper position-relative">
+                                <select class="form-select" id="itemSelect" name="item_code">
+                                    <option value="">All Items</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <div class="col-lg-3 col-md-6">
@@ -1183,17 +1187,42 @@ $(document).ready(function() {
         
         // Return filename without extension (DataTables adds it automatically)
         return filenameParts.join('_');
-    }    // Load sites and items on page load
-    loadSites();
-    loadItems();
-      // Set default date range (last 30 days)
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
-    $('#toDate').val(today.toISOString().split('T')[0]);
-    $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
-    
-    // Initialize Select2 with search functionality
-    initializeSelect2();      function loadSites() {
+    }
+
+    // Load sites and items, then init Select2 once so dropdowns don't disappear
+    function initFilters() {
+        var today = new Date();
+        var thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+        $('#toDate').val(today.toISOString().split('T')[0]);
+        $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+
+        $.when($.get('/api/sites'), $.get('/api/items')).always(function(sitesResp, itemsResp) {
+            // $.when passes [data, textStatus, jqXHR] per request when resolved
+            var sites = [];
+            var items = [];
+            if (sitesResp && sitesResp[0] && Array.isArray(sitesResp[0])) { sites = sitesResp[0]; }
+            if (itemsResp && itemsResp[0] && Array.isArray(itemsResp[0])) { items = itemsResp[0]; }
+            var $siteSelect = $('#siteSelect');
+            var $itemSelect = $('#itemSelect');
+            $siteSelect.find('option:not(:first)').remove();
+            $itemSelect.find('option:not(:first)').remove();
+            if (Array.isArray(sites)) {
+                sites.forEach(function(site) {
+                    $siteSelect.append('<option value="' + site.id + '">' + site.id + ' - ' + (site.name || '') + '</option>');
+                });
+            }
+            if (Array.isArray(items)) {
+                items.forEach(function(item) {
+                    $itemSelect.append('<option value="' + item.code + '">' + item.code + ' - ' + (item.name || '') + '</option>');
+                });
+            }
+            initializeSelect2();
+        });
+    }
+
+    initFilters();
+
+    function loadSites() {
         $.get('/api/sites')
             .done(function(data) {
                 const siteSelect = $('#siteSelect');
@@ -1220,107 +1249,88 @@ $(document).ready(function() {
                         itemSelect.append(`<option value="${item.code}">${item.code} - ${item.name}</option>`);
                     });
                 }                // Refresh Select2 after loading new options
+                var $itemWrapper = $('#itemSelect').closest('.filter-input-wrapper');
+                var itemDropdownParent = $itemWrapper.length ? $itemWrapper : $(document.body);
                 $('#itemSelect').select2('destroy').select2({
-                    theme: 'bootstrap-5',
                     placeholder: '📦 Search and select item...',
                     allowClear: true,
                     width: '100%',
-                    dropdownParent: $('#itemSelect').closest('.filter-input-wrapper'),
+                    dropdownParent: itemDropdownParent,
                     minimumInputLength: 0,
                     escapeMarkup: function(markup) { 
                         return markup; 
                     },
                     language: {
-                        noResults: function() {
-                            return '<i class="fas fa-info-circle me-2"></i>No items found';
-                        },
-                        searching: function() {
-                            return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
-                        }
+                        noResults: function() { return 'No items found'; },
+                        searching: function() { return 'Searching...'; }
                     }
                 });
             })
             .fail(function() {
                 console.log('Failed to load items - this is normal if data is not loaded yet');
             });
-    }    // Initialize Select2 components
+    }    // Initialize Select2 components (use default theme; bootstrap-5 not in base Select2)
     function initializeSelect2() {
+        var $siteWrapper = $('#siteSelect').closest('.filter-input-wrapper');
+        var $itemWrapper = $('#itemSelect').closest('.filter-input-wrapper');
+        var siteDropdownParent = $siteWrapper.length ? $siteWrapper : $(document.body);
+        var itemDropdownParent = $itemWrapper.length ? $itemWrapper : $(document.body);
+
         // Initialize Site Select2
         $('#siteSelect').select2({
-            theme: 'bootstrap-5',
             placeholder: '🌐 Search and select site...',
             allowClear: true,
             width: '100%',
-            dropdownParent: $('.filter-input-wrapper').first(),
+            dropdownParent: siteDropdownParent,
             minimumInputLength: 0,
-            maximumSelectionLength: 1,
-            closeOnSelect: true,
             escapeMarkup: function(markup) { 
                 return markup; 
             },
             language: {
                 noResults: function() {
-                    return '<i class="fas fa-info-circle me-2"></i>No sites found';
+                    return 'No sites found';
                 },
                 searching: function() {
-                    return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
-                },
-                inputTooShort: function() {
-                    return '<i class="fas fa-keyboard me-2"></i>Start typing to search';
-                },
-                maximumSelected: function() {
-                    return '<i class="fas fa-exclamation-triangle me-2"></i>You can only select one site';
+                    return 'Searching...';
                 }
             }
         });
-        
+
         // Initialize Item Select2
         $('#itemSelect').select2({
-            theme: 'bootstrap-5',
             placeholder: '📦 Search and select item...',
             allowClear: true,
             width: '100%',
-            dropdownParent: $('#itemSelect').closest('.filter-input-wrapper'),
+            dropdownParent: itemDropdownParent,
             minimumInputLength: 0,
-            maximumSelectionLength: 1,
-            closeOnSelect: true,
             escapeMarkup: function(markup) { 
                 return markup; 
             },
             language: {
                 noResults: function() {
-                    return '<i class="fas fa-info-circle me-2"></i>No items found';
+                    return 'No items found';
                 },
                 searching: function() {
-                    return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
-                },
-                inputTooShort: function() {
-                    return '<i class="fas fa-keyboard me-2"></i>Start typing to search';
-                },
-                maximumSelected: function() {
-                    return '<i class="fas fa-exclamation-triangle me-2"></i>You can only select one item';
+                    return 'Searching...';
                 }
             }
         });
     }    // Update sites Select2 after loading data
     function updateSitesSelect2() {
+        var $siteWrapper = $('#siteSelect').closest('.filter-input-wrapper');
+        var siteDropdownParent = $siteWrapper.length ? $siteWrapper : $(document.body);
         $('#siteSelect').select2('destroy').select2({
-            theme: 'bootstrap-5',
             placeholder: '🌐 Search and select site...',
             allowClear: true,
             width: '100%',
-            dropdownParent: $('#siteSelect').closest('.filter-input-wrapper'),
+            dropdownParent: siteDropdownParent,
             minimumInputLength: 0,
             escapeMarkup: function(markup) { 
                 return markup; 
             },
             language: {
-                noResults: function() {
-                    return '<i class="fas fa-info-circle me-2"></i>No sites found';
-                },
-                searching: function() {
-                    return '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
-                }
+                noResults: function() { return 'No sites found'; },
+                searching: function() { return 'Searching...'; }
             }
         });
     }

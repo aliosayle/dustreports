@@ -7,19 +7,27 @@ import time as time_module
 import json
 import os
 from datetime import datetime, time
-from config.database import DATABASE_CONFIG
+from config.database import DATABASE_CONFIG, USE_ODBC, get_connection_string
 
-# Try to import interbase for direct InterBase connection
+# Try pyodbc for fast ODBC path
+try:
+    import pyodbc
+    PYODBC_AVAILABLE = True
+except ImportError:
+    PYODBC_AVAILABLE = False
+
+# Try interbase for direct connection fallback
 try:
     import interbase
     INTERBASE_AVAILABLE = True
-    print("✅ InterBase Python driver available for direct connection")
 except ImportError:
     INTERBASE_AVAILABLE = False
-    print("⚠️ InterBase Python driver not available, will use ODBC as fallback")
 
 # Suppress warnings to match notebook behavior
 warnings.filterwarnings('ignore')
+
+# Bulk fetch size: larger = fewer round-trips, faster load (especially with ODBC)
+CURSOR_ARRAYSIZE = 50000
 
 # Global cache for dataframes
 dataframes = {}
@@ -27,128 +35,141 @@ cache_lock = threading.Lock()
 cache_loading = False
 cache_timestamp = None
 
-def connect_and_load_table(table_name):
-    """Load a table from the database using direct InterBase connection only"""
+# Set at startup: True = using ODBC, False = using direct InterBase
+_using_odbc = False
+
+
+def _load_table_odbc(table_name):
+    """Load table via ODBC (faster bulk fetch). Returns DataFrame or None."""
+    if not PYODBC_AVAILABLE:
+        return None
     try:
-        print(f"🔄 Connecting to database for table {table_name}...")
-        
-        # Use direct InterBase connection only (no fallback to ODBC)
-        if not INTERBASE_AVAILABLE:
-            raise Exception("InterBase Python library not available")
-        
-        print(f"🔗 Using direct InterBase connection for {table_name}...")
-        
-        # Build direct connection for InterBase
-        # Format: host:database_path
-        dsn = f"{DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}"
-        print(f"📡 DSN: {dsn}")
-        print(f"📚 Client Library: {DATABASE_CONFIG.get('CLIENT_LIBRARY', 'system default')}")
-        
-        # Connect with explicit client library if specified
-        if 'CLIENT_LIBRARY' in DATABASE_CONFIG:
-            conn = interbase.connect(
-                dsn=dsn,
-                user=DATABASE_CONFIG['USERNAME'],
-                password=DATABASE_CONFIG['PASSWORD'],
-                ib_library_name=DATABASE_CONFIG['CLIENT_LIBRARY'],
-                charset='NONE'  # Use UTF-8 charset for better character compatibility
-            )
-        else:
-            conn = interbase.connect(
-                dsn=dsn,
-                user=DATABASE_CONFIG['USERNAME'],
-                password=DATABASE_CONFIG['PASSWORD'],
-                charset='NONE'  # Use UTF-8 charset for better character compatibility
-            )
-        
-        print(f"✅ Direct InterBase connection successful for {table_name}")
-        
-        # Execute query and fetch data
+        conn = pyodbc.connect(get_connection_string())
         cursor = conn.cursor()
+        cursor.arraysize = CURSOR_ARRAYSIZE
         cursor.execute(f"SELECT * FROM {table_name}")
-        
-        # Get column names
         columns = [desc[0] for desc in cursor.description]
-        
-        # Fetch all rows
         rows = cursor.fetchall()
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(rows, columns=columns)
-        
+        # pyodbc Row objects -> list of tuples for pandas
+        data = [tuple(row) for row in rows]
+        df = pd.DataFrame(data, columns=columns)
         conn.close()
-        print(f"✅ {table_name}: {df.shape[0]:,} rows × {df.shape[1]} columns (direct connection)")
         return df
-        
+    except Exception:
+        return None
+
+
+def _load_table_direct(table_name):
+    """Load table via direct InterBase connection. Returns DataFrame or None."""
+    if not INTERBASE_AVAILABLE:
+        return None
+    try:
+        dsn = f"{DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}"
+        kwargs = {
+            'dsn': dsn,
+            'user': DATABASE_CONFIG['USERNAME'],
+            'password': DATABASE_CONFIG['PASSWORD'],
+            'charset': 'NONE',
+        }
+        if DATABASE_CONFIG.get('CLIENT_LIBRARY'):
+            kwargs['ib_library_name'] = DATABASE_CONFIG['CLIENT_LIBRARY']
+        conn = interbase.connect(**kwargs)
+        cursor = conn.cursor()
+        try:
+            cursor.arraysize = CURSOR_ARRAYSIZE
+        except Exception:
+            pass
+        cursor.execute(f"SELECT * FROM {table_name}")
+        columns = [desc[0] for desc in cursor.description]
+        rows = cursor.fetchall()
+        df = pd.DataFrame(rows, columns=columns)
+        conn.close()
+        return df
+    except Exception:
+        return None
+
+
+def connect_and_load_table(table_name):
+    """Load a table: ODBC first (faster) when USE_ODBC is True, else direct InterBase."""
+    global _using_odbc
+    try:
+        print(f"🔄 Loading table {table_name}...")
+        df = None
+        if USE_ODBC and PYODBC_AVAILABLE:
+            df = _load_table_odbc(table_name)
+            if df is not None:
+                print(f"✅ {table_name}: {df.shape[0]:,} rows × {df.shape[1]} columns (ODBC)")
+                return df
+        if INTERBASE_AVAILABLE:
+            df = _load_table_direct(table_name)
+            if df is not None:
+                print(f"✅ {table_name}: {df.shape[0]:,} rows × {df.shape[1]} columns (direct)")
+                return df
+        raise RuntimeError("ODBC and direct connection both failed or unavailable")
     except Exception as e:
-        print(f"❌ {table_name}: Failed to load - {e}")
-        print(f"   Error type: {type(e).__name__}")
-        print(f"   DSN attempted: {DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}")
-        print(f"   Client Library: {DATABASE_CONFIG.get('CLIENT_LIBRARY', 'system default')}")
+        print(f"❌ {table_name}: Failed - {e}")
         return None
 
 def load_dataframes():
-    """Load all tables with descriptive names (matching notebook exactly)
-    
+    """Load all tables with descriptive names (matching notebook exactly).
+    Uses ODBC when enabled for best speed.
     NOTE: This function should be called with cache_lock acquired, or it will
     acquire the lock internally to set cache_loading flag atomically.
     """
-    global dataframes, cache_loading, cache_timestamp
-    
+    global dataframes, cache_loading, cache_timestamp, _using_odbc
+
     # Ensure we set loading flag atomically
     with cache_lock:
         if cache_loading:
             print("⚠️ Cache loading already in progress, skipping duplicate load")
             return dataframes  # Return existing cache
-        
+
         cache_loading = True
         print("Loading database tables...")
-    
+
     # Now do the actual loading outside the lock (to avoid holding lock during I/O)
     try:
-        # Test connection first
-        try:
-            if INTERBASE_AVAILABLE:
-                try:
-                    print("🔗 Testing direct InterBase connection...")
-                    dsn = f"{DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}"
-                    print(f"📡 Connecting to DSN: {dsn}")
-                    print(f"👤 User: {DATABASE_CONFIG['USERNAME']}")
-                    print(f"📚 Client Library: {DATABASE_CONFIG.get('CLIENT_LIBRARY', 'system default')}")
-                    
-                    # Connect with explicit client library if specified
-                    if 'CLIENT_LIBRARY' in DATABASE_CONFIG:
-                        test_conn = interbase.connect(
-                            dsn=dsn,
-                            user=DATABASE_CONFIG['USERNAME'],
-                            password=DATABASE_CONFIG['PASSWORD'],
-                            ib_library_name=DATABASE_CONFIG['CLIENT_LIBRARY'],
-                            charset='UTF8'  # Use UTF-8 charset for better character compatibility
-                        )
-                    else:
-                        test_conn = interbase.connect(
-                            dsn=dsn,
-                            user=DATABASE_CONFIG['USERNAME'],
-                            password=DATABASE_CONFIG['PASSWORD'],
-                            charset='UTF8'  # Use UTF-8 charset for better character compatibility
-                        )
-                    test_conn.close()
-                    print("✅ Direct InterBase connection test successful")
-                    print("🚀 Will use direct InterBase connection for all tables")
-                except Exception as interbase_error:
-                    print(f"⚠️ Direct InterBase connection test failed: {interbase_error}")
-                    print(f"   Error type: {type(interbase_error).__name__}")
-                    print("❌ WILL NOT fallback to ODBC - fixing direct connection...")
-                    raise Exception(f"Direct InterBase connection failed: {interbase_error}")
-            else:
-                print("❌ InterBase library not available")
-                raise Exception("InterBase library not available")
-        except Exception as e:
-            print(f"❌ Database connection test failed: {e}")
+        # Test connection: prefer ODBC when enabled (much faster)
+        if USE_ODBC and PYODBC_AVAILABLE:
+            try:
+                print("🔗 Testing ODBC connection (faster path)...")
+                conn = pyodbc.connect(get_connection_string())
+                conn.close()
+                _using_odbc = True
+                print("✅ ODBC connection OK — using ODBC for all tables")
+            except Exception as e:
+                print(f"⚠️ ODBC failed: {e} — falling back to direct InterBase")
+                _using_odbc = False
+        else:
+            _using_odbc = False
+            if USE_ODBC and not PYODBC_AVAILABLE:
+                print("⚠️ USE_ODBC=1 but pyodbc not installed — using direct InterBase")
+
+        if not _using_odbc and INTERBASE_AVAILABLE:
+            try:
+                print("🔗 Testing direct InterBase connection...")
+                dsn = f"{DATABASE_CONFIG['DATA_SOURCE']}:{DATABASE_CONFIG['DATABASE_PATH']}"
+                kwargs = {
+                    'dsn': dsn,
+                    'user': DATABASE_CONFIG['USERNAME'],
+                    'password': DATABASE_CONFIG['PASSWORD'],
+                    'charset': 'UTF8',
+                }
+                if DATABASE_CONFIG.get('CLIENT_LIBRARY'):
+                    kwargs['ib_library_name'] = DATABASE_CONFIG['CLIENT_LIBRARY']
+                test_conn = interbase.connect(**kwargs)
+                test_conn.close()
+                print("✅ Direct InterBase connection test successful")
+            except Exception as e:
+                with cache_lock:
+                    cache_loading = False
+                raise Exception(f"Database connection failed: {e}")
+        elif not _using_odbc:
             with cache_lock:
                 cache_loading = False
-            raise Exception(f"Database connection failed: {e}")
-        
+            raise Exception("Install pyodbc and an InterBase ODBC driver, or the interbase Python package")
+
+        # Load all tables (ODBC or direct per connect_and_load_table)
         sites_df = connect_and_load_table('ALLSTOCK')          # Site/Location master data
         categories_df = connect_and_load_table('DETDESCR')     # Category definitions  
         invoice_headers_df = connect_and_load_table('INVOICE') # Invoice headers

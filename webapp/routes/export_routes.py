@@ -799,7 +799,6 @@ def api_export_bureau_items_report():
         data = request.get_json()
         from_date = data.get('from_date')
         to_date = data.get('to_date')
-        top_n = data.get('top_n', 50)
         site_sidno = data.get('site_sidno')
         contact = data.get('contact')
         
@@ -864,8 +863,6 @@ def api_export_bureau_items_report():
         ws[f'A{row}'] = f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}"
         row += 1
         ws[f'A{row}'] = f"Total Items: {len(report_data)}"
-        row += 1
-        ws[f'A{row}'] = f"Top N: {top_n if top_n != '0' else 'All Items'}"
         row += 1
         filter_text = "SID starting with 411 (Office Clients)"
         if site_sidno:

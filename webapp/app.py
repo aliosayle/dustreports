@@ -38,6 +38,20 @@ if __name__ == '__main__':
     print("   🔌 API endpoints: /api/...")
     print("   📤 Export endpoints: /api/export-...")
 
+    # Optional: Load database cache on startup (AUTO_LOAD_ON_STARTUP=1)
+    # Runs in background thread so server starts immediately
+    if os.getenv('AUTO_LOAD_ON_STARTUP', '0').strip().lower() in ('1', 'true', 'yes'):
+        import threading
+        from services.database_service import load_dataframes
+        def _startup_load():
+            try:
+                print("📊 Auto-load on startup: loading database cache...")
+                load_dataframes()
+                print("✅ Startup load completed")
+            except Exception as e:
+                print(f"⚠️ Startup load failed: {e}")
+        threading.Thread(target=_startup_load, daemon=True).start()
+
     # Start scheduled auto-reload (loads saved config or uses defaults)
     try:
         from services.database_service import load_scheduled_reload_config

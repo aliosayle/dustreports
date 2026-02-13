@@ -123,9 +123,10 @@ python app.py
 
 ### Optional env vars
 
-| Variable          | Default                    | Purpose                          |
-|-------------------|----------------------------|----------------------------------|
-| `USE_ODBC`        | `1`                        | Use ODBC when available (faster) |
+| Variable              | Default                    | Purpose                          |
+|-----------------------|----------------------------|----------------------------------|
+| `AUTO_LOAD_ON_STARTUP`| `0`                        | Load DB cache on app startup (background) |
+| `USE_ODBC`            | `1`                        | Use ODBC when available (faster) |
 | `IB_ODBC_DRIVER`  | `InterBase ODBC Driver`    | ODBC driver name                 |
 | `USE_WAITRESS`    | `1`                        | Use Waitress server              |
 | `FLASK_HOST`      | `0.0.0.0`                  | Bind address                     |

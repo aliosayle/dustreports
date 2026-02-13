@@ -94,7 +94,8 @@ def api_auto_refresh_cache():
     Thread-safe: Uses lock to prevent concurrent loads.
     """
     try:
-        data = request.get_json() or {}
+        # silent=True: Accept requests without Content-Type: application/json (e.g. from jQuery)
+        data = request.get_json(silent=True) or {}
         max_age_hours = data.get('max_age_hours', 1)  # Default 1 hour
         
         cache_age = get_cache_age_seconds()

@@ -375,8 +375,19 @@
 {% block scripts %}
 <script>
 $(document).ready(function() {
-    // Check data status on page load
-    checkDataStatus();
+    // Check data status on page load, then auto-load if cache empty
+    checkDataStatus()
+        .done(function(data) {
+            // Auto-load on first visit: if cache empty, trigger load immediately
+            if (!data.cached && !data.loading) {
+                autoRefreshCache(true);  // true = show loading state
+            } else {
+                autoRefreshCache(false);  // Just check (no loading UI)
+            }
+        })
+        .fail(function() {
+            autoRefreshCache(false);  // Try refresh even if status check failed
+        });
     
     // Set up auto-refresh every hour
     setInterval(function() {
@@ -389,8 +400,18 @@ $(document).ready(function() {
         checkDataStatus();
     }, 10 * 60 * 1000); // Every 10 minutes
     
-    function autoRefreshCache() {
-        $.post('/api/auto-refresh-cache', JSON.stringify({}), 'json')
+    function autoRefreshCache(showLoadingState) {
+        if (showLoadingState) {
+            $('#dataStatus').html('<span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i>Loading Data...</span>');
+            $('#reloadDataBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Loading...');
+        }
+        $.ajax({
+            url: '/api/auto-refresh-cache',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ max_age_hours: 1 }),
+            dataType: 'json'
+        })
         .done(function(data) {
             console.log('Auto-refresh response:', data);
             if (data.status === 'refreshed') {
@@ -399,27 +420,36 @@ $(document).ready(function() {
                     <div class="alert alert-info alert-dismissible fade show position-fixed" 
                          style="top: 20px; right: 20px; z-index: 1050; min-width: 300px;" role="alert">
                         <i class="fas fa-sync-alt me-2"></i>
-                        <strong>Auto-refresh!</strong> Data was automatically updated (cache was ${data.trigger_reason}).
+                        <strong>Auto-refresh!</strong> Data was automatically updated (cache was ${data.trigger_reason || 'stale'}).
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 `);
-                
-                // Auto-hide notification after 8 seconds
-                setTimeout(() => {
-                    $('.alert-info').fadeOut();
-                }, 8000);
-                
-                // Update status display
+                setTimeout(() => $('.alert-info').fadeOut(), 8000);
                 checkDataStatus();
+            } else if (data.status === 'loading') {
+                // Another request is loading; poll for completion
+                if (showLoadingState) {
+                    const poll = setInterval(function() {
+                        $.get('/api/cache-status').done(function(s) {
+                            if (s.cached) { clearInterval(poll); checkDataStatus(); }
+                        });
+                    }, 5000);
+                }
+            } else if (data.status === 'not_needed') {
+                if (showLoadingState) checkDataStatus();
             }
         })
         .fail(function(xhr, status, error) {
             console.log('Auto-refresh failed (silent):', error);
+            if (showLoadingState) checkDataStatus();
+        })
+        .always(function() {
+            if (showLoadingState) $('#reloadDataBtn').prop('disabled', false);
         });
     }
     
     function checkDataStatus() {
-        $.get('/api/cache-status')
+        return $.get('/api/cache-status')
         .done(function(data) {
             const statusBadge = $('#dataStatus');
             const lastUpdatedSpan = $('#lastUpdated');
